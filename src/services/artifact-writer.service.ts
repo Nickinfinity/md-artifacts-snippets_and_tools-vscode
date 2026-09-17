@@ -66,7 +66,7 @@ export async function writeArtifact(args: WriteArgs): Promise<WriteResult> {
     try {
         // ── 1. Path-escape guard ───────────────────────────────────────────
         if (!isWithinRoot(args.vaultRoot, args.chosenDir)) {
-            return { kind: 'error', message: `Destination "${args.chosenDir.fsPath}" is outside the vault root.` };
+            return { kind: 'error', message: vscode.l10n.t('Destination "{0}" is outside the vault root.', args.chosenDir.fsPath) };
         }
 
         // ── 2. Auto-create base dir ────────────────────────────────────────
@@ -86,7 +86,7 @@ export async function writeArtifact(args: WriteArgs): Promise<WriteResult> {
         // `artifact-writer.test.ts` — "rejects a fileName that escapes chosenDir".
         const fileUri = vscode.Uri.joinPath(args.chosenDir, `${args.fileName}.md`);
         if (!isWithinRoot(args.chosenDir, fileUri)) {
-            return { kind: 'error', message: `Filename "${args.fileName}" resolves outside the destination directory.` };
+            return { kind: 'error', message: vscode.l10n.t('Filename "{0}" resolves outside the destination directory.', args.fileName) };
         }
 
         // ── 4. Collision check ─────────────────────────────────────────────

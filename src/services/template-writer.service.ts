@@ -48,13 +48,13 @@ export async function writeTemplateFile(args: WriteTemplateArgs): Promise<WriteR
     try {
         // ── Containment: destination dir must be inside the workspace ──────────
         if (!isWithinRoot(args.workspaceRoot, args.destDir)) {
-            return { kind: 'error', message: `Destination "${args.destDir.fsPath}" is outside the workspace folder.` };
+            return { kind: 'error', message: vscode.l10n.t('Destination "{0}" is outside the workspace folder.', args.destDir.fsPath) };
         }
 
         // ── Containment: the resolved file path must also stay inside ──────────
         const fileUri = vscode.Uri.joinPath(args.destDir, args.fileName);
         if (!isWithinRoot(args.workspaceRoot, fileUri)) {
-            return { kind: 'error', message: `Resolved path "${fileUri.fsPath}" escapes the workspace folder.` };
+            return { kind: 'error', message: vscode.l10n.t('Resolved path "{0}" escapes the workspace folder.', fileUri.fsPath) };
         }
 
         // ── Collision check ────────────────────────────────────────────────────
