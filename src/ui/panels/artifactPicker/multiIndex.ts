@@ -206,7 +206,7 @@ export class MultiIndexRunner {
  */
 function warn(message: string): void {
     out.appendLine(`[multiIndex] ${message}`);
-    void vscode.window.showWarningMessage(`Multi-Template: ${message}`);
+    void vscode.window.showWarningMessage(vscode.l10n.t('Multi-Template: {0}', message));
 }
 
 /**

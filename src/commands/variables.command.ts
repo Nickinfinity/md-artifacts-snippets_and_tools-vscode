@@ -66,19 +66,19 @@ export async function handleNewFile(
     vaultRoot: vscode.Uri | undefined = getVaultRootUri(),
 ): Promise<void> {
     if (!vaultRoot) {
-        io.showError('Obsidian Artifacts: no vault configured.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: no vault configured.'));
         return;
     }
     const title = await io.showInputBox({
-        prompt: 'Title for the new Variables file',
-        validateInput: v => v.trim().length > 0 ? undefined : 'Title cannot be empty',
+        prompt: vscode.l10n.t('Title for the new Variables file'),
+        validateInput: v => v.trim().length > 0 ? undefined : vscode.l10n.t('Title cannot be empty'),
     });
     if (title === undefined) { return; }
 
     const fileName = deriveFileName(title);
     const check = validateArtifactFilename(fileName);
     if (!check.ok) {
-        io.showError(`Obsidian Artifacts: ${check.reason ?? 'invalid file name'}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', check.reason ?? 'invalid file name'));
         return;
     }
 
@@ -92,8 +92,8 @@ export async function handleNewFile(
     });
 
     if (result.kind === 'success') { provider.refresh(); return; }
-    const message = result.kind === 'collision' ? `"${fileName}.md" already exists.` : result.message;
-    io.showError(`Obsidian Artifacts: ${message}`);
+    const message = result.kind === 'collision' ? vscode.l10n.t('"{0}.md" already exists.', fileName) : result.message;
+    io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', message));
 }
 
 // ── New sub-set (target: file) ─────────────────────────────────────────────
@@ -119,14 +119,14 @@ export async function handleNewSubSet(
     const target = await resolveTarget(node, 'file', vaultRoot, io);
     if (!target) { return; }
 
-    const heading = await io.showInputBox({ prompt: 'New sub-set heading' });
+    const heading = await io.showInputBox({ prompt: vscode.l10n.t('New sub-set heading') });
     if (heading === undefined) { return; }
 
     try {
         const newModel = addSubSet(target.model, heading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -154,20 +154,20 @@ export async function handleAddVar(
     if (!target) { return; }
     const subSet = at(target.subSets, target.subIdx);
     if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
-    const name = await io.showInputBox({ prompt: 'Variable name', value: 'VK-' });
+    const name = await io.showInputBox({ prompt: vscode.l10n.t('Variable name'), value: 'VK-' });
     if (name === undefined) { return; }
-    const value = await io.showInputBox({ prompt: `Default value for ${name}` });
+    const value = await io.showInputBox({ prompt: vscode.l10n.t('Default value for {0}', name) });
     if (value === undefined) { return; }
 
     try {
         const newModel = addVar(target.model, subSet.heading, name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -197,18 +197,18 @@ export async function handleEditValue(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
-    const value = await io.showInputBox({ prompt: `New value for ${current.name}`, value: current.defaultValue });
+    const value = await io.showInputBox({ prompt: vscode.l10n.t('New value for {0}', current.name), value: current.defaultValue });
     if (value === undefined || value === current.defaultValue) { return; }
 
     try {
         const newModel = setVarValue(target.model, subSet.heading, current.name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -238,18 +238,18 @@ export async function handleRenameVar(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
-    const newName = await io.showInputBox({ prompt: 'New variable name', value: current.name });
+    const newName = await io.showInputBox({ prompt: vscode.l10n.t('New variable name'), value: current.name });
     if (newName === undefined || newName === current.name) { return; }
 
     try {
         const newModel = renameVar(target.model, subSet.heading, current.name, newName);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -278,18 +278,18 @@ export async function handleRenameSubSet(
     if (!target) { return; }
     const subSet = at(target.subSets, target.subIdx);
     if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
-    const newHeading = await io.showInputBox({ prompt: 'New sub-set heading', value: subSet.heading });
+    const newHeading = await io.showInputBox({ prompt: vscode.l10n.t('New sub-set heading'), value: subSet.heading });
     if (newHeading === undefined || newHeading === subSet.heading) { return; }
 
     try {
         const newModel = renameSubSet(target.model, subSet.heading, newHeading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -319,7 +319,7 @@ export async function handleDeleteVar(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
@@ -330,7 +330,7 @@ export async function handleDeleteVar(
         const newModel = deleteVar(target.model, subSet.heading, current.name);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -361,7 +361,7 @@ export async function handleDeleteSubSet(
     if (!target) { return; }
     const subSet = at(target.subSets, target.subIdx);
     if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
@@ -374,7 +374,7 @@ export async function handleDeleteSubSet(
         const newModel = deleteSubSet(target.model, subSet.heading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -423,7 +423,7 @@ export async function handleDeleteFile(
         await vscode.workspace.fs.delete(vscode.Uri.file(target.filePath));
         provider.refresh();
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(err)));
     }
 }
 

@@ -74,7 +74,7 @@ export async function openArtifactPicker(
     const vaultRoot = getVaultRootUri();
 
     if (!vaultRoot) {
-        vscode.window.showErrorMessage('Obsidian Artifacts: No vault configured. Open Settings to select your vault.');
+        vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: No vault configured. Open Settings to select your vault.'));
         return;
     }
 
@@ -84,7 +84,7 @@ export async function openArtifactPicker(
         const stat = await vscode.workspace.fs.stat(rootUri);
         if ((stat.type & vscode.FileType.Directory) === 0) { throw new Error('not a directory'); }
     } catch {
-        vscode.window.showErrorMessage(`Obsidian Artifacts: Directory "${artifactDir}" not found in your vault.`);
+        vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Directory "{0}" not found in your vault.', artifactDir));
         return;
     }
 
@@ -129,7 +129,7 @@ class ArtifactNavigator {
         this.extensionUri = extensionUri;
 
         this.qp = vscode.window.createQuickPick<ArtifactItem>();
-        this.qp.placeholder        = 'Type to filter — Enter to select and edit variables';
+        this.qp.placeholder        = vscode.l10n.t('Type to filter — Enter to select and edit variables');
         this.qp.ignoreFocusOut     = true;
         this.qp.matchOnDescription = true;
         this.qp.matchOnDetail      = true;
@@ -196,7 +196,7 @@ class ArtifactNavigator {
         const items: ArtifactItem[] = [];
 
         if (this.dirStack.length > 0) {
-            items.push({ label: '$(arrow-left)  ..', description: 'Go back', isBack: true });
+            items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true });
         }
 
         try {
@@ -243,7 +243,7 @@ class ArtifactNavigator {
         this.qp.title = artifact.frontmatter.title || artifact.fileName;
 
         const items: ArtifactItem[] = [];
-        items.push({ label: '$(arrow-left)  ..', description: 'Go back', isBack: true });
+        items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true });
 
         for (const block of artifact.blocks) {
             const firstSentence = block.description
@@ -391,7 +391,7 @@ class ArtifactNavigator {
 
         const artifact = await this.getOrParse(item.uri);
         if (!artifact) {
-            vscode.window.showErrorMessage('Obsidian Artifacts: Could not read file.');
+            vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Could not read file.'));
             return;
         }
 
@@ -412,11 +412,11 @@ class ArtifactNavigator {
      * @example await this.runIndex(indexArtifact);
      */
     private async runIndex(artifact: ParsedArtifactFile): Promise<void> {
-        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage('Obsidian Artifacts: Open a workspace folder to run a template index.'); return; }
+        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Open a workspace folder to run a template index.')); return; }
         const destDir = await resolveDestination(this.destUri);
         if (!destDir) { return; }
         const workspaceRoot = vscode.workspace.getWorkspaceFolder(destDir)?.uri;
-        if (!workspaceRoot) { vscode.window.showErrorMessage('Obsidian Artifacts: Destination is not inside an open workspace folder.'); return; }
+        if (!workspaceRoot) { vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Destination is not inside an open workspace folder.')); return; }
         this.keepPopupOnHide = true; this.qp.hide();
         const clickedRelPath = destDir.fsPath === workspaceRoot.fsPath ? '' : path.relative(workspaceRoot.fsPath, destDir.fsPath).replaceAll(path.sep, '/');
         const runner = new MultiIndexRunner({

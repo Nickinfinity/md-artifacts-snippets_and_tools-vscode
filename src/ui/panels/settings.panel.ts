@@ -30,7 +30,7 @@ import {
 export function openSettingsPanel(context: vscode.ExtensionContext) {
 	const panel = vscode.window.createWebviewPanel(
 		'settings',
-		'Obsidian Artifacts: AI Snippets & Tools - Settings',
+		vscode.l10n.t('Obsidian Artifacts: AI Snippets & Tools - Settings'),
 		vscode.ViewColumn.One,
 		{
 			enableScripts: true,
@@ -129,7 +129,7 @@ async function handleResetMainPane(panel: vscode.WebviewPanel): Promise<void> {
 		await config.update(key, undefined, vscode.ConfigurationTarget.Global);
 	}
 	postMainPaneConfig(panel);
-	vscode.window.showInformationMessage('Preview pane settings reset to defaults.');
+	vscode.window.showInformationMessage(vscode.l10n.t('Preview pane settings reset to defaults.'));
 }
 
 /**
@@ -167,7 +167,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 				canSelectFiles: false,
 				canSelectFolders: true,
 				canSelectMany: false,
-				openLabel: 'Select Vault'
+				openLabel: vscode.l10n.t('Select Vault')
 			});
 
 			if (folderUri && folderUri[0]) {
@@ -183,7 +183,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 					.getConfiguration(CONFIG_SECTION)
 					.update('vaultPath', selectedFolderPath, vscode.ConfigurationTarget.Global);
 
-				vscode.window.showInformationMessage(`Obsidian vault path saved: ${selectedFolderPath}`);
+				vscode.window.showInformationMessage(vscode.l10n.t('Obsidian vault path saved: {0}', selectedFolderPath));
 
 				// Refresh context keys so editor/terminal/explorer menus reflect the new vault state
 				refreshVaultContext();
@@ -192,7 +192,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 				const detectedDirs = detectVaultDirs(selectedFolderPath);
 				panel.webview.postMessage({ command: 'updatePath', path: selectedFolderPath, dirs: detectedDirs });
 			} else {
-				vscode.window.showWarningMessage('No folder selected.');
+				vscode.window.showWarningMessage(vscode.l10n.t('No folder selected.'));
 			}
 }
 
@@ -213,7 +213,7 @@ async function handleDirToggle(panel: vscode.WebviewPanel, message: Record<strin
 
 			// Safety check: ensure a vault has been selected before allowing directory operations
 			if (!vaultPath) {
-				vscode.window.showWarningMessage('Please select a vault first.');
+				vscode.window.showWarningMessage(vscode.l10n.t('Please select a vault first.'));
 				return;
 			}
 
@@ -223,7 +223,7 @@ async function handleDirToggle(panel: vscode.WebviewPanel, message: Record<strin
 			} else {
 				// User disabled the feature: DELETE the directory only if empty (safety guard)
 				if (!isDirectoryEmpty(path.join(vaultPath, dirName))) {
-					vscode.window.showWarningMessage(`Cannot disable "${dirName}" — directory is not empty.`);
+					vscode.window.showWarningMessage(vscode.l10n.t('Cannot disable "{0}" — directory is not empty.', dirName));
 					return;
 				}
 				deleteVaultDirectory(vaultPath, dirName);

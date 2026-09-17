@@ -72,7 +72,7 @@ export async function pickVarSet(
 
     if (items.length === 0) {
         void vscode.window.showInformationMessage(
-            'No variable sets found. Create a `type: variables` file in the vault\'s Variables/ directory.',
+            vscode.l10n.t('No variable sets found. Create a `type: variables` file in the vault\'s Variables/ directory.'),
         );
         return null;
     }
@@ -82,8 +82,8 @@ export async function pickVarSet(
 
     // ── Show QuickPick and await user selection ───────────────────────────────
     const picked = await vscode.window.showQuickPick(items, {
-        title:       'Apply Variable Set',
-        placeHolder: 'Pick a variable set — sorted by match score',
+        title:       vscode.l10n.t('Apply Variable Set'),
+        placeHolder: vscode.l10n.t('Pick a variable set — sorted by match score'),
         matchOnDescription: true,
         matchOnDetail:      true,
     });

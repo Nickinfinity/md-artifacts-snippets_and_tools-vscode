@@ -33,7 +33,7 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
         }
         const vaultRoot = getVaultRootUri();
         if (!vaultRoot) {
-            vscode.window.showErrorMessage('Could not open artifact for editing: vault not configured.');
+            vscode.window.showErrorMessage(vscode.l10n.t('Could not open artifact for editing: vault not configured.'));
             return;
         }
         // The path arrives from a registered command, so any extension can call
@@ -42,7 +42,7 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
         // checked here, before the read — the same rule every other write in
         // this repo routes through. Rejected, never sanitised.
         if (!isPathWithin(vaultRoot.fsPath, filePath)) {
-            vscode.window.showErrorMessage('Refusing to edit a file outside the configured vault.');
+            vscode.window.showErrorMessage(vscode.l10n.t('Refusing to edit a file outside the configured vault.'));
             return;
         }
 
@@ -50,20 +50,20 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
         // rather than throwing, so this is the only failure branch to handle.
         const parsed = parseArtifactFile(filePath, vaultRoot.fsPath);
         if (!parsed) {
-            vscode.window.showErrorMessage(`Could not read artifact: ${filePath}`);
+            vscode.window.showErrorMessage(vscode.l10n.t('Could not read artifact: {0}', filePath));
             return;
         }
         const prefill = artifactToFormModel(parsed);
         const type = prefill.artifactType;
         if (!type) {
-            vscode.window.showErrorMessage('Could not open artifact for editing: unrecognised artifact type.');
+            vscode.window.showErrorMessage(vscode.l10n.t('Could not open artifact for editing: unrecognised artifact type.'));
             return;
         }
         // Gated against the same list the form is built from — `getFormConfig`
         // throws for a non-create-form type (Variables), which would surface as
         // an unhandled command failure rather than a message.
         if (!getCreateFormTypes().includes(type)) {
-            vscode.window.showWarningMessage(`${type} artifacts have no form — open the .md directly to edit one.`);
+            vscode.window.showWarningMessage(vscode.l10n.t('{0} artifacts have no form — open the .md directly to edit one.', type));
             return;
         }
         // Refuse rather than silently drop content the form cannot round-trip.

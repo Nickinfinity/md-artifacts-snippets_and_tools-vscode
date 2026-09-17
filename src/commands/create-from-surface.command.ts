@@ -229,7 +229,7 @@ async function runCapture(
     // and `source` is the discriminant that decides it. The form never sees it.
     if (result?.source === 'clipboard') {
         void vscode.window.showInformationMessage(
-            'Used clipboard contents — verify before saving.',
+            vscode.l10n.t('Used clipboard contents — verify before saving.'),
         );
     }
 
@@ -309,7 +309,7 @@ async function captureExplorerUri(
     const stat = await vscode.workspace.fs.stat(uri);
     if (stat.size > MAX_CAPTURE_BYTES) {
         void vscode.window.showWarningMessage(
-            `That file is ${Math.round(stat.size / 1024)} KiB — too large to load into a create form (limit ${MAX_CAPTURE_BYTES / 1024} KiB).`,
+            vscode.l10n.t('That file is {0} KiB — too large to load into a create form (limit {1} KiB).', Math.round(stat.size / 1024), MAX_CAPTURE_BYTES / 1024),
         );
         return undefined;
     }
@@ -322,7 +322,7 @@ async function captureExplorerUri(
 
     if (!captured) {
         void vscode.window.showWarningMessage(
-            `"${path.basename(uri.fsPath)}" cannot be used as an artifact filename — it must be a plain file name.`,
+            vscode.l10n.t('"{0}" cannot be used as an artifact filename — it must be a plain file name.', path.basename(uri.fsPath)),
         );
     }
     return captured;

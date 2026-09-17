@@ -9,7 +9,11 @@ import * as vscode from 'vscode';
 import { pickDestFolder } from '../destFolderPicker.panel.js';
 import type { DestCandidate } from '../../../types/multi-index.types.js';
 
-const LABEL_BROWSE = '$(folder-opened) Browse…';
+/** Builder, not a module-scope const: `vscode.l10n.t` must run after the
+ *  bundle is loaded, not at require time. */
+function labelBrowse(): string {
+    return `$(folder-opened) ${vscode.l10n.t('Browse…')}`;
+}
 
 /** One QuickPick row: a `DestCandidate` (carries its `relPath`) or the trailing Browse action. */
 interface DestPickItem extends vscode.QuickPickItem {
@@ -50,11 +54,11 @@ export async function chooseStepDestination(args: {
 
     const items: DestPickItem[] = [
         ...candidates.map(c => ({ label: `$(folder) ${c.label}`, detail: c.detail, relPath: c.relPath })),
-        { label: LABEL_BROWSE },
+        { label: labelBrowse() },
     ];
 
     const picked = await vscode.window.showQuickPick(items, {
-        title: `Destination for ${targetName}`,
+        title: vscode.l10n.t('Destination for {0}', targetName),
         ignoreFocusOut: true,
     });
     if (!picked) { return undefined; }  // Escape

@@ -257,9 +257,10 @@ function terminalConfirmDetail(content: string): string {
     const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
         + (lines.length > CONFIRM_PREVIEW_LINE_COUNT ? '\n…' : '');
 
-    return `${lines.length} lines will be pasted into the terminal as one block, without pressing Enter. `
-        + 'If the receiving shell does not support bracketed paste, each line could run on its own.'
-        + `\n\n${preview}`;
+    return vscode.l10n.t(
+        '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
+        lines.length,
+    ) + `\n\n${preview}`;
 }
 
 /**
@@ -295,12 +296,16 @@ export async function performInsert(
 
     if (target === 'terminal') {
         if (needsTerminalConfirmation(artifact.frontmatter.artifactType, content)) {
+            // Hoisted per call, not module scope, so `vscode.l10n.t` runs after
+            // the bundle is loaded; the read-back (`choice !== SEND_LABEL`)
+            // still compares one binding on both sides.
+            const SEND_LABEL = vscode.l10n.t('Send');
             const choice = await vscode.window.showWarningMessage(
-                'Send multi-line content to the terminal?',
+                vscode.l10n.t('Send multi-line content to the terminal?'),
                 { modal: true, detail: terminalConfirmDetail(content) },
-                'Send',
+                SEND_LABEL,
             );
-            if (choice !== 'Send') { return; }
+            if (choice !== SEND_LABEL) { return; }
         }
         const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('Obsidian Artifacts');
         terminal.sendText(wrapForTerminal(artifact.frontmatter.artifactType, content), false);
@@ -316,7 +321,7 @@ export async function performInsert(
     // different things depending on state the user cannot see. The preview
     // hides Insert outright when no editor is open, so this is now only
     // reachable if the last editor closed between render and click.
-    vscode.window.showWarningMessage('Obsidian Artifacts: No editor open to insert into. Use Copy instead.');
+    vscode.window.showWarningMessage(vscode.l10n.t('Obsidian Artifacts: No editor open to insert into. Use Copy instead.'));
 }
 
 /**

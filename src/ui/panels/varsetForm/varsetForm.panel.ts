@@ -88,7 +88,7 @@ export function openVarSetFormPanel(
     const uiRoot = vscode.Uri.joinPath(extensionUri, 'src', 'ui');
     const panel = vscode.window.createWebviewPanel(
         FORM_VIEW_TYPE,
-        'Save Variable Set',
+        vscode.l10n.t('Save Variable Set'),
         vscode.ViewColumn.Active,
         {
             enableScripts: true,

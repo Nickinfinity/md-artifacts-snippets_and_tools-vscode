@@ -33,7 +33,7 @@ export function validateObsidianVault(vaultPath: string): boolean {
 	const obsidianDir = path.join(vaultPath, '.obsidian');
 	if (!fs.existsSync(obsidianDir)) {
 		vscode.window.showErrorMessage(
-			`"${vaultPath}" is not a valid Obsidian vault. The selected folder must contain a .obsidian directory.`
+			vscode.l10n.t('"{0}" is not a valid Obsidian vault. The selected folder must contain a .obsidian directory.', vaultPath)
 		);
 		return false;
 	}
@@ -128,7 +128,7 @@ export function createVaultDirectory(vaultPath: string, dirName: string): boolea
 		return true;
 	} catch (error) {
 		// Show error to user if directory creation fails
-		vscode.window.showErrorMessage(`Failed to create directory: ${error}`);
+		vscode.window.showErrorMessage(vscode.l10n.t('Failed to create directory: {0}', String(error)));
 		return false;
 	}
 }
@@ -164,7 +164,7 @@ export function deleteVaultDirectory(vaultPath: string, dirName: string): boolea
 		return false;
 	} catch (error) {
 		// Show error to user if deletion fails
-		vscode.window.showErrorMessage(`Failed to delete directory: ${error}`);
+		vscode.window.showErrorMessage(vscode.l10n.t('Failed to delete directory: {0}', String(error)));
 		return false;
 	}
 }

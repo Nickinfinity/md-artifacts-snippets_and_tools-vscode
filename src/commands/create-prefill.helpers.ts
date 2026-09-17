@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import * as vscode from 'vscode';
 import { mapLanguageId } from '../services/language-map.service.js';
 import { extractFlaggedRegions } from '../services/flags.service.js';
 import { getFilenameField } from '../services/artifact-type-config.service.js';
@@ -180,13 +181,13 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
  */
 export function unsupportedEditReason(parsed: ParsedArtifactFile, body: string): string | undefined {
     if (extractFlaggedRegions(body).length > 0) {
-        return 'This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.';
+        return vscode.l10n.t('This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.');
     }
     if (parsed.frontmatter.index === true || (parsed.frontmatter.paths?.length ?? 0) > 0) {
-        return 'This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.';
+        return vscode.l10n.t('This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.');
     }
     if (parsed.frontmatter.env) {
-        return 'This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.';
+        return vscode.l10n.t('This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.');
     }
     return undefined;
 }

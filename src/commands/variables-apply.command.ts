@@ -75,7 +75,7 @@ export async function handleApplyToPreview(
 ): Promise<void> {
     const target = getPreviewTarget();
     if (!target) {
-        deps.notifyInfo('Obsidian Artifacts: no preview open — open an artifact preview first.');
+        deps.notifyInfo(vscode.l10n.t('Obsidian Artifacts: no preview open — open an artifact preview first.'));
         return;
     }
 
@@ -84,7 +84,7 @@ export async function handleApplyToPreview(
 
     const subSet = at(resolved.subSets, resolved.subIdx);
     if (!subSet) {
-        deps.io.showError('Obsidian Artifacts: variable set not found — refresh the tree and retry.');
+        deps.io.showError(vscode.l10n.t('Obsidian Artifacts: variable set not found — refresh the tree and retry.'));
         return;
     }
 
@@ -105,7 +105,7 @@ export async function handleApplyToPreview(
 export async function handleSaveCurrentValues(deps: ApplyDeps): Promise<void> {
     const target = getPreviewTarget();
     if (!target) {
-        deps.notifyInfo('Obsidian Artifacts: no preview open — open an artifact preview first.');
+        deps.notifyInfo(vscode.l10n.t('Obsidian Artifacts: no preview open — open an artifact preview first.'));
         return;
     }
 

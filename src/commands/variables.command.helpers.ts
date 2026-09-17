@@ -219,8 +219,9 @@ export interface CommandIO {
 export const defaultIO: CommandIO = {
     showInputBox: options => vscode.window.showInputBox(options),
     confirm: async message => {
-        const choice = await vscode.window.showWarningMessage(message, { modal: true }, 'Delete');
-        return choice === 'Delete';
+        const deleteLabel = vscode.l10n.t('Delete');
+        const choice = await vscode.window.showWarningMessage(message, { modal: true }, deleteLabel);
+        return choice === deleteLabel;
     },
     showError: message => { void vscode.window.showErrorMessage(message); },
 };
@@ -239,7 +240,7 @@ export const defaultIO: CommandIO = {
  * // → 'Obsidian Artifacts: Delete variable VK-host? This cannot be undone.'
  */
 export function buildConfirmMessage(input: Parameters<typeof confirmTextFor>[0]): string {
-    return `Obsidian Artifacts: ${confirmTextFor(input)}`;
+    return vscode.l10n.t('Obsidian Artifacts: {0}', confirmTextFor(input));
 }
 
 /** Everything a command handler needs to act on the node the user clicked. */
@@ -293,22 +294,22 @@ export async function resolveTarget(
     io: CommandIO = defaultIO,
 ): Promise<ResolvedTarget | undefined> {
     if (node?.kind !== expectedKind) {
-        io.showError('Obsidian Artifacts: no variable-tree item selected.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: no variable-tree item selected.'));
         return undefined;
     }
     if (!vaultRoot) {
-        io.showError('Obsidian Artifacts: no vault configured.');
+        io.showError(vscode.l10n.t('Obsidian Artifacts: no vault configured.'));
         return undefined;
     }
     const filePath = fileNodePath(node);
     const rootDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir).fsPath;
     if (!isPathWithin(rootDir, filePath)) {
-        io.showError(`Obsidian Artifacts: "${filePath}" is outside the Variables directory.`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: "{0}" is outside the Variables directory.', filePath));
         return undefined;
     }
     const parsed = parseArtifactFile(filePath, rootDir);
     if (!parsed) {
-        io.showError(`Obsidian Artifacts: could not read "${filePath}".`);
+        io.showError(vscode.l10n.t('Obsidian Artifacts: could not read "{0}".', filePath));
         return undefined;
     }
     return {
@@ -370,8 +371,8 @@ export async function commitWrite(
         provider.refresh();
         return;
     }
-    const message = result.kind === 'error' ? result.message : `"${filePath}" already exists.`;
-    io.showError(`Obsidian Artifacts: ${message}`);
+    const message = result.kind === 'error' ? result.message : vscode.l10n.t('"{0}" already exists.', filePath);
+    io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', message));
 }
 
 /**

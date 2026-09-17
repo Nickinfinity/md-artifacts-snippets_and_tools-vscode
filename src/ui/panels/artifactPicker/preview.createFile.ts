@@ -83,7 +83,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     // ── D1: single-block only (template) / one config file (agent) ────────
     const blockCheck = validateSingleBlock(artifact, getTypeSingular(type));
     if (!blockCheck.ok) {
-        void vscode.window.showErrorMessage(`Obsidian Artifacts: ${blockCheck.reason}`);
+        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', blockCheck.reason));
         return { kind: 'error' };
     }
 
@@ -92,7 +92,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     if (!destDir) { return { kind: 'cancelled' }; }  // no workspace open, or the folder picker was cancelled
     const workspaceRoot = vscode.workspace.getWorkspaceFolder(destDir)?.uri;
     if (!workspaceRoot) {
-        void vscode.window.showErrorMessage('Obsidian Artifacts: Destination is not inside an open workspace folder.');
+        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Destination is not inside an open workspace folder.'));
         return { kind: 'error' };
     }
 
@@ -104,7 +104,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     try {
         defaultName = resolveOutputFileName(artifact);
     } catch (err) {
-        void vscode.window.showErrorMessage(`Obsidian Artifacts: ${(err as Error).message}`);
+        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', (err as Error).message));
         return { kind: 'error' };
     }
 
@@ -136,7 +136,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
  */
 async function askFileName(defaultValue: string): Promise<string | undefined> {
     return vscode.window.showInputBox({
-        prompt:         'File name for the new file',
+        prompt:         vscode.l10n.t('File name for the new file'),
         value:          defaultValue,
         ignoreFocusOut: true,
         validateInput:  v => {
@@ -166,20 +166,25 @@ async function writeWithCollisionHandling(
     fileName: string,
     content: string,
 ): Promise<string | undefined> {
+    // Hoisted per call (not module scope): `vscode.l10n.t` must run after the
+    // bundle is loaded, and the read-back equality (`choice === OVERWRITE_LABEL`
+    // / `!== RENAME_LABEL`) still compares one binding on both sides.
+    const OVERWRITE_LABEL = vscode.l10n.t('Overwrite');
+    const RENAME_LABEL = vscode.l10n.t('Rename');
     let name  = fileName;
     let force = false;
     for (;;) {
         const result = await writeTemplateFile({ workspaceRoot, destDir, fileName: name, content, force });
         if (result.kind === 'success') { return result.filePath; }
         if (result.kind === 'error') {
-            void vscode.window.showErrorMessage(`Obsidian Artifacts: ${result.message}`);
+            void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', result.message));
             return undefined;
         }
         // ── collision → ask ────────────────────────────────────────────────
         const choice = await vscode.window.showWarningMessage(
-            `"${name}" already exists in that folder.`, { modal: true }, 'Overwrite', 'Rename');
-        if (choice === 'Overwrite') { force = true; continue; }
-        if (choice !== 'Rename')    { return undefined; }  // Cancel / dismissed
+            vscode.l10n.t('"{0}" already exists in that folder.', name), { modal: true }, OVERWRITE_LABEL, RENAME_LABEL);
+        if (choice === OVERWRITE_LABEL) { force = true; continue; }
+        if (choice !== RENAME_LABEL)    { return undefined; }  // Cancel / dismissed
         const renamed = await askFileName(name);
         if (renamed === undefined) { return undefined; }
         name  = renamed;

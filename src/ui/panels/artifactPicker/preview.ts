@@ -565,10 +565,15 @@ export class PreviewPanelController {
         if (typeof code !== 'string') { return; }
 
         const name = artifact.relativePath || artifact.fileName;
+        // `confirmModal` itself does the equality check internally
+        // (`answer === opts.action`), so a local binding here is safe without
+        // a second comparison site — and it must be local, not module-scope,
+        // so `vscode.l10n.t` runs after the bundle is loaded.
+        const OVERWRITE_ACTION = vscode.l10n.t('Overwrite');
         const ok = await confirmModal({
-            message: `Overwrite "${name}" with these changes?`,
-            detail:  'The edited block replaces what is currently in the .md file.',
-            action:  'Overwrite',
+            message: vscode.l10n.t('Overwrite "{0}" with these changes?', name),
+            detail:  vscode.l10n.t('The edited block replaces what is currently in the .md file.'),
+            action:  OVERWRITE_ACTION,
         });
         if (!ok) { return; }
 
@@ -582,7 +587,7 @@ export class PreviewPanelController {
         if (!updated) {
             // `persistBlockCode` also answers undefined when the patch was a
             // no-op, which is the "nothing changed" case rather than a failure.
-            vscode.window.showWarningMessage('Nothing was written — the code is unchanged, or the block could not be located in the file.');
+            vscode.window.showWarningMessage(vscode.l10n.t('Nothing was written — the code is unchanged, or the block could not be located in the file.'));
             return;
         }
 
@@ -625,7 +630,7 @@ export class PreviewPanelController {
 
         // Index guard (F7): a hovered index still renders Create File — only an armed run may write it.
         if (isIndexArtifact(artifact.frontmatter) && !this.batch.isArmed) {
-            void vscode.window.showInformationMessage('This is a template index — press Enter in the picker to run it.'); return;
+            void vscode.window.showInformationMessage(vscode.l10n.t('This is a template index — press Enter in the picker to run it.')); return;
         }
         // Templates/agent configs write a whole file instead of inserting at the
         // cursor; `writesWholeFile` is the single source shared with the label.
@@ -659,7 +664,7 @@ export class PreviewPanelController {
         // Chained, not fire-and-forget: a remote/SSH host can reject the write, and the
         // toast must not claim success when it did (reviewer finding 1).
         void vscode.env.clipboard.writeText(resolveVars(code, resolvedVars))
-            .then(() => vscode.window.showInformationMessage('Obsidian Artifacts: Copied to clipboard.'));
+            .then(() => vscode.window.showInformationMessage(vscode.l10n.t('Obsidian Artifacts: Copied to clipboard.')));
     }
 
     /** Routes to the Create File flow (D12); armed (batch step) pins `destDir`, skips

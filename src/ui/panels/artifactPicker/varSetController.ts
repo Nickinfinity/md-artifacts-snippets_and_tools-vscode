@@ -66,7 +66,7 @@ export class VarSetController {
 
         const variablesDirUri = getVariablesDirUri();
         if (!variablesDirUri) {
-            void vscode.window.showErrorMessage('Variables directory is not configured. Open the Settings panel to enable it.');
+            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
             return;
         }
 
@@ -176,19 +176,19 @@ export class VarSetController {
         // is never seeded with empty rows in the first place.
         const nonEmpty: [string, string][] = Object.entries(values).filter(([, v]) => v.length > 0);
         if (nonEmpty.length === 0) {
-            void vscode.window.showInformationMessage('No values to save — fill at least one variable first.');
+            void vscode.window.showInformationMessage(vscode.l10n.t('No values to save — fill at least one variable first.'));
             return;
         }
 
         const variablesDirUri = getVariablesDirUri();
         if (!variablesDirUri) {
-            void vscode.window.showErrorMessage('Variables directory is not configured. Open the Settings panel to enable it.');
+            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
             return;
         }
 
         const vaultRoot = getVaultRootUri();
         if (!vaultRoot) {
-            void vscode.window.showErrorMessage('Variables directory is not configured. Open the Settings panel to enable it.');
+            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
             return;
         }
 
@@ -244,7 +244,7 @@ async function writeVarSetFromForm(
         // F5 step 4 depends on this: without it the new set is on disk but
         // absent from the Variables tree until the window reloads (D-B).
         getVarSetScanner().invalidate();
-        void vscode.window.showInformationMessage(`Variable set saved: ${payload.title.trim()}`);
+        void vscode.window.showInformationMessage(vscode.l10n.t('Variable set saved: {0}', payload.title.trim()));
         return;
     }
 
@@ -253,9 +253,9 @@ async function writeVarSetFromForm(
     // but it is handled rather than assumed away so tightening that flag later
     // cannot turn a refused write into a silent no-op.
     const reason = result.kind === 'collision'
-        ? `A variable set named "${result.filePath}" already exists.`
+        ? vscode.l10n.t('A variable set named "{0}" already exists.', result.filePath)
         : result.message;
-    void vscode.window.showErrorMessage(`Failed to save variable set: ${reason}`);
+    void vscode.window.showErrorMessage(vscode.l10n.t('Failed to save variable set: {0}', reason));
 }
 
 // ── Module helpers ────────────────────────────────────────────────────────────
