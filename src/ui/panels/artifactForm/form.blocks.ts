@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
 import { labelForVar } from '../artifactPicker/preview.helpers.js';
 import { FREE_LANGUAGE_OPTIONS } from './form.helpers.js';
@@ -34,10 +35,12 @@ export function buildLanguageSelector(
     const id       = `block-${blockIndex}-lang`;
     const dataAttr = `data-block="${blockIndex}"`;
 
+    const languageLabel = vscode.l10n.t('Language');
+
     if (mode === 'locked') {
         const safe = escHtml(lockedLang);
         return `<div class="field-row lang-row">
-  <label class="slabel" for="${id}">Language</label>
+  <label class="slabel" for="${id}">${languageLabel}</label>
   <select id="${id}" class="lang-select" ${dataAttr} disabled>
     <option value="${safe}" selected>${safe}</option>
   </select>
@@ -46,7 +49,7 @@ export function buildLanguageSelector(
 
     // free mode — full dropdown
     const options = FREE_LANGUAGE_OPTIONS.map(val => {
-        const label  = val === '' ? 'Plain text' : val;
+        const label  = val === '' ? vscode.l10n.t('Plain text') : val;
         const safeV  = escHtml(val);
         const safeL  = escHtml(label);
         const selStr = val === currentLang ? ' selected' : '';
@@ -54,7 +57,7 @@ export function buildLanguageSelector(
     }).join('\n');
 
     return `<div class="field-row lang-row">
-  <label class="slabel" for="${id}">Language</label>
+  <label class="slabel" for="${id}">${languageLabel}</label>
   <select id="${id}" class="lang-select" ${dataAttr}>
 ${options}
   </select>
@@ -85,12 +88,12 @@ export function buildVarsTable(vars: ParsedVar[], blockIndex: number): string {
         return `      <tr class="var-row" data-var="${safeName}" data-block="${blockIndex}">
         <td class="var-name">${safeLabel}</td>
         <td class="var-default">
-          <input type="text" class="var-input" data-var="${safeName}" data-block="${blockIndex}" value="${safeVal}" placeholder="Default value">
+          <input type="text" class="var-input" data-var="${safeName}" data-block="${blockIndex}" value="${safeVal}" placeholder="${escHtml(vscode.l10n.t('Default value'))}">
         </td>
       </tr>`;
     }).join('\n');
     return `<div class="vars-section">
-  <div class="slabel">Variables</div>
+  <div class="slabel">${escHtml(vscode.l10n.t('Variables'))}</div>
   <table class="vars-table"><tbody>
 ${rows}
   </tbody></table>
@@ -136,7 +139,7 @@ export function buildSingleBlockContent(
     return `<div class="block" data-block-index="${blockIndex}">
 ${langSelector}
 <div class="block-code">
-<button class="expand-editor-btn" data-block="${blockIndex}" aria-label="Expand block in editor">⤢</button>
+<button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
 ${codeHtml}
 </div>
 ${varsHtml}
@@ -218,18 +221,18 @@ export function buildBlockCard(
 
     return `<div class="block-card" data-block-index="${blockIndex}">
   <div class="card-header">
-    <input type="text" id="block-${blockIndex}-heading" class="block-heading-input" value="${headingVal}" data-block="${blockIndex}" placeholder="Block heading">
+    <input type="text" id="block-${blockIndex}-heading" class="block-heading-input" value="${headingVal}" data-block="${blockIndex}" placeholder="${escHtml(vscode.l10n.t('Block heading'))}">
     ${langSelector}
     <button class="reorder-btn" data-action="up" data-block="${blockIndex}"${upDisabled}>↑</button>
     <button class="reorder-btn" data-action="down" data-block="${blockIndex}"${downDisabled}>↓</button>
     <button class="remove-block-btn" data-block="${blockIndex}">×</button>
-    <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="Expand block in editor">⤢</button>
-    <button class="expand-btn" data-block="${blockIndex}" aria-label="Toggle block">⌄</button>
+    <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
+    <button class="expand-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Toggle block'))}">⌄</button>
   </div>
   <div class="${bodyClass}" data-block="${blockIndex}">
     <div class="field-row">
-      <label class="slabel" for="block-${blockIndex}-desc">Description</label>
-      <textarea id="block-${blockIndex}-desc" class="form-input form-textarea" data-block="${blockIndex}" rows="2" placeholder="Optional block description">${descVal}</textarea>
+      <label class="slabel" for="block-${blockIndex}-desc">${escHtml(vscode.l10n.t('Description'))}</label>
+      <textarea id="block-${blockIndex}-desc" class="form-input form-textarea" data-block="${blockIndex}" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional block description'))}">${descVal}</textarea>
     </div>
     <div class="block-code">
 ${codeHtml}

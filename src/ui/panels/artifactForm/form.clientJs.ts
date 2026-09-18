@@ -1,4 +1,30 @@
+import * as vscode from 'vscode';
 import { CODE_BLOCK_CLIENT_JS } from '../artifactPicker/codeBlock.js';
+import { jsStr } from '../artifactPicker/webviewSnippets.js';
+import { escHtml } from '../../../utils/html.js';
+
+// Localised client-script literals — resolved once at import time (extension
+// host), spliced bare into the template below (see preview.clientJs.ts JSDoc).
+// Every constant that lands in HTML (an attribute or innerHTML) is escaped
+// BEFORE it is quoted as a JS string literal — `jsStr(escHtml(...))` — because
+// the client script builds HTML by concatenation, so a bundle value crosses
+// two boundaries: script literal, then HTML sink. `jsStr` alone only covers
+// the first. REMOVE_TEMPLATE_JS keeps its `{0}` literal (no 2nd arg) — `t` is
+// a DOM value only known in the browser, so the script itself does the
+// `.replace('{0}', …)`; `{}` are not HTML-special so escaping first is safe.
+const BLOCK_HEADING_JS = jsStr(escHtml(vscode.l10n.t('Block heading')));
+const EXPAND_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Expand block in editor')));
+const TOGGLE_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Toggle block')));
+const DESCRIPTION_JS = jsStr(escHtml(vscode.l10n.t('Description')));
+const OPTIONAL_BLOCK_DESC_JS = jsStr(escHtml(vscode.l10n.t('Optional block description')));
+const REMOVE_TEMPLATE_JS = jsStr(escHtml(vscode.l10n.t('Remove {0}')));
+const ADD_TAG_JS = jsStr(escHtml(vscode.l10n.t('Add tag…')));
+const TITLE_REQUIRED_JS = jsStr(vscode.l10n.t('Title is required.'));
+const NEEDS_CODE_JS = jsStr(vscode.l10n.t('At least one block must have code.'));
+const NEEDS_HEADINGS_JS = jsStr(vscode.l10n.t('Every block must have a heading.'));
+const INVALID_NAME_JS = jsStr(vscode.l10n.t('Invalid name.'));
+const DEFAULT_VALUE_JS = jsStr(escHtml(vscode.l10n.t('Default value')));
+const VARIABLES_LABEL_JS = jsStr(escHtml(vscode.l10n.t('Variables')));
 
 // ── Exported client JS bundle ─────────────────────────────────────────────────
 
@@ -162,18 +188,18 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     const langSelHtml = buildNewLangSelectHtml(blockIndex);
     return '<div class="block-card" data-block-index="' + blockIndex + '">' +
       '<div class="card-header">' +
-        '<input type="text" id="block-' + blockIndex + '-heading" class="block-heading-input" value="" data-block="' + blockIndex + '" placeholder="Block heading">' +
+        '<input type="text" id="block-' + blockIndex + '-heading" class="block-heading-input" value="" data-block="' + blockIndex + '" placeholder="' + ${BLOCK_HEADING_JS} + '">' +
         langSelHtml +
         '<button class="reorder-btn" data-action="up" data-block="' + blockIndex + '"' + upDis + '>↑</button>' +
         '<button class="reorder-btn" data-action="down" data-block="' + blockIndex + '"' + downDis + '>↓</button>' +
         '<button class="remove-block-btn" data-block="' + blockIndex + '">\xd7</button>' +
-        '<button class="expand-editor-btn" data-block="' + blockIndex + '" aria-label="Expand block in editor">⤢</button>' +
-        '<button class="expand-btn" data-block="' + blockIndex + '" aria-label="Toggle block">⎾</button>' +
+        '<button class="expand-editor-btn" data-block="' + blockIndex + '" aria-label="' + ${EXPAND_BLOCK_JS} + '">⤢</button>' +
+        '<button class="expand-btn" data-block="' + blockIndex + '" aria-label="' + ${TOGGLE_BLOCK_JS} + '">⎾</button>' +
       '</div>' +
       '<div class="card-body expanded" data-block="' + blockIndex + '">' +
         '<div class="field-row">' +
-          '<label class="slabel" for="block-' + blockIndex + '-desc">Description</label>' +
-          '<textarea id="block-' + blockIndex + '-desc" class="form-input form-textarea" data-block="' + blockIndex + '" rows="2" placeholder="Optional block description"></textarea>' +
+          '<label class="slabel" for="block-' + blockIndex + '-desc">' + ${DESCRIPTION_JS} + '</label>' +
+          '<textarea id="block-' + blockIndex + '-desc" class="form-input form-textarea" data-block="' + blockIndex + '" rows="2" placeholder="' + ${OPTIONAL_BLOCK_DESC_JS} + '"></textarea>' +
         '</div>' +
         '<div class="block-code">' +
           '<div class="code-block-wrapper editable" contenteditable="true" spellcheck="false" data-lang="' + defLang + '"></div>' +
@@ -231,11 +257,12 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     if (!row) { return; }
     const input = document.getElementById('tag-input');
     const chips = tags.map(function(t) {
-      return '<span class="tag-chip">' + t +
-        '<button class="tag-remove" data-tag="' + t + '" aria-label="Remove ' + t + '">\xd7</button>' +
+      const safeTag = esc(t); // untrusted tag text — escape before it hits an attribute
+      return '<span class="tag-chip">' + safeTag +
+        '<button class="tag-remove" data-tag="' + safeTag + '" aria-label="' + ${REMOVE_TEMPLATE_JS}.replace('{0}', safeTag) + '">\xd7</button>' +
         '</span>';
     }).join('');
-    row.innerHTML = chips + (input ? input.outerHTML : '<input type="text" id="tag-input" class="tag-input" placeholder="Add tag…">');
+    row.innerHTML = chips + (input ? input.outerHTML : '<input type="text" id="tag-input" class="tag-input" placeholder="' + ${ADD_TAG_JS} + '">');
     wireTagInput();
   }
 
@@ -357,12 +384,12 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
   // ── §3.7 Client-side validation ──────────────────────────────────────────
   function validateForSave(model) {
     const errors = [];
-    if (!model.title.trim()) { errors.push({ field: 'title', msg: 'Title is required.' }); }
+    if (!model.title.trim()) { errors.push({ field: 'title', msg: ${TITLE_REQUIRED_JS} }); }
     const hasCode = model.blocks.some(function(b) { return b.code.trim().length > 0; });
-    if (!hasCode) { errors.push({ field: 'blocks', msg: 'At least one block must have code.' }); }
+    if (!hasCode) { errors.push({ field: 'blocks', msg: ${NEEDS_CODE_JS} }); }
     if (model.blocks.length > 1) {
       const allHeadings = model.blocks.every(function(b) { return b.heading.trim().length > 0; });
-      if (!allHeadings) { errors.push({ field: 'headings', msg: 'Every block must have a heading.' }); }
+      if (!allHeadings) { errors.push({ field: 'headings', msg: ${NEEDS_HEADINGS_JS} }); }
     }
     return errors;
   }
@@ -381,7 +408,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     saveError.textContent = errors.map(function(e) { return e.msg; }).join(' ');
     if (nameError && errors.some(function(e) { return e.field === 'title'; })) {
       nameError.style.display = '';
-      nameError.textContent = 'Title is required.';
+      nameError.textContent = ${TITLE_REQUIRED_JS};
     }
   }
 
@@ -392,7 +419,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       case 'nameValidation': {
         if (!nameError) { break; }
         if (msg.ok) { nameError.style.display = 'none'; nameError.textContent = ''; }
-        else { nameError.style.display = ''; nameError.textContent = msg.reason || 'Invalid name.'; }
+        else { nameError.style.display = ''; nameError.textContent = msg.reason || ${INVALID_NAME_JS}; }
         break;
       }
       case 'varsDetected': {
@@ -474,10 +501,10 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       return '<tr class="var-row" data-var="' + safeName + '" data-block="' + blockIndex + '">' +
         '<td class="var-name">' + esc(lbl(v.name)) + '</td>' +
         '<td class="var-default">' +
-          '<input type="text" class="var-input" data-var="' + safeName + '" data-block="' + blockIndex + '" value="' + esc(v.defaultValue) + '" placeholder="Default value">' +
+          '<input type="text" class="var-input" data-var="' + safeName + '" data-block="' + blockIndex + '" value="' + esc(v.defaultValue) + '" placeholder="' + ${DEFAULT_VALUE_JS} + '">' +
         '</td></tr>';
     }).join('');
-    varsSec.innerHTML = '<div class="slabel">Variables</div><table class="vars-table"><tbody>' + rows + '</tbody></table>';
+    varsSec.innerHTML = '<div class="slabel">' + ${VARIABLES_LABEL_JS} + '</div><table class="vars-table"><tbody>' + rows + '</tbody></table>';
   }
 
   // ── Button wiring ────────────────────────────────────────────────────────

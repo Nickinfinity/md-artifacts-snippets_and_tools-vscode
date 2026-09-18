@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { getCreateFormTypes, getBrowseTypes, getEntry } from '../../services/artifact-type-config.service.js';
 import { escHtml, styleLinkTags } from '../../utils/html.js';
 // THE create-id scheme — same authority insert.command.ts's artifactCommandId is
@@ -183,21 +184,21 @@ ${styleLinkTags(cssUris)}
 </head>
 <body class="popup-body">
   <div class="idle-filter-wrap">
-    <input type="text" id="idleFilter" aria-label="Filter artifact types" placeholder="Filter…">
-    <button type="button" id="idleFilterClear" aria-label="Clear filter" title="Clear filter" hidden>
+    <input type="text" id="idleFilter" aria-label="${escHtml(vscode.l10n.t('Filter artifact types'))}" placeholder="${escHtml(vscode.l10n.t('Filter…'))}">
+    <button type="button" id="idleFilterClear" aria-label="${escHtml(vscode.l10n.t('Clear filter'))}" title="${escHtml(vscode.l10n.t('Clear filter'))}" hidden>
       <span class="codicon codicon-close" aria-hidden="true"></span>
     </button>
   </div>
   <div class="idle-toggle" role="group">
-    <button type="button" class="idle-toggle-btn is-active" data-mode="new" aria-pressed="true">New</button>
-    <button type="button" class="idle-toggle-btn" data-mode="open" aria-pressed="false">Open</button>
+    <button type="button" class="idle-toggle-btn is-active" data-mode="new" aria-pressed="true">${escHtml(vscode.l10n.t('New'))}</button>
+    <button type="button" class="idle-toggle-btn" data-mode="open" aria-pressed="false">${escHtml(vscode.l10n.t('Open'))}</button>
   </div>
   <div class="create-list">${rows}${browseRows}</div>
   <div class="pane-spacer"></div>
   <div class="pane-footer">
     <button class="create-row" id="paneSettingsBtn">
       <span class="codicon codicon-gear" aria-hidden="true"></span>
-      <span class="create-row-label">Settings</span>
+      <span class="create-row-label">${escHtml(vscode.l10n.t('Settings'))}</span>
     </button>
   </div>
 <script nonce="${nonce}">

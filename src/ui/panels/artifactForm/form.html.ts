@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { getLanguageMode, getDefaultLanguage, canMultiBlock, getTypeSingular } from '../../../services/artifact-type-config.service.js';
 import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
@@ -140,17 +141,17 @@ function buildFrontmatterSection(model: ArtifactFormModel): string {
     const descVal  = escHtml(model.description);
     const chips    = buildTagChips(model.tags);
     return `<div class="form-section">
-  <label class="slabel" for="title">Title</label>
-  <input type="text" id="title" class="form-input" value="${titleVal}" placeholder="Artifact title">
+  <label class="slabel" for="title">${escHtml(vscode.l10n.t('Title'))}</label>
+  <input type="text" id="title" class="form-input" value="${titleVal}" placeholder="${escHtml(vscode.l10n.t('Artifact title'))}">
 </div>
 <div class="form-section">
-  <label class="slabel" for="description">Description</label>
-  <textarea id="description" class="form-input form-textarea" rows="2" placeholder="Optional description">${descVal}</textarea>
+  <label class="slabel" for="description">${escHtml(vscode.l10n.t('Description'))}</label>
+  <textarea id="description" class="form-input form-textarea" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional description'))}">${descVal}</textarea>
 </div>
 ${buildExtensionField(model)}${buildAgentFieldsSection(model)}<div class="form-section">
-  <div class="slabel">Tags</div>
+  <div class="slabel">${escHtml(vscode.l10n.t('Tags'))}</div>
   <div class="tags-row" id="tags-row">
-${chips}    <input type="text" id="tag-input" class="tag-input" placeholder="Add tag…">
+${chips}    <input type="text" id="tag-input" class="tag-input" placeholder="${escHtml(vscode.l10n.t('Add tag…'))}">
   </div>
 </div>`;
 }
@@ -170,7 +171,7 @@ ${chips}    <input type="text" id="tag-input" class="tag-input" placeholder="Add
  */
 function buildExtensionField(model: ArtifactFormModel): string {
     if (model.artifactType !== 'Template') { return ''; }
-    return buildOptionalTextField('extension', 'File extension', model.extension, 'e.g. .tsx — overrides the fence language');
+    return buildOptionalTextField('extension', vscode.l10n.t('File extension'), model.extension, vscode.l10n.t('e.g. .tsx — overrides the fence language'));
 }
 
 /**
@@ -193,9 +194,11 @@ function buildExtensionField(model: ArtifactFormModel): string {
  */
 function buildOptionalTextField(id: string, label: string, value: string | undefined, placeholder: string): string {
     const safeVal = escHtml(value ?? '');
+    const safeLabel = escHtml(label);
+    const safePlaceholder = escHtml(placeholder);
     return `<div class="form-section">
-  <label class="slabel" for="${id}">${label} <span class="muted">(optional)</span></label>
-  <input type="text" id="${id}" class="form-input" value="${safeVal}" placeholder="${placeholder}">
+  <label class="slabel" for="${id}">${safeLabel} <span class="muted">${escHtml(vscode.l10n.t('(optional)'))}</span></label>
+  <input type="text" id="${id}" class="form-input" value="${safeVal}" placeholder="${safePlaceholder}">
 </div>
 `;
 }
@@ -222,10 +225,10 @@ function buildOptionalTextField(id: string, label: string, value: string | undef
  */
 function buildAgentFieldsSection(model: ArtifactFormModel): string {
     if (model.artifactType !== 'AIAgentsConfig') { return ''; }
-    return buildOptionalTextField('target', 'Target file name', model.target, 'e.g. CLAUDE.md — used verbatim')
-        + buildOptionalTextField('provider', 'Provider', model.provider, 'e.g. Claude')
-        + buildOptionalTextField('model', 'Model', model.model, 'e.g. Opus')
-        + buildOptionalTextField('version', 'Version', model.version, 'e.g. 4.8');
+    return buildOptionalTextField('target', vscode.l10n.t('Target file name'), model.target, vscode.l10n.t('e.g. CLAUDE.md — used verbatim'))
+        + buildOptionalTextField('provider', vscode.l10n.t('Provider'), model.provider, vscode.l10n.t('e.g. Claude'))
+        + buildOptionalTextField('model', vscode.l10n.t('Model'), model.model, vscode.l10n.t('e.g. Opus'))
+        + buildOptionalTextField('version', vscode.l10n.t('Version'), model.version, vscode.l10n.t('e.g. 4.8'));
 }
 
 /**
@@ -241,7 +244,8 @@ function buildTagChips(tags: string[]): string {
     if (tags.length === 0) { return ''; }
     return tags.map(tag => {
         const safe = escHtml(tag);
-        return `    <span class="tag-chip">${safe}<button class="tag-remove" data-tag="${safe}" aria-label="Remove ${safe}">×</button></span>\n`;
+        const removeLabel = escHtml(vscode.l10n.t('Remove {0}', tag));
+        return `    <span class="tag-chip">${safe}<button class="tag-remove" data-tag="${safe}" aria-label="${removeLabel}">×</button></span>\n`;
     }).join('');
 }
 
@@ -280,8 +284,8 @@ function buildAddBlockButton(type: ArtifactFormModel['artifactType']): string {
 function buildFooter(type: ArtifactFormModel['artifactType']): string {
     const deleteLabel = escHtml(labelForDeleteEntire(type));
     return `<div class="form-footer">
-  <button id="save-btn" class="btn btn-primary">Save</button>
-  <button id="cancel-btn" class="btn">Cancel</button>
+  <button id="save-btn" class="btn btn-primary">${escHtml(vscode.l10n.t('Save'))}</button>
+  <button id="cancel-btn" class="btn">${escHtml(vscode.l10n.t('Cancel'))}</button>
   <button id="delete-btn" class="btn btn-danger">${deleteLabel}</button>
 </div>`;
 }

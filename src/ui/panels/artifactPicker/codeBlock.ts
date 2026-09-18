@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
 import { WEBVIEW_ESC_LBL_JS } from './webviewSnippets.js';
 import { CODE_BLOCK_MIN_LINES } from '../../../types/constants.js';
@@ -28,10 +29,11 @@ export const INPUT_DEBOUNCE_MS = 150;
  * buildCodeBlockHtml(renderCodeRowsHtml(code, 'javascript'), 'javascript')
  */
 export function buildCodeBlockHtml(rowsHtml: string, lang: string): string {
+    const expandLabel = escHtml(vscode.l10n.t('Open this block in the editor'));
     return /* html */`
   <div class="code-toolbar">
-    <button class="expand-editor-btn" id="expandCodeBtn" title="Open this block in the editor"
-            aria-label="Open this block in the editor">⤢</button>
+    <button class="expand-editor-btn" id="expandCodeBtn" title="${expandLabel}"
+            aria-label="${expandLabel}">⤢</button>
   </div>
   <div id="codeWrapper" class="code-block-wrapper editable" contenteditable="true" spellcheck="false"
        style="--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;

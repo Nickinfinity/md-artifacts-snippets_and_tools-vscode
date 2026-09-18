@@ -340,7 +340,7 @@
     if (!box) { return; }
     const existing = collectVars();
     if (!vars || vars.length === 0) {
-      box.innerHTML = '<p class="muted">No variables defined.</p>';
+      box.innerHTML = '<p class="muted">' + "No variables defined." + '</p>';
       return;
     }
     box.innerHTML = vars.map(function (v) {
@@ -386,7 +386,7 @@
       const badge = document.createElement('span');
       badge.className = 'var-source';
       badge.dataset.varSource = name;
-      badge.textContent = 'from: ' + subSetName;
+      badge.textContent = "from: " + subSetName;
       row.appendChild(badge);
     });
   }

@@ -1,4 +1,33 @@
+import * as vscode from 'vscode';
 import { CODE_BLOCK_CLIENT_JS, INPUT_DEBOUNCE_MS } from './codeBlock.js';
+import { jsStr } from './webviewSnippets.js';
+import { escHtml } from '../../../utils/html.js';
+
+/**
+ * Localised strings baked into {@link PREVIEW_CLIENT_JS} at import time.
+ *
+ * A webview `<script>` cannot call `vscode.l10n.t` itself — it runs outside
+ * the extension host — so the module that *builds* the script string resolves
+ * these once, here, at whatever display language VS Code started with, and
+ * splices the resulting JS-string-literal (via {@link jsStr}) into the
+ * template. `NO_VARS_DEFINED` shares its English source with
+ * `preview.render.ts`'s copy (T6.2a) and `FROM_PREFIX` likewise, so the l10n
+ * extractor emits one bundle key for each rather than two near-duplicates.
+ *
+ * `NO_VARS_DEFINED_JS` lands in `innerHTML` (see `rebuildVarInputs` below), so
+ * it is escaped BEFORE being quoted as a JS string literal —
+ * `jsStr(escHtml(...))`, the inverse of the usual order, because the client
+ * script builds HTML by concatenation and the bundle value crosses both a
+ * script-literal boundary and an HTML-sink boundary. `FROM_PREFIX_JS` only
+ * ever reaches `.textContent` (see `varSources` handling), so it stays
+ * `jsStr`-only — wrapping it in `escHtml` too would double-escape and render
+ * entities literally.
+ *
+ * @example
+ * `box.innerHTML = ${NO_VARS_DEFINED_JS};`
+ */
+const NO_VARS_DEFINED_JS = jsStr(escHtml(vscode.l10n.t('No variables defined.')));
+const FROM_PREFIX_JS = jsStr(vscode.l10n.t('from: '));
 
 /**
  * Client-side JavaScript bundle for the interactive artifact preview popup.
@@ -197,7 +226,7 @@ export const PREVIEW_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     if (!box) { return; }
     const existing = collectVars();
     if (!vars || vars.length === 0) {
-      box.innerHTML = '<p class="muted">No variables defined.</p>';
+      box.innerHTML = '<p class="muted">' + ${NO_VARS_DEFINED_JS} + '</p>';
       return;
     }
     box.innerHTML = vars.map(function (v) {
@@ -243,7 +272,7 @@ export const PREVIEW_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       const badge = document.createElement('span');
       badge.className = 'var-source';
       badge.dataset.varSource = name;
-      badge.textContent = 'from: ' + subSetName;
+      badge.textContent = ${FROM_PREFIX_JS} + subSetName;
       row.appendChild(badge);
     });
   }

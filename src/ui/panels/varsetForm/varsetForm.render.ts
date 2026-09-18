@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
 import type { VarSetFormPayload } from '../../../types/varset.types.js';
 
@@ -73,25 +74,25 @@ ${styleLinkTags(cssUris)}
 <body class="form-body">
   <div class="form-panel">
     <div class="form-section">
-      <label for="vsfTitle">Name</label>
+      <label for="vsfTitle">${escHtml(vscode.l10n.t('Name'))}</label>
       <input class="form-input" id="vsfTitle" value="${escHtml(payload.title)}">
     </div>
     <div class="form-section">
-      <label for="vsfDescription">Description</label>
+      <label for="vsfDescription">${escHtml(vscode.l10n.t('Description'))}</label>
       <textarea class="form-input form-textarea" id="vsfDescription">${escHtml(payload.description)}</textarea>
     </div>
     <div class="form-section">
-      <label>Tags</label>
+      <label>${escHtml(vscode.l10n.t('Tags'))}</label>
       <div class="tags-row">${tagsHtml}</div>
     </div>
     <div class="form-section">
-      <label>Variables</label>
+      <label>${escHtml(vscode.l10n.t('Variables'))}</label>
       <table class="vars-table"><tbody>${rowsHtml}</tbody></table>
     </div>
     <div id="vsfError" class="varset-form-error" hidden></div>
     <div class="varset-form-actions">
-      <button id="vsfCancel">Cancel</button>
-      <button id="vsfSave">Save</button>
+      <button id="vsfCancel">${escHtml(vscode.l10n.t('Cancel'))}</button>
+      <button id="vsfSave">${escHtml(vscode.l10n.t('Save'))}</button>
     </div>
   </div>
 <script nonce="${safeNonce}">

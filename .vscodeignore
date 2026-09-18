@@ -3,11 +3,12 @@
 src/**
 # Webview stylesheets AND the vendored codicon font must ship — localResourceRoots
 # is extensionUri/src/ui, so they load from source, not from dist/. Keep BOTH of
-# these globs: the single styles.css was split into
-# base/settings/picker/hljs/code-block/varset/form, and a named exception would
-# have silently shipped a CSS-less extension. The .ttf needs its own line because
-# *.css does not match it — a missing font is the same silent failure one file
-# type over, rendering the pane as tofu boxes with no error.
+# these globs: the single styles.css was split into ten sheets (base, settings,
+# picker, hljs, code-block, varset, form, codicon, main-view, main-pane), and a
+# named exception would have silently shipped a CSS-less extension. The .ttf
+# needs its own line because *.css does not match it — a missing font is the
+# same silent failure one file type over, rendering the pane as tofu boxes with
+# no error.
 !src/ui/*.css
 !src/ui/*.ttf
 test/**
