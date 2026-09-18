@@ -41,7 +41,7 @@ pnpm install           # Install deps (no node_modules by default — run after 
 npm run compile        # One-off TypeScript build (outputs to dist/)
 npm run watch          # Watch mode for development (preferred during active development)
 npm run lint           # ESLint check (runs against src/)
-npm run test           # Compile + lint + run all tests (1130 passing)
+npm run test           # Compile + lint + run all tests (1362 passing)
 rm -rf dist && npm test # REQUIRED after any file delete or rename — see below
 npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale; use this to verify
 ```
@@ -131,7 +131,7 @@ src/
 │   │   ├── artifactPicker.panel.ts   # Re-export shim (back-compat for insert.command.ts)
 │   │   ├── artifactPicker/           # Parts table under Architecture. navigator · codeBlock ·
 │   │   │                             # preview(.render/.clientJs/.helpers/.createFile/.batch) ·
-│   │   │                             # blockEditor · fullEditor · varSetController · varSetDiff ·
+│   │   │                             # blockEditor · varSetController · varSetDiff ·
 │   │   │                             # multiIndex(.dest) · webviewHost · webviewSnippets · shared
 │   │   │                             # (+ *.helpers.ts siblings)
 │   │   ├── artifactForm/             # panel(.helpers) · form.html · form.blocks ·
@@ -152,7 +152,7 @@ src/
 │   └── path-containment.ts           # THE containment rule — isPathWithin(root, candidate)
 ├── features/ · providers/            # (empty) reserved
 media/obsidian-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
-test/                                 # 1130 tests. fixtures/ + snapshots/
+test/                                 # 1362 tests. fixtures/ + snapshots/
 ├── snapshots/varset/*.md             # Byte-exact var-set emission goldens — NEVER edit
 ├── snapshots/form-html/*.html        # Form-panel HTML snapshots
 └── drift guards: language-consistency · frontmatter-keys · constants · webview-snippets ·
@@ -218,6 +218,11 @@ regression this list exists to prevent; each is held by a named guard test.
 | Modal confirmation | `services/confirm.service.ts` — `confirmModal` | covered via `test/edit-artifact.test.ts` (delete) and `test/preview-buttons.test.ts` (overwrite) |
 | Block-code writes | `artifactPicker/preview.helpers.ts` — `persistBlockCode`, wrapping `patchBlockCode` | `test/preview-buttons.test.ts` — `preview.ts` may not call `patchBlockCode` directly |
 | Max pane width / code-area min height | `types/constants.ts` — `MAX_PANE_WIDTH_PX`, `CODE_BLOCK_MIN_LINES` | `test/preview-buttons.test.ts` — the sheet must read the custom property, never a second literal |
+| Script-context escaping (`<\/`, `<!--`) | `artifactPicker/webviewSnippets.ts` — `jsStr` | `test/webview-snippets.test.ts` — exactly one `jsStr` in `src/`, and no other file performing the escape |
+| Bundle values never reach HTML unescaped | the `escHtml` / `jsStr` / `jsStr(escHtml(…))` rule above | `test/l10n-html-escaping.test.ts` — scans for any `${vscode.l10n.t(` not wrapped in an escaper |
+| i18n asset packaging | `.vscodeignore` (no exclusion of `package.nls*` / `l10n/`) + `package.json`'s `"l10n": "./l10n"` | `test/packaging-assets.test.ts` — content-scanned, not column-0 anchored |
+| nls / l10n key naming | the English source string **is** the key — no key ids | `test/l10n-bundle.test.ts` |
+| Insert target (editor vs terminal) | `services/preview-target.service.ts` | `test/preview-target.service.test.ts` |
 
 **Context menus are driven by `constants.ts`, always.** An artifact's
 `contexts` field is the single source for *where* its command shows (editor /
@@ -242,11 +247,10 @@ back-compat with `commands/insert.command.ts`.
 |---|---|
 | `navigator.ts` (+ `.helpers.ts`) | `ArtifactNavigator`, `openArtifactPicker`, parse cache, hierarchical browsing, accept/active routing |
 | `codeBlock.ts` | Editable code-area HTML (`buildCodeBlockHtml`) + `CODE_BLOCK_CLIENT_JS` (caret preservation, debounced re-render, paste/Enter intercept). Also carries `WEBVIEW_ESC_LBL_JS`. |
-| `preview.ts` | `PreviewPanelController` — popup lifecycle + message routing. **Controller only.** |
+| `preview.ts` | `PreviewPanelController` — popup lifecycle + message routing, **including the full-edit flow** (`handleFullEdit`, `'fullEdit'` message): the real `.md` opens in an editor tab, save → `fileUpdated`, change (500 ms) → `updateVars`. There is no `fullEditor.ts`; an earlier version of this table listed one. **Controller only.** |
 | `preview.render.ts` | `renderPreviewHtml`, `renderMultiBlockPreviewHtml`, `renderPopupEmptyHtml`, `mergeVarsWithDefaults` |
 | `preview.clientJs.ts` | `PREVIEW_CLIENT_JS` — the popup's webview-side script |
-| `blockEditor.ts` (+ `.helpers.ts`) | `BlockEditController` — one block to a temp file; `normalizeLangId` / `resolveLangId` / `extForLang` |
-| `fullEditor.ts` (+ `.helpers.ts`) | `FullEditController` — real `.md` in an editor tab; save → `fileUpdated`, change (500 ms) → `updateVars` |
+| `blockEditor.ts` | `BlockEditController` — one block to a temp file; `normalizeLangId` / `resolveLangId` / `extForLang` |
 | `varSetController.ts` · `varSetDiff.ts` | Variable-set apply/save routing and diff HTML |
 | `webviewSnippets.ts` | `WEBVIEW_ESC_LBL_JS` — shared client-JS `esc`/`lbl` |
 | `shared.ts` | Single `out` OutputChannel |
@@ -685,7 +689,8 @@ via the `isWithinRoot(rootUri, candidateUri)` adapter `multiIndex.ts` imports
 from `destFolderPicker.panel.ts`; it never re-implements the
 prefix-with-separator check itself, and neither do the other two former copies
 of that check (`artifact-writer.service.ts`'s own local adapter, and the
-frontmatter migration's symlink-aware wrapper) — one rule, three thin callers.
+frontmatter migration's symlink-aware wrapper) — one rule, seven call sites
+across five modules.
 The workspace check also covers the mirrored candidate, which is safe by
 construction and never re-validated. This is a **different, earlier** guard
 than `safeRelPath` (`multi-index.service.ts`):
@@ -961,11 +966,94 @@ Messages are in the single protocol table above.
 
 ---
 
+## Internationalisation — two files, two escaping rules
+
+**Two mechanisms, and they are not interchangeable.** `package.nls.json` /
+`package.nls.es.json` localise the **static manifest** (`contributes.*`, read
+before activation). `l10n/bundle.l10n*.json` plus `vscode.l10n.t()` localise
+**runtime** strings. `engines.vscode` is `^1.117.0`, so `vscode.l10n` (since
+1.73) is available; **`vscode-nls` is deprecated and forbidden**, and
+`@vscode/l10n-dev` stays a **devDependency** — the one runtime dependency is
+still `highlight.js` alone.
+
+**`package.json`'s `"l10n": "./l10n"` points at the *directory*, not the file.**
+Pointing it at `bundle.l10n.json` makes every language fall back to English
+with **no error** — a green suite cannot tell the difference. Guarded by
+`test/packaging-assets.test.ts`.
+
+**Regenerate with:**
+
+```bash
+npx @vscode/l10n-dev@0.0.35 export -o ./l10n ./src
+```
+
+This writes **English only**; the `es` bundle is extended by hand. Assert growth
+**numerically** (`Object.keys(bundle).length` before vs after, strictly greater)
+— an unchanged count means the extractor saw no new call sites, and the whole
+wave's output is inert. Then re-assert **parity**: every `en` key present in
+`es`, and identical `{0}` placeholder sets on both sides. Identical *values* are
+expected for product nouns (`Variables`, `Variable`) and are deliberately
+unguarded.
+
+**Three string shapes are invisible to the extractor** — each ships a silent
+English fallthrough, so none may be used:
+- a **dynamic key** — `l10n.t(someVariable)` produces no bundle entry. Write an
+  explicit lookup with one literal `l10n.t` call per case (see
+  `artifactPicker/varSetDiff.ts`'s `actionLabel`).
+- a string built by **concatenation** — use a single `{0}` template instead.
+- `getTypeSingular`'s nouns, absent **by design** (decision D-8) — exclude them
+  when reading a growth count, or the delta looks like a miss.
+
+### 🔒 Escaping is per destination — `escHtml` and `jsStr` are not substitutes
+
+| Destination | Rule |
+|---|---|
+| HTML text or attribute | `escHtml` (`utils/html.ts` — all five of `&<>"'`) |
+| A string literal inside a client script | `jsStr` (`artifactPicker/webviewSnippets.ts`) |
+| A localised string that a **client script concatenates into HTML** | `jsStr(escHtml(l10n.t(...)))` |
+
+`escHtml` is wrong inside a `<script>`: its entities are never decoded there, so
+`&amp;` reaches the user literally, and it does not neutralise `</script>`.
+`jsStr` handles that (`</` → `<\/`, and `<!--`, which puts the script-data
+tokeniser into escaped state) — but **`jsStr` is not an HTML escape.** It
+guarantees a valid JS *string literal* and nothing more. Where a client script
+builds HTML by concatenation the value crosses **two** boundaries, so both
+escapes apply, HTML first: a bundle value containing `"` otherwise breaks out of
+the attribute it lands in. That inner-first order is the inverse of the usual
+rule and is deliberate.
+
+**Escape *after* format, never both.** `escHtml(l10n.t('from: {0}', src))` is
+correct; `l10n.t('from: {0}', escHtml(src))` double-escapes; `l10n.t('from: {0}',
+src)` alone is an injection.
+
+**Keep markup out of bundle strings.** A `{0}` argument carrying raw HTML means
+the *outer* `l10n.t` result cannot simply be wrapped in `escHtml` without
+escaping that markup too. Pass text through `l10n.t`, escape it, and wrap it in
+tags at the call site — the shape `preview.render.ts`'s `env`/`target` pills
+already use.
+
+**Client scripts resolve their strings in the extension host, at import time.**
+The module building the script string is extension-host TypeScript, so it calls
+`l10n.t` there and bakes the result into the constant — no injection plumbing,
+no runtime handshake. The display language is fixed at activation, which is fine:
+VS Code requires a reload to change it.
+
+**The nineteen `vscode`-free services localise at the caller**, never by
+importing `vscode` themselves. Renderers may call `vscode.l10n.t` directly —
+they are UI, not domain.
+
+**🔒 A green suite proves nothing here.** `l10n.t` falls back to the English
+source string when no bundle is loaded, so every test passes identically
+against a working bundle, a broken bundle and no bundle at all. The **F5 pass in
+a Spanish display language is the only verification that exists.**
+
+---
+
 ## VS Code Extension Notes
 
 - `package.json` declares `"activationEvents": ["onStartupFinished"]` — activation is already narrowed off "every window open"; it fires once, after VS Code finishes starting up, not eagerly during startup and not per-command. Nothing further to narrow here without a reason.
 - Compiled output goes to `dist/` and is **gitignored**. Run `npm run compile` after cloning.
-- `media/` ships in the packaged extension. `src/`, `test/`, and `dist/test/` are excluded via `.vscodeignore` — **except `!src/ui/*.css` and `!src/ui/*.ttf`**, both of which must stay globs. The webviews load stylesheets (and the vendored codicon font) from source, so a named per-file exception silently ships a CSS-less or font-less extension when an asset is added or renamed, and the suite stays green because tests run from source. Verify with `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'`, which must print **eleven** matched lines (ten stylesheets + `codicon.ttf` — always cite the count together with this exact command; a bare number is ambiguous between the sheet count and the matched-line count). The `--no-dependencies` flag is not optional here — see the
+- `media/` ships in the packaged extension. `src/`, `test/`, and `dist/test/` are excluded via `.vscodeignore` — **except `!src/ui/*.css` and `!src/ui/*.ttf`**, both of which must stay globs. The webviews load stylesheets (and the vendored codicon font) from source, so a named per-file exception silently ships a CSS-less or font-less extension when an asset is added or renamed, and the suite stays green because tests run from source. Verify with `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'`, which must print **eleven** matched lines (ten stylesheets + `codicon.ttf` — always cite the count together with this exact command; a bare number is ambiguous between the sheet count and the matched-line count). The **i18n assets ship the same way and need the same care**: widen the grep to `'src/ui/.*\.(css|ttf)|package\.nls|l10n/'` and it must print **fifteen** — the eleven above plus `package.nls.json`, `package.nls.es.json`, `l10n/bundle.l10n.json` and `l10n/bundle.l10n.es.json`. `.vscodeignore` excludes none of them today, which is exactly why `test/packaging-assets.test.ts` guards it: the guard scans every non-comment, non-`!` line's *content*, because an earlier column-0-anchored version stayed green while `**/l10n/**` silently stripped both bundles from the package. The `--no-dependencies` flag is not optional here — see the
 packaging caveat above; without it `vsce` exits non-zero and `grep` finds
 nothing, which reads exactly like a missing-asset failure.
 - All imports use explicit `.js` extensions (e.g. `'./helpers.js'`) — required by `Node16` module resolution even for `.ts` source files.
@@ -1002,24 +1090,41 @@ file. Stateless/pure → its `*.helpers.ts`. Service/cross-cutting →
 it go in the existing file. Notice a file crossed 400 lines while finishing a
 feature → propose the split in that PR, not later.
 
-**Known debt from the main-pane wave, not yet paid:**
-`artifactPicker/preview.ts` is **619** lines — past the ~400 guideline and the
-~500 "plan a split" mark. The seam is the one `artifactForm/` already uses and
-that this file was split on once before: controller (`preview.ts`) · renderers
-(`preview.render.ts`) · webview script (`preview.clientJs.ts`) · pure helpers
-(`preview.helpers.ts`). The width/measure plumbing and the staged-edit handlers
-are the natural next extractions. `settings.panel.ts` is **441**.
+**Known debt, not yet paid** (measured with `wc -l` at the close of the i18n
+wave, 2026-09-18 — **re-measure before trusting these on a later read**):
 
-**Files near the guideline today** (measured with `wc -l`, not guessed —
-re-measure before trusting these numbers on a later read): `commands/variables.command.ts`
-is already **over** at 462 — split before adding to it. Approaching the line:
-`commands/variables.command.helpers.ts` (362), `ui/views/mainView.provider.ts`
-(347), `commands/create-from-surface.command.ts` (329),
-`artifactPicker/webviewHost.ts` (327). Two pre-existing files grew past the
-guideline again while this branch reused them: `artifactPicker/navigator.ts`
-(445, gained the index-run branch) and `artifactPicker/preview.ts` (433, gained
-the `mainView` reuse wiring). None of these are mid-edit right now — this is a
-marker for whoever touches one next, not a todo.
+`artifactPicker/preview.ts` is **699** lines — past the ~400 guideline, past the
+~500 "plan a split" mark, and now at the **700 "split before adding"** line. It
+is the next split, not a someday. The seam is the one `artifactForm/` already
+uses and that this file was split on once before: controller (`preview.ts`) ·
+renderers (`preview.render.ts`) · webview script (`preview.clientJs.ts`) · pure
+helpers (`preview.helpers.ts`). The width/measure plumbing and the staged-edit
+handlers are the natural next extractions.
+
+`artifactForm/form.clientJs.ts` is **628**. It crossed the mark during the i18n
+wave for a reason that is *not* padding: resolving localised strings at module
+scope needs one `const` per string, which an in-place literal swap cannot avoid.
+The split was deliberately deferred rather than churn a file that had an open
+security fix landing on nine of its lines in the same wave.
+
+**Over the guideline today:** `services/parser.service.ts` (**653**) ·
+`artifactPicker/preview.ts` (699) · `artifactForm/form.clientJs.ts` (628) ·
+`artifactForm/panel.ts` (**548**) · `services/frontmatter-migration.service.ts`
+(**505**) · `commands/variables.command.ts` (**462**) ·
+`ui/panels/settings.panel.ts` (**446**) · `artifactPicker/navigator.ts` (**445**).
+
+**Approaching it:** `artifactPicker/preview.helpers.ts` (395) ·
+`services/artifact-type-config.service.ts` (394) ·
+`ui/views/mainView.provider.ts` (394) · `commands/variables.command.helpers.ts`
+(392) · `services/pane-width.service.ts` (340) ·
+`services/artifact-patcher.service.ts` (330) ·
+`commands/create-from-surface.command.ts` (329) ·
+`artifactPicker/webviewHost.ts` (327).
+
+None of these are mid-edit right now — this is a marker for whoever touches one
+next, not a todo.
+
+---
 
 ### Invariants (each cost a real bug here)
 
