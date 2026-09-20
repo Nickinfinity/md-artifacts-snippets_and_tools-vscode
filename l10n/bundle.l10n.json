@@ -47,6 +47,7 @@
   "Variables": "Variables",
   "Cancel": "Cancel",
   "Save": "Save",
+  "Edit Variable Set: {0}": "Edit Variable Set: {0}",
   "Save Variable Set": "Save Variable Set",
   "filled": "filled",
   "overridden": "overridden",
@@ -185,7 +186,6 @@
   "{0} artifacts have no form — open the .md directly to edit one.": "{0} artifacts have no form — open the .md directly to edit one.",
   "This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.": "This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.",
   "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.": "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.",
-  "This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.": "This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.",
   "Used clipboard contents — verify before saving.": "Used clipboard contents — verify before saving.",
   "That file is {0} KiB — too large to load into a create form (limit {1} KiB).": "That file is {0} KiB — too large to load into a create form (limit {1} KiB).",
   "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" cannot be used as an artifact filename — it must be a plain file name."

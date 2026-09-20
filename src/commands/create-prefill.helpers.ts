@@ -143,6 +143,10 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
         tags:         fm.tags ?? [],
         extension:    fm.extension,
         target:       fm.target,
+        // Carried but never rendered: without this line the serializer's `env`
+        // emit fix would still never reach an edit save, because the model
+        // handed to it would have no `env` to emit.
+        env:          fm.env,
         provider:     fm.provider,
         model:        fm.model,
         version:      fm.version,
@@ -159,7 +163,7 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
  * is harmless — the fields never existed. For an edit it **deletes the user's
  * content from their vault**, silently and irreversibly.
  *
- * Three cases the form cannot carry today, each refused rather than quietly
+ * Two cases the form cannot carry today, each refused rather than quietly
  * dropped:
  * - **Flagged payloads** (the marker syntax `flags.service.ts` owns) — the
  *   region markers and every line
@@ -168,8 +172,9 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
  * - **`index: true` / `paths:`** — read-side-only keys the serializer never
  *   emits (see `ARTIFACT_FILE_FORMAT.md` §8), so a saved index stops being an
  *   index.
- * - **`env:`** — in the serializer's key order but absent from
- *   `ArtifactFormModel`, so it has no field to survive in.
+ * `env:` was a third case until H7.0b gave `ArtifactFormModel` an `env` field
+ * and `serializeFrontmatter` an emit line for it. It now survives an edit, so
+ * refusing one would be refusing a file the form handles correctly.
  *
  * @param parsed - The parsed artifact.
  * @param body   - Raw file content, needed because flags are a body-level syntax.
@@ -185,9 +190,6 @@ export function unsupportedEditReason(parsed: ParsedArtifactFile, body: string):
     }
     if (parsed.frontmatter.index === true || (parsed.frontmatter.paths?.length ?? 0) > 0) {
         return vscode.l10n.t('This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.');
-    }
-    if (parsed.frontmatter.env) {
-        return vscode.l10n.t('This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.');
     }
     return undefined;
 }

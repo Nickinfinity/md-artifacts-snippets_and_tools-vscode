@@ -193,8 +193,6 @@ export class VarSetController {
         }
 
         openVarSetFormPanel(
-            Object.fromEntries(nonEmpty),
-            artifact.frontmatter.tags ?? [],
             this.extensionUri,
             {
                 validate: validateVarSetForm,
@@ -204,6 +202,11 @@ export class VarSetController {
                 // panel overrides; see `openVarSetFormPanel`.
                 post:  () => { /* replaced by the panel */ },
                 close: () => { /* replaced by the panel */ },
+            },
+            {
+                mode:   'create',
+                values: Object.fromEntries(nonEmpty),
+                tags:   artifact.frontmatter.tags ?? [],
             },
         );
     }

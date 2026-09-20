@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
-import type { ApplyChange, ApplyResult, VarSetMatch, VarSubSet } from '../types/varset.types.js';
+import type { ApplyChange, ApplyResult, VarSetMatch, VarSubSet, VarsEditPayload } from '../types/varset.types.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import { parseFromContent } from './parser.service.js';
 
@@ -273,5 +273,79 @@ export function buildVarSetModel(
             code:        '',
             vars:        entries.map(([name, defaultValue]) => ({ name, defaultValue })),
         }],
+    };
+}
+
+/**
+ * Pure transform — the file-to-form-model direction for the Variables edit form.
+ *
+ * Mirrors `extractSubSets`'s branch on `blocks.length > 0` (the file has
+ * **three** on-disk shapes, not two): a `blocks.length > 0` file yields one
+ * `subSets` entry per block, heading intact; a heading-less file
+ * (`blocks.length === 0`) yields exactly one entry wrapping the top-level
+ * `vars`, with `heading: ''` — never a synthesised title/fileName heading,
+ * so a heading-less file cannot gain a real `## ` heading on the next Save.
+ * `env` is file-level frontmatter, carried through untouched so a Save cannot
+ * silently drop it (it is never rendered by the form).
+ *
+ * @param file - Fully parsed `artifactType: Variables` file.
+ * @returns The edit form's payload shape.
+ *
+ * @example
+ * variablesFileToEditPayload(parsedVariablesFile)
+ * // → { title: 'Bundles', description: '', tags: [], env: 'staging',
+ * //     subSets: [{ heading: 'Dev', pairs: [['VK-host', 'localhost']] }] }
+ */
+export function variablesFileToEditPayload(file: ParsedArtifactFile): VarsEditPayload {
+    const fm = file.frontmatter;
+    const subSets = file.blocks.length > 0
+        ? file.blocks.map(b => ({
+            heading: b.heading,
+            pairs: b.vars.map(v => [v.name, v.defaultValue] as [string, string]),
+        }))
+        : [{
+            heading: '',
+            pairs: file.vars.map(v => [v.name, v.defaultValue] as [string, string]),
+        }];
+
+    return {
+        title: fm.title ?? '',
+        description: fm.description ?? '',
+        tags: fm.tags ?? [],
+        env: fm.env,
+        subSets,
+    };
+}
+
+/**
+ * Pure transform — the form-model-to-file direction for the Variables edit form.
+ *
+ * `original` is how frontmatter the edit form never renders (`env` today)
+ * survives the round trip — the same role `artifactToFormModel`'s callers play
+ * for the create/edit form's own undisplayed keys. A sub-set whose `heading`
+ * is `''` produces a heading-less block, so `serializeArtifact`'s single-block
+ * `Variables` path (never the multi-block path) is what re-emits it.
+ *
+ * @param payload  - The edited payload posted back from the webview.
+ * @param original - The file as parsed before editing, for undisplayed keys.
+ * @returns An `ArtifactFormModel` ready for `serializeArtifact`.
+ *
+ * @example
+ * editPayloadToModel(payload, original) // → { artifactType: 'Variables', ... }
+ */
+export function editPayloadToModel(payload: VarsEditPayload, original: ParsedArtifactFile): ArtifactFormModel {
+    return {
+        artifactType: 'Variables',
+        title: payload.title,
+        description: payload.description,
+        tags: payload.tags,
+        env: payload.env ?? original.frontmatter.env,
+        blocks: payload.subSets.map(s => ({
+            heading: s.heading,
+            description: '',
+            language: '',
+            code: '',
+            vars: s.pairs.map(([name, defaultValue]) => ({ name, defaultValue })),
+        })),
     };
 }

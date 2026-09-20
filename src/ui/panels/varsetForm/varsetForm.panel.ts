@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import * as path from 'node:path';
 import { getNonce } from '../../../utils/helpers.js';
-import { renderVarSetFormHtml, parseVarSetFormPayload } from './varsetForm.render.js';
-import type { VarSetFormPayload } from '../../../types/varset.types.js';
+import { renderVarSetFormHtml, parseVarSetFormPayload, parseVarsEditPayload } from './varsetForm.render.js';
+import { validateVarPairs } from '../../../services/varset-form.service.js';
+import type { VarSetFormPayload, VarsEditPayload } from '../../../types/varset.types.js';
 
 const FORM_VIEW_TYPE = 'obsidianArtifacts.varSetForm';
 
@@ -21,6 +23,19 @@ export interface VarSetFormCallbacks {
     post(msg: Record<string, unknown>): void;
     /** Closes the form (disposes the panel). */
     close(): void;
+    /**
+     * Writes an **edit-mode** payload back to the file it was opened from.
+     *
+     * Required in edit mode and unused in create mode — `openVarSetFormPanel`
+     * throws before creating a panel when edit mode is asked for without it,
+     * because an absent writer reached through the save branch would close the
+     * tab having written nothing: a clean-looking close that silently discards
+     * the edit. The bag is deliberately **not** a discriminated union on mode —
+     * that form does not compile against this tree's three call sites, and it
+     * also makes the "missing writer" test unwritable, since the bag lacking
+     * this member would not be constructible.
+     */
+    writeEdit?(payload: VarsEditPayload): Promise<void>;
 }
 
 /**
@@ -30,65 +45,180 @@ export interface VarSetFormCallbacks {
  * no test in this repo can post a message into a real `WebviewPanel`; this is
  * what makes the save/cancel contract unit-testable against a fake bag.
  *
- * @param msg - The raw message posted from the webview (`{ command, payload? }`).
- * @param cb  - Callback bag supplying validate/write/post/close.
+ * The save path branches on **`mode`**, never on which callbacks the bag
+ * happens to carry: a create-mode bag that carried `writeEdit` would otherwise
+ * silently take the edit path. Create mode is byte-identical to before.
+ *
+ * @param msg  - The raw message posted from the webview (`{ command, payload? }`).
+ * @param cb   - Callback bag supplying validate/write/post/close (+ `writeEdit` in edit mode).
+ * @param mode - Which save path to take; defaults to `'create'` so existing callers are untouched.
+ * @param base - Edit mode only: the payload the panel was opened with, supplying the `heading` and
+ *               `env` values the webview never posts back.
  * @returns Resolves once the message has been fully handled.
  *
  * @example
  * await handleVarSetFormMessage({ command: 'save', payload }, cb);
+ * await handleVarSetFormMessage({ command: 'save', payload }, cb, 'edit', openedWith);
  */
 export async function handleVarSetFormMessage(
     msg: Record<string, unknown>,
     cb: VarSetFormCallbacks,
+    mode: 'create' | 'edit' = 'create',
+    base?: VarsEditPayload,
 ): Promise<void> {
     if (msg.command === 'cancel') {
         cb.close();
         return;
     }
 
-    if (msg.command === 'save') {
-        const payload = parseVarSetFormPayload(msg.payload);
-        if (!payload) {
-            cb.post({ command: 'saveFailed', reason: 'Malformed payload.' });
-            return;
-        }
-
-        const result = cb.validate(payload);
-        if (!result.ok) {
-            cb.post({ command: 'saveFailed', reason: result.reason });
-            return;
-        }
-
-        await cb.write(payload);
-        cb.close();
+    if (msg.command !== 'save') {
+        return;
     }
+
+    if (mode === 'edit') {
+        await handleEditSave(msg, cb, base);
+        return;
+    }
+
+    const payload = parseVarSetFormPayload(msg.payload);
+    if (!payload) {
+        cb.post({ command: 'saveFailed', reason: 'Malformed payload.' });
+        return;
+    }
+
+    const result = cb.validate(payload);
+    if (!result.ok) {
+        cb.post({ command: 'saveFailed', reason: result.reason });
+        return;
+    }
+
+    await cb.write(payload);
+    cb.close();
 }
 
 /**
- * Opens the variable-set creation form panel.
+ * The edit-mode half of the save branch: shape-guard, content-validate, write.
+ *
+ * Bypasses `validate`/`write` deliberately — `validateVarSetForm` iterates
+ * `payload.pairs`, which the grouped edit shape does not have, and its title
+ * check is a slug rule belonging to the create path. It does **not** bypass the
+ * content check: `validateVarPairs` runs over every sub-set's rows, because
+ * names and values reach the ` ```vks ` fence verbatim and this payload is
+ * webview text the user just typed — strictly more hostile than create's.
+ *
+ * Headings and `env` are re-attached from `base`, never read off the wire, so
+ * the webview cannot rewrite either.
+ *
+ * @param msg  - The raw `save` message from the webview.
+ * @param cb   - Callback bag; `writeEdit` is guaranteed present by the open-time guard.
+ * @param base - The payload the panel was opened with.
+ * @returns Resolves once the edit has been written or refused.
+ *
+ * @example
+ * await handleEditSave({ command: 'save', payload }, cb, openedWith);
+ */
+async function handleEditSave(
+    msg: Record<string, unknown>,
+    cb: VarSetFormCallbacks,
+    base?: VarsEditPayload,
+): Promise<void> {
+    const wire = parseVarsEditPayload(msg.payload);
+    if (!wire || !base) {
+        cb.post({ command: 'saveFailed', reason: 'Malformed payload.' });
+        return;
+    }
+
+    for (const group of wire.pairs) {
+        const check = validateVarPairs(group);
+        if (!check.ok) {
+            cb.post({ command: 'saveFailed', reason: check.reason });
+            return;
+        }
+    }
+
+    // Headings and `env` never ride the wire — re-attach them from the payload the
+    // panel was opened with, index-aligned to the rendered sub-set order.
+    const payload: VarsEditPayload = {
+        title:       wire.title,
+        description: wire.description,
+        tags:        wire.tags,
+        env:         base.env,
+        subSets:     wire.pairs.map((pairs, i) => ({
+            heading: base.subSets[i]?.heading ?? '',
+            pairs,
+        })),
+    };
+
+    await cb.writeEdit?.(payload);
+    cb.close();
+}
+
+/**
+ * Options for opening the var-set form panel — mirrors `OpenFormOpts`
+ * (`artifactForm/panel.ts:32`) rather than inventing a second create/edit
+ * spelling: `mode` picks the branch, `values`/`tags` seed create mode,
+ * `payload`/`sourceUri` seed edit mode.
+ *
+ * @example
+ * { mode: 'create', values: { 'VK-host': 'localhost' }, tags: ['api'] }
+ * { mode: 'edit', payload, sourceUri: vscode.Uri.file('/v/Variables/bundles.md') }
+ */
+export interface OpenVarSetFormOpts {
+    /** `'create'` (today's flow) or `'edit'` (opens an existing file's parsed payload). */
+    mode: 'create' | 'edit';
+    /** Create mode: current non-empty variable values, keyed by full `VK-xxx` name. */
+    values?: Record<string, string>;
+    /** Create mode: tags carried over from the active artifact. */
+    tags?: string[];
+    /** Edit mode: the file's parsed payload — required in edit mode. */
+    payload?: VarsEditPayload;
+    /** Edit mode: the file the payload was parsed from — required in edit mode, used for the tab title. */
+    sourceUri?: vscode.Uri;
+}
+
+/**
+ * Opens the variable-set form panel — create mode (today's flow, byte-identical)
+ * or edit mode (a parsed `Variables/*.md` file, opened for in-place editing).
  *
  * Takes `extensionUri`, not `ExtensionContext` — there is no source for a
  * context here (`VarSetController`'s constructor is the same shape), and the
  * form has no block-expand or storage need beyond it.
  *
- * @param values        - Current non-empty variable values, keyed by full `VK-xxx` name.
- * @param tags          - Tags carried over from the active artifact.
- * @param extensionUri  - Extension root URI, for `localResourceRoots` and stylesheet URIs.
- * @param cb            - Callback bag supplying validate/write/post/close.
+ * **Edit mode refuses to open without a writer.** `handleVarSetFormMessage`'s
+ * edit-save branch ends `await cb.writeEdit?.(payload); cb.close();` — an
+ * absent `writeEdit` would silently close the tab having written nothing. This
+ * function throws *before* `vscode.window.createWebviewPanel` is called, so no
+ * panel is ever created for a bag that cannot honour a save.
+ *
+ * The branch is keyed on `opts.mode`, **never** on whether `cb.writeEdit` is
+ * present — a create-mode call whose bag happens to carry `writeEdit` still
+ * takes the create path and title.
+ *
+ * @param extensionUri - Extension root URI, for `localResourceRoots` and stylesheet URIs.
+ * @param cb           - Callback bag supplying validate/write/post/close (+ `writeEdit` in edit mode).
+ * @param opts         - See {@link OpenVarSetFormOpts}.
  *
  * @example
- * openVarSetFormPanel({ 'VK-host': 'localhost' }, ['api'], context.extensionUri, cb);
+ * openVarSetFormPanel(context.extensionUri, cb, { mode: 'create', values: { 'VK-host': 'localhost' }, tags: ['api'] });
+ * openVarSetFormPanel(context.extensionUri, cb, { mode: 'edit', payload, sourceUri });
  */
 export function openVarSetFormPanel(
-    values: Record<string, string>,
-    tags: string[],
     extensionUri: vscode.Uri,
     cb: VarSetFormCallbacks,
+    opts: OpenVarSetFormOpts,
 ): void {
+    if (opts.mode === 'edit' && !cb.writeEdit) {
+        throw new Error('openVarSetFormPanel: edit mode requires cb.writeEdit.');
+    }
+
     const uiRoot = vscode.Uri.joinPath(extensionUri, 'src', 'ui');
+    const title = opts.mode === 'edit' && opts.sourceUri
+        ? vscode.l10n.t('Edit Variable Set: {0}', path.basename(opts.sourceUri.fsPath, '.md'))
+        : vscode.l10n.t('Save Variable Set');
+
     const panel = vscode.window.createWebviewPanel(
         FORM_VIEW_TYPE,
-        vscode.l10n.t('Save Variable Set'),
+        title,
         vscode.ViewColumn.Active,
         {
             enableScripts: true,
@@ -100,14 +230,16 @@ export function openVarSetFormPanel(
     const cssUris = ['base.css', 'form.css'].map(f =>
         panel.webview.asWebviewUri(vscode.Uri.joinPath(uiRoot, f)).toString());
 
-    const payload: VarSetFormPayload = {
-        title: '',
-        description: '',
-        tags,
-        pairs: Object.entries(values),
-    };
+    const payload: VarSetFormPayload | VarsEditPayload = opts.mode === 'edit' && opts.payload
+        ? opts.payload
+        : {
+            title: '',
+            description: '',
+            tags: opts.tags ?? [],
+            pairs: Object.entries(opts.values ?? {}),
+        };
 
-    panel.webview.html = renderVarSetFormHtml(payload, cssUris, panel.webview.cspSource, getNonce());
+    panel.webview.html = renderVarSetFormHtml(payload, cssUris, panel.webview.cspSource, getNonce(), opts.mode);
 
     const bag: VarSetFormCallbacks = {
         ...cb,
@@ -115,7 +247,8 @@ export function openVarSetFormPanel(
         close: () => { panel.dispose(); cb.close(); },
     };
 
+    const editBase = opts.mode === 'edit' ? opts.payload : undefined;
     panel.webview.onDidReceiveMessage((msg: unknown) => {
-        void handleVarSetFormMessage(msg as Record<string, unknown>, bag);
+        void handleVarSetFormMessage(msg as Record<string, unknown>, bag, opts.mode, editBase);
     });
 }

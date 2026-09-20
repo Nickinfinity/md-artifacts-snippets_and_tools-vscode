@@ -47,6 +47,7 @@
   "Variables": "Variables",
   "Cancel": "Cancelar",
   "Save": "Guardar",
+  "Edit Variable Set: {0}": "Editar conjunto de variables: {0}",
   "Save Variable Set": "Guardar conjunto de variables",
   "filled": "rellenado",
   "overridden": "sobrescrito",
@@ -185,7 +186,6 @@
   "{0} artifacts have no form — open the .md directly to edit one.": "Los artefactos {0} no tienen formulario — abra el .md directamente para editar uno.",
   "This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.": "Este artefacto usa marcadores de comentario de Obsidian, que el formulario no puede representar. Editarlo aquí descartaría los marcadores y cualquier nota a su alrededor — abra el .md directamente en su lugar.",
   "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.": "Este artefacto es un índice de plantillas. El formulario no incluye enlaces de índice, por lo que guardarlo haría que dejara de ser un índice — abra el .md directamente en su lugar.",
-  "This artifact declares env:, which the form has no field for. Saving would drop it — open the .md directly instead.": "Este artefacto declara env:, para el cual el formulario no tiene campo. Guardarlo lo eliminaría — abra el .md directamente en su lugar.",
   "Used clipboard contents — verify before saving.": "Se usó el contenido del portapapeles — verifíquelo antes de guardar.",
   "That file is {0} KiB — too large to load into a create form (limit {1} KiB).": "Ese archivo tiene {0} KiB — demasiado grande para cargarlo en un formulario de creación (límite {1} KiB).",
   "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" no se puede usar como nombre de archivo de artefacto — debe ser un nombre de archivo simple."

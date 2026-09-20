@@ -1,25 +1,57 @@
 import * as vscode from 'vscode';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
-import type { VarSetFormPayload } from '../../../types/varset.types.js';
+import type { VarSetFormPayload, VarsEditPayload, VarsEditWirePayload } from '../../../types/varset.types.js';
 
 /**
- * Renders the variable-set creation form's webview HTML.
+ * Renders one `<table class="vars-table">` of editable `[name, value]` rows.
+ *
+ * Extracted from the formerly-inline row-building expression so both create
+ * mode (one flat table) and edit mode (one table per sub-set) share a single
+ * row renderer. `subSetIndex` is **not** load-bearing — `collectPairs` (the
+ * client script) pairs rows by array position, never by `data-subset` —  it
+ * exists solely so create mode's omission of the argument keeps the
+ * create-mode golden byte-identical (no `data-subset` attribute emitted).
+ *
+ * @param pairs       - `[name, value]` rows, in display order.
+ * @param subSetIndex - Sub-set index for edit mode; omitted in create mode.
+ * @returns The `<table class="vars-table">…</table>` markup, values escaped.
+ *
+ * @example
+ * renderVarPairRows([['VK-host', 'localhost']]);       // create mode, no data-subset
+ * renderVarPairRows([['VK-host', 'localhost']], 0);     // edit mode, sub-set 0
+ */
+export function renderVarPairRows(pairs: [string, string][], subSetIndex?: number): string {
+    const subsetAttr = subSetIndex === undefined ? '' : ` data-subset="${subSetIndex}"`;
+    const rowsHtml = pairs.map(([name, value], i) => `
+      <tr class="var-row">
+        <td class="var-name"><input class="form-input var-input" data-role="name" data-index="${i}"${subsetAttr} value="${escHtml(name)}"></td>
+        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}"${subsetAttr} value="${escHtml(value)}"></td>
+      </tr>`).join('');
+    return `<table class="vars-table"><tbody>${rowsHtml}</tbody></table>`;
+}
+
+/**
+ * Renders the variable-set form's webview HTML — create mode (a flat pair
+ * list) or edit mode (one `<table>` per sub-set, headed by an `<h3>`).
  *
  * Self-contained on purpose (`renderIdleHtml` — `mainView.render.ts` — is the
  * precedent this follows): inline `<style nonce>` plus one `<script nonce>`
- * IIFE with a single `acquireVsCodeApi()` call, no separate client-JS file.
- * Rows are server-rendered and pre-escaped through {@link escHtml}, so the
- * client script never builds HTML and carries no `esc`/`lbl` helper of its
- * own — `WEBVIEW_ESC_LBL_JS` does not apply here for the same reason
- * `renderIdleHtml` does not use it.
+ * IIFE with a single `acquireVsCodeApi()` call built from
+ * {@link buildVarSetFormClientJs}. Rows are server-rendered and pre-escaped
+ * through {@link escHtml}, so the client script never builds HTML and carries
+ * no `esc`/`lbl` helper of its own — `WEBVIEW_ESC_LBL_JS` does not apply here
+ * for the same reason `renderIdleHtml` does not use it.
  *
  * Rows are edit-in-place: the form edits the pairs it was opened with, no
  * add/remove row affordance.
  *
- * @param payload   - Current form values (title, description, tags, pairs).
+ * @param payload   - Current form values — a flat `VarSetFormPayload` (create) or a
+ *                    sub-set-grouped `VarsEditPayload` (edit); which one is read is
+ *                    decided by `mode`, never inferred from the payload's own shape.
  * @param cssUris   - Webview URIs for the stylesheets (`base.css`, `form.css`).
  * @param cspSource - Webview CSP source token (`webview.cspSource`).
  * @param nonce     - CSP nonce shared by the `<style>` and `<script>` tags.
+ * @param mode      - `'create'` (default) or `'edit'`.
  * @returns Complete HTML document string for `webview.html`.
  *
  * @example
@@ -29,10 +61,11 @@ import type { VarSetFormPayload } from '../../../types/varset.types.js';
  * )
  */
 export function renderVarSetFormHtml(
-    payload: VarSetFormPayload,
+    payload: VarSetFormPayload | VarsEditPayload,
     cssUris: string | string[],
     cspSource: string,
     nonce: string,
+    mode: 'create' | 'edit' = 'create',
 ): string {
     const safeNonce = escHtml(nonce);
     // cspSource is the webview's own opaque scheme token (e.g.
@@ -54,11 +87,16 @@ export function renderVarSetFormHtml(
     const backslash = String.fromCodePoint(92);
     const lessThan  = String.fromCodePoint(60);
     const tagsJs = JSON.stringify(payload.tags).replaceAll(lessThan, `${backslash}u003c`);
-    const rowsHtml = payload.pairs.map(([name, value], i) => `
-      <tr class="var-row">
-        <td class="var-name"><input class="form-input var-input" data-role="name" data-index="${i}" value="${escHtml(name)}"></td>
-        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}" value="${escHtml(value)}"></td>
-      </tr>`).join('');
+    // 🔴 The union makes `payload.pairs`/`payload.subSets` inaccessible without
+    // narrowing first — 'pairs' in payload' (not a cast) decides which shape
+    // this call carries, matching the `mode` parameter by construction: a
+    // create-mode caller always passes VarSetFormPayload (has `pairs`), an
+    // edit-mode caller always passes VarsEditPayload (has `subSets`).
+    const rowsHtml = 'pairs' in payload
+        ? renderVarPairRows(payload.pairs)
+        : payload.subSets.map((sub, i) => `
+      <h3 class="subset-heading">${escHtml(sub.heading)}</h3>
+      ${renderVarPairRows(sub.pairs, i)}`).join('');
 
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -87,7 +125,7 @@ ${styleLinkTags(cssUris)}
     </div>
     <div class="form-section">
       <label>${escHtml(vscode.l10n.t('Variables'))}</label>
-      <table class="vars-table"><tbody>${rowsHtml}</tbody></table>
+      ${rowsHtml}
     </div>
     <div id="vsfError" class="varset-form-error" hidden></div>
     <div class="varset-form-actions">
@@ -98,12 +136,54 @@ ${styleLinkTags(cssUris)}
 <script nonce="${safeNonce}">
 (function () {
   const vscode = acquireVsCodeApi();
+  ${buildVarSetFormClientJs(mode, tagsJs)}
+})();
+</script>
+</body>
+</html>`;
+}
 
-  function collectPairs() {
-    const names  = Array.from(document.querySelectorAll('[data-role="name"]'));
-    const values = Array.from(document.querySelectorAll('[data-role="value"]'));
+/**
+ * Builds the var-set form's client-script body — **acquire-free** (no
+ * `acquireVsCodeApi()` call of its own; the caller's template keeps
+ * `const vscode = acquireVsCodeApi();`, the same shape `mainView.render.ts`
+ * uses for `IDLE_CLIENT_JS`). Extracted so `test/webview-dom-harness.ts` can
+ * run it directly: the harness's `makeWebviewDom` hands `vscode` in as a
+ * parameter and does no `<script>` extraction from seed HTML, so a script
+ * that calls `acquireVsCodeApi()` itself throws `ReferenceError` there.
+ *
+ * `mode` is baked in as a literal (mirroring `mainView.render.ts:207`'s
+ * interpolation), selecting `collectPairs`'s behaviour: `'edit'` groups rows
+ * per `.vars-table` (one array of rows per sub-set, **always** — including
+ * for exactly one table); `'create'` returns the historical flat array. The
+ * selector is `.vars-table`, never `table.vars-table` — the harness's
+ * `matches()` only supports `#id` / `.class` / `[attr]` / `.class[attr]`, so
+ * a tag-qualified selector would silently match nothing.
+ *
+ * @param mode   - `'create'` or `'edit'` — which `collectPairs` shape to emit.
+ * @param tagsJs - Pre-escaped, `JSON.stringify`'d + `<`-guarded tags array literal.
+ * @returns The script body to interpolate between the template's IIFE braces.
+ *
+ * @example
+ * buildVarSetFormClientJs('edit', '["api"]')
+ */
+export function buildVarSetFormClientJs(mode: 'create' | 'edit', tagsJs: string): string {
+    const collectPairs = mode === 'edit'
+        ? `function collectPairs() {
+    var tables = Array.from(document.querySelectorAll('.vars-table'));
+    return tables.map(function (table) {
+      var names  = Array.from(table.querySelectorAll('[data-role="name"]'));
+      var values = Array.from(table.querySelectorAll('[data-role="value"]'));
+      return names.map(function (el, i) { return [el.value, values[i].value]; });
+    });
+  }`
+        : `function collectPairs() {
+    var names  = Array.from(document.querySelectorAll('[data-role="name"]'));
+    var values = Array.from(document.querySelectorAll('[data-role="value"]'));
     return names.map(function (el, i) { return [el.value, values[i].value]; });
-  }
+  }`;
+
+    return `${collectPairs}
 
   document.getElementById('vsfCancel').addEventListener('click', function () {
     vscode.postMessage({ command: 'cancel' });
@@ -136,11 +216,7 @@ ${styleLinkTags(cssUris)}
       errorEl.hidden = false;
       vscode.postMessage({ command: 'saveFailedAck' });
     }
-  });
-})();
-</script>
-</body>
-</html>`;
+  });`;
 }
 
 /**
@@ -185,6 +261,65 @@ export function parseVarSetFormPayload(raw: unknown): VarSetFormPayload | undefi
             return undefined;
         }
         pairs.push([entry[0], entry[1]]);
+    }
+
+    return { title: obj.title, description, tags, pairs };
+}
+
+/**
+ * Shape-guards an inbound **edit-mode** webview payload into a
+ * {@link VarsEditWirePayload}.
+ *
+ * Mirrors {@link parseVarSetFormPayload} one nesting level deeper: edit mode
+ * posts `pairs` grouped per sub-set (`[string, string][][]`), always — including
+ * for a single sub-set — so a flat array is a malformed payload here and is
+ * rejected. Hostile input is **rejected, never sanitised**.
+ *
+ * This guard is only half the protection: it rejects a bad *shape*, while
+ * `validateVarPairs` rejects fence-breaking *content*. Both must run before any
+ * write, because names and values are emitted verbatim into a ` ```vks ` fence.
+ *
+ * @param raw - The `msg.payload` value posted from the webview, untyped.
+ * @returns The validated wire payload, or `undefined` when the shape is wrong.
+ *
+ * @example
+ * parseVarsEditPayload({ title: 'x', description: '', tags: [], pairs: [[['VK-a', 'b']]] })
+ * // → { title: 'x', description: '', tags: [], pairs: [[['VK-a', 'b']]] }
+ * parseVarsEditPayload({ title: 'x', description: '', tags: [], pairs: [['VK-a', 'b']] })
+ * // → undefined — flat, not grouped
+ */
+export function parseVarsEditPayload(raw: unknown): VarsEditWirePayload | undefined {
+    if (typeof raw !== 'object' || raw === null) {
+        return undefined;
+    }
+    const obj = raw as Record<string, unknown>;
+
+    if (typeof obj.title !== 'string') {
+        return undefined;
+    }
+    const description = typeof obj.description === 'string' ? obj.description : '';
+
+    if (obj.tags !== undefined && (!Array.isArray(obj.tags) || !obj.tags.every(t => typeof t === 'string'))) {
+        return undefined;
+    }
+    const tags = (obj.tags as string[] | undefined) ?? [];
+
+    if (!Array.isArray(obj.pairs)) {
+        return undefined;
+    }
+    const pairs: [string, string][][] = [];
+    for (const group of obj.pairs) {
+        if (!Array.isArray(group)) {
+            return undefined;
+        }
+        const subSet: [string, string][] = [];
+        for (const entry of group) {
+            if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || typeof entry[1] !== 'string') {
+                return undefined;
+            }
+            subSet.push([entry[0], entry[1]]);
+        }
+        pairs.push(subSet);
     }
 
     return { title: obj.title, description, tags, pairs };

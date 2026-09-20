@@ -114,3 +114,69 @@ export interface VarSetFormPayload {
     /** Editable `[name, value]` rows, in display order. */
     pairs: [string, string][];
 }
+
+/**
+ * A parsed Variables file, shaped for the var-set form's **edit** mode.
+ *
+ * Groups every `[name, value]` pair under the sub-set heading it belongs to, so
+ * one rendered `<table class="vars-table">` corresponds to one entry here. The
+ * heading-less file shape (`blocks.length === 0`) yields a single entry whose
+ * `heading` is `''` — a file that had no `## ` heading must never gain one.
+ *
+ * `env` is **file-level** frontmatter (Q-B): carried through the edit round trip
+ * untouched and re-emitted unchanged, never rendered as an input. It is here
+ * only so a Save cannot silently drop it.
+ *
+ * @example
+ * const payload: VarsEditPayload = {
+ *     title:       'Bundles',
+ *     description: 'Per-environment settings',
+ *     tags:        ['api'],
+ *     env:         'production',
+ *     subSets:     [{ heading: 'Dev', pairs: [['VK-host', 'localhost']] }],
+ * };
+ */
+export interface VarsEditPayload {
+    /** Set title — emitted as `title:`; the file's own path is the write target. */
+    title: string;
+    /** Optional prose context; `''` when the user left it blank. */
+    description: string;
+    /** Tags carried from the edited file's frontmatter. */
+    tags: string[];
+    /** File-level `env:` frontmatter, carried verbatim so a Save cannot drop it. */
+    env?: string;
+    /** One entry per sub-set, in rendered order; `heading` is `''` when the source had none. */
+    subSets: { heading: string; pairs: [string, string][] }[];
+}
+
+/**
+ * What the edit-mode webview actually posts back — **not** {@link VarsEditPayload}.
+ *
+ * Headings stay out of the round trip by design: they render as `<h3>` siblings
+ * *outside* each `.vars-table`, so the client script recovers pairs but never
+ * headings, and a heading therefore can never be rewritten by the webview. `env`
+ * is absent for the same reason — it is never rendered. The panel re-attaches
+ * both from the payload it was opened with.
+ *
+ * `pairs` is grouped one entry per rendered sub-set, index-aligned to
+ * `VarsEditPayload.subSets`. Edit mode **always** posts this grouped shape, even
+ * for a single sub-set; create mode keeps posting a flat `[string, string][]`.
+ *
+ * @example
+ * const wire: VarsEditWirePayload = {
+ *     title:       'Bundles',
+ *     description: '',
+ *     tags:        ['api'],
+ *     pairs:       [[['VK-host', 'localhost']], [['VK-host', 'prod.example']]],
+ * };
+ */
+export interface VarsEditWirePayload {
+    /** Set title, as typed in the form. */
+    title: string;
+    /** Optional prose context; `''` when the user left it blank. */
+    description: string;
+    /** Tags, as edited in the form. */
+    tags: string[];
+    /** Rows grouped per sub-set, index-aligned to the rendered `.vars-table` order. */
+    pairs: [string, string][][];
+}

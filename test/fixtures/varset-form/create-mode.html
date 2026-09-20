@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-N0NCE'; style-src 'self' 'nonce-N0NCE';">
+<link rel="stylesheet" href="x.css">
+<style nonce="N0NCE">
+  .varset-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .varset-form-error { color: var(--vscode-errorForeground, #f48771); font-size: 0.85rem; }
+</style>
+</head>
+<body class="form-body">
+  <div class="form-panel">
+    <div class="form-section">
+      <label for="vsfTitle">Name</label>
+      <input class="form-input" id="vsfTitle" value="x">
+    </div>
+    <div class="form-section">
+      <label for="vsfDescription">Description</label>
+      <textarea class="form-input form-textarea" id="vsfDescription"></textarea>
+    </div>
+    <div class="form-section">
+      <label>Tags</label>
+      <div class="tags-row"></div>
+    </div>
+    <div class="form-section">
+      <label>Variables</label>
+      <table class="vars-table"><tbody>
+      <tr class="var-row">
+        <td class="var-name"><input class="form-input var-input" data-role="name" data-index="0" value="VK-a"></td>
+        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="0" value="b"></td>
+      </tr></tbody></table>
+    </div>
+    <div id="vsfError" class="varset-form-error" hidden></div>
+    <div class="varset-form-actions">
+      <button id="vsfCancel">Cancel</button>
+      <button id="vsfSave">Save</button>
+    </div>
+  </div>

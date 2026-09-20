@@ -79,7 +79,34 @@ export function validateVarSetForm(payload: VarSetFormPayload): VarSetFormValida
         return { ok: false, reason: 'Name cannot be empty.' };
     }
 
-    for (const [name, value] of payload.pairs) {
+    return validateVarPairs(payload.pairs);
+}
+
+/**
+ * Validates `[name, value]` rows against the ` ```vks ` fence they are emitted
+ * into verbatim — the content half of the var-set trust boundary.
+ *
+ * Extracted from {@link validateVarSetForm} so the **edit** path can run the
+ * identical check: a second copy of a security check is the duplication
+ * `CLAUDE.md` names, and this one guards a real sink. `serializeArtifact` emits
+ * `${name}=${value}` into the fence with nothing downstream escaping, so a
+ * newline plus a fence marker in a value re-parses as a single variable and
+ * silently destroys the rest of the file.
+ *
+ * Edit mode legitimately skips only the **title/slug** check its caller keeps,
+ * because it writes back to a path that already exists.
+ *
+ * **Rejects, never sanitises.**
+ *
+ * @param pairs - Editable `[name, value]` rows, from any mode's payload.
+ * @returns `{ ok: true }` when every row is safe to write, `{ ok: false, reason }` otherwise.
+ *
+ * @example
+ * validateVarPairs([['VK-host', 'localhost']]);      // → { ok: true }
+ * validateVarPairs([['VK-a', '`\n```vks']]);          // → { ok: false, reason: … }
+ */
+export function validateVarPairs(pairs: [string, string][]): VarSetFormValidation {
+    for (const [name, value] of pairs) {
         if (FENCE_BREAKING_RE.test(name) || NAME_EQUALS_RE.test(name)) {
             return { ok: false, reason: `Variable name "${name}" contains an illegal character (newline, backtick, or =).` };
         }

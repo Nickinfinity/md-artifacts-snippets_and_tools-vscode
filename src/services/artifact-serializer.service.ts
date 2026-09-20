@@ -43,7 +43,16 @@ export function serializeArtifact(model: ArtifactFormModel): string {
     // (ARTIFACT_FILE_FORMAT.md §3). They are also not create-form-enabled, so the
     // language resolution below would throw on them; this branch must come first.
     if (model.artifactType === 'Variables') {
-        return serializeFrontmatter(model, undefined) + serializeVariablesBody(model, isMultiBlock);
+        // A Variables file with exactly ONE `## ` heading has `blocks.length === 1`,
+        // so `isMultiBlock` is false and the single-block path emits a flat,
+        // heading-less fence — silently deleting the heading. `extractSubSets`
+        // branches on `blocks.length > 0`, so that file is a real sub-set shape
+        // and the round trip must preserve it. Narrow on purpose: flipping
+        // `isMultiBlock` to `> 0` outright would change byte output for every
+        // one-block file of every type. A heading-less block keeps the flat path,
+        // so a file that had no heading can never gain one.
+        const keepsHeading = model.blocks.length === 1 && (model.blocks[0]?.heading ?? '') !== '';
+        return serializeFrontmatter(model, undefined) + serializeVariablesBody(model, isMultiBlock || keepsHeading);
     }
 
     if (isMultiBlock) {
@@ -80,25 +89,8 @@ function serializeFrontmatter(model: ArtifactFormModel, language: string | undef
     // language — single-block only, omitted for plain text and multi-block
     if (language !== undefined && language !== '') { lines.push(`language: ${language}`); }
 
-    // extension — template-only; emitted verbatim when supplied. Single-line
-    // enforced like title/description; the write-path validators (T2/T3/T5) own
-    // path-injection rejection, not the serializer.
-    if (model.extension !== undefined && model.extension !== '') {
-        lines.push(`extension: ${safeYamlValue(model.extension)}`);
-    }
-
-    // provider / model / version — agent-only; single-line enforced via
-    // safeYamlValue exactly like title/description/extension, so an embedded
-    // newline can never inject a sibling frontmatter key on re-parse.
-    if (model.provider !== undefined && model.provider !== '') {
-        lines.push(`provider: ${safeYamlValue(model.provider)}`);
-    }
-    if (model.model !== undefined && model.model !== '') {
-        lines.push(`model: ${safeYamlValue(model.model)}`);
-    }
-    if (model.version !== undefined && model.version !== '') {
-        lines.push(`version: ${safeYamlValue(model.version)}`);
-    }
+    // extension / provider / model / version — type-only keys, emitted before tags.
+    pushOptionalKeys(lines, model, ['extension', 'provider', 'model', 'version']);
 
     // tags — omitted when empty
     if (model.tags.length > 0) {
@@ -108,8 +100,46 @@ function serializeFrontmatter(model: ArtifactFormModel, language: string | undef
         lines.push(`tags: [${safeTagList}]`);
     }
 
+    // env / target — both sit in FRONTMATTER_KEY_ORDER and in the parser's
+    // STRING_FRONTMATTER_KEYS, yet neither had an emit line here: this function
+    // hardcoded its fields and never iterates the order table, so every `env:`
+    // and every user-typed `target:` was silently dropped on any re-serialize.
+    // A key-order table is not an emitter. Guarded by a content round-trip in
+    // frontmatter-keys.test.ts — the pre-existing list-vs-list comparison was
+    // green throughout, because both keys are in both lists.
+    pushOptionalKeys(lines, model, ['env', 'target']);
+
     lines.push('---');
     return lines.join('\n') + '\n';
+}
+
+/**
+ * Appends `key: value` for each optional string field that is present and non-empty.
+ *
+ * Every value goes through `safeYamlValue`, so an embedded newline can never
+ * inject a sibling frontmatter key on re-parse — the property that made the
+ * per-key `if` chain this replaces worth keeping identical in behaviour. Caller
+ * order decides emission order, which must match `FRONTMATTER_KEY_ORDER`.
+ *
+ * @param lines - Frontmatter lines accumulated so far; appended to in place.
+ * @param model - The form model supplying the values.
+ * @param keys  - Which optional string fields to emit, in emission order.
+ * @returns Nothing; `lines` is mutated.
+ *
+ * @example
+ * pushOptionalKeys(lines, model, ['env', 'target']);
+ */
+function pushOptionalKeys(
+    lines: string[],
+    model: ArtifactFormModel,
+    keys: readonly (keyof ArtifactFormModel)[],
+): void {
+    for (const key of keys) {
+        const value = model[key];
+        if (typeof value === 'string' && value !== '') {
+            lines.push(`${key}: ${safeYamlValue(value)}`);
+        }
+    }
 }
 
 // ── Single-block body ─────────────────────────────────────────────────────────

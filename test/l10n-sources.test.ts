@@ -220,14 +220,12 @@ suite('l10n sources — src/commands', () => {
             'the choice is not compared against the same hoisted const — a literal here breaks every delete in Spanish');
     });
 
-    test('the three unsupported-edit reasons are localised', () => {
+    test('the two unsupported-edit reasons are localised', () => {
         const src = readStripped(path.join(srcRoot, 'commands', 'create-prefill.helpers.ts'));
         assert.match(src, /vscode\.l10n\.t\(\s*'This artifact uses Obsidian comment flags/,
             'the flags reason is not localised');
         assert.match(src, /vscode\.l10n\.t\(\s*'This artifact is a template index/,
             'the index reason is not localised');
-        assert.match(src, /vscode\.l10n\.t\(\s*'This artifact declares env:/,
-            'the env: reason is not localised');
     });
 });
 

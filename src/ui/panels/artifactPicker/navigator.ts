@@ -11,11 +11,15 @@ import { getMainViewProvider, type MainViewProvider } from '../../views/mainView
 import { ensureView } from '../../views/mainView.preview.js';
 import type { InvocationSurface } from './preview.helpers.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
-import { forcesSingleBlock } from '../../../services/artifact-type-config.service.js';
+import { forcesSingleBlock, opensForEdit } from '../../../services/artifact-type-config.service.js';
 import { isIndexArtifact } from '../../../services/multi-index.service.js';
 import { resolveDestination } from '../../../services/template-destination.service.js';
 import { MultiIndexRunner } from './multiIndex.js';
 import { chooseStepDestination } from './multiIndex.dest.js';
+import { openVarSetFormPanel } from '../varsetForm/varsetForm.panel.js';
+import { variablesFileToEditPayload, editPayloadToModel } from '../../../services/varset.service.js';
+import { writeVariablesFile } from '../../../services/variables-writer.service.js';
+import { validateVarSetForm } from '../../../services/varset-form.service.js';
 
 /**
  * Opens a QuickPick navigator for the given vault artifact directory.
@@ -304,6 +308,14 @@ class ArtifactNavigator {
         if (key === this.lastPreviewedUri) { return; }
         this.lastPreviewedUri = key;
 
+        if (opensForEdit(artifact.frontmatter.artifactType)) {
+            // Hover fires on every keypress (120ms debounce); opening the edit
+            // form here would spawn a tab per arrow key. An opensForEdit type
+            // can no longer be inserted, so there is nothing to preview.
+            this.preview.showEmpty();
+            return;
+        }
+
         if (this.isMultiBlockNav(artifact)) {
             this.preview.showMultiBlockPreview(artifact);
             return;
@@ -397,12 +409,64 @@ class ArtifactNavigator {
 
         if (isIndexArtifact(artifact.frontmatter)) { await this.runIndex(artifact); return; }
 
+        if (opensForEdit(artifact.frontmatter.artifactType)) {
+            this.openEditForm(artifact);
+            return;
+        }
+
         if (this.isMultiBlockNav(artifact)) {
             this.loadBlocks(artifact);
             return;
         }
 
         this.handoffToPreview(artifact);
+    }
+
+    /**
+     * Routes an `opensForEdit` type (`Variables`) to the var-set edit form
+     * instead of the insert preview (T7.3).
+     *
+     * Guards the vault root before opening — mirrors `varSetController.ts`'s
+     * `handleSaveAsVarSet` guard verbatim. A throw inside `writeEdit` would
+     * surface as an unhandled rejection in the webview message loop, not as
+     * an error the user sees, so the root is checked up front instead.
+     *
+     * @param artifact - The parsed `artifactType: Variables` file to edit.
+     * @returns void
+     *
+     * @example
+     * this.openEditForm(parsedVariablesFile);
+     */
+    private openEditForm(artifact: ParsedArtifactFile): void {
+        const vaultRoot = getVaultRootUri();
+        if (!vaultRoot) {
+            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
+            return;
+        }
+
+        const fileUri = vscode.Uri.file(artifact.filePath);
+        const payload = variablesFileToEditPayload(artifact);
+
+        this.qp.hide();
+
+        openVarSetFormPanel(this.extensionUri, {
+            // Edit mode never reaches validate/write — the panel's `mode` branch
+            // routes it to writeEdit. Both are supplied inert because the bag's
+            // members are required and making them optional would retype the
+            // create path (varSetController.ts's handleSaveAsVarSet).
+            validate: validateVarSetForm,
+            write:    async () => { /* unreachable in edit mode */ },
+            post:     () => {},
+            close:    () => {},
+            writeEdit: async p => {
+                await writeVariablesFile({
+                    vaultRoot,
+                    chosenDir: vscode.Uri.joinPath(fileUri, '..'),
+                    fileName:  path.basename(artifact.filePath, '.md'),
+                    model:     editPayloadToModel(p, artifact),
+                });
+            },
+        }, { mode: 'edit', payload, sourceUri: fileUri });
     }
 
     /**
