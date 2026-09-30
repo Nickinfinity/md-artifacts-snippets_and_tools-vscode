@@ -92,6 +92,12 @@
         "title": "%cmd.create.templates.index.title%"
       },
       {
+        "command": "obsidian-artifacts.variables.openFile",
+        "title": "%cmd.variables.openFile.title%",
+        "category": "%cmd.category%",
+        "icon": "$(edit)"
+      },
+      {
         "command": "obsidian-artifacts.variables.newFile",
         "title": "%cmd.variables.newFile.title%",
         "category": "%cmd.category%",
@@ -204,6 +210,10 @@
         },
         {
           "command": "obsidian-artifacts.variables.newFile",
+          "when": "false"
+        },
+        {
+          "command": "obsidian-artifacts.variables.openFile",
           "when": "false"
         },
         {
@@ -475,9 +485,24 @@
       ],
       "view/item/context": [
         {
-          "command": "obsidian-artifacts.variables.newSubSet",
+          "command": "obsidian-artifacts.variables.openFile",
           "when": "view == obsidian-artifacts.variablesView && viewItem == file",
           "group": "inline@1"
+        },
+        {
+          "command": "obsidian-artifacts.variables.newSubSet",
+          "when": "view == obsidian-artifacts.variablesView && viewItem == file",
+          "group": "inline@2"
+        },
+        {
+          "command": "obsidian-artifacts.variables.openFile",
+          "when": "view == obsidian-artifacts.variablesView && viewItem == file",
+          "group": "1_modify@1"
+        },
+        {
+          "command": "obsidian-artifacts.variables.deleteFile",
+          "when": "view == obsidian-artifacts.variablesView && viewItem == file",
+          "group": "inline@3"
         },
         {
           "command": "obsidian-artifacts.variables.deleteFile",

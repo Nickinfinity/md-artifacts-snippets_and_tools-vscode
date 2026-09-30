@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
+import { jsStr, WEBVIEW_ESC_LBL_JS } from '../artifactPicker/webviewSnippets.js';
+import { buildTagsField, TAGS_FIELD_CLIENT_JS } from '../shared/tagsField.js';
 import type { VarSetFormPayload, VarsEditPayload, VarsEditWirePayload } from '../../../types/varset.types.js';
 
 /**
@@ -21,13 +23,28 @@ import type { VarSetFormPayload, VarsEditPayload, VarsEditWirePayload } from '..
  * renderVarPairRows([['VK-host', 'localhost']], 0);     // edit mode, sub-set 0
  */
 export function renderVarPairRows(pairs: [string, string][], subSetIndex?: number): string {
-    const subsetAttr = subSetIndex === undefined ? '' : ` data-subset="${subSetIndex}"`;
+    // Row actions are EDIT-MODE ONLY, and `subSetIndex === undefined` is what
+    // marks create mode — the same signal that already gates `data-subset`.
+    // Create mode keeps its markup byte-for-byte, which is what lets
+    // `test/fixtures/varset-form/create-mode.html` stay a real regression pin
+    // rather than being regenerated to accommodate this feature. Create mode
+    // captures values from a preview it was opened with, so its row set is
+    // fixed by definition; edit mode is where a set gains or loses a variable.
+    const isEdit = subSetIndex !== undefined;
+    const subsetAttr = isEdit ? ` data-subset="${subSetIndex}"` : '';
+    const removeCell = isEdit
+        ? `
+        <td class="var-actions"><button class="row-remove" aria-label="${escHtml(vscode.l10n.t('Remove variable'))}">&#215;</button></td>`
+        : '';
     const rowsHtml = pairs.map(([name, value], i) => `
       <tr class="var-row">
         <td class="var-name"><input class="form-input var-input" data-role="name" data-index="${i}"${subsetAttr} value="${escHtml(name)}"></td>
-        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}"${subsetAttr} value="${escHtml(value)}"></td>
+        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}"${subsetAttr} value="${escHtml(value)}"></td>${removeCell}
       </tr>`).join('');
-    return `<table class="vars-table"><tbody>${rowsHtml}</tbody></table>`;
+    const table = `<table class="vars-table"><tbody>${rowsHtml}</tbody></table>`;
+    if (!isEdit) { return table; }
+    const addLabel = escHtml(vscode.l10n.t('Add variable'));
+    return `${table}<button class="add-var-row" data-table="${subSetIndex}">${addLabel}</button>`;
 }
 
 /**
@@ -38,12 +55,13 @@ export function renderVarPairRows(pairs: [string, string][], subSetIndex?: numbe
  * precedent this follows): inline `<style nonce>` plus one `<script nonce>`
  * IIFE with a single `acquireVsCodeApi()` call built from
  * {@link buildVarSetFormClientJs}. Rows are server-rendered and pre-escaped
- * through {@link escHtml}, so the client script never builds HTML and carries
- * no `esc`/`lbl` helper of its own — `WEBVIEW_ESC_LBL_JS` does not apply here
- * for the same reason `renderIdleHtml` does not use it.
+ * through {@link escHtml}. The client script DOES build HTML — the shared tags
+ * field and the added variable rows — so it carries `esc` via
+ * `WEBVIEW_ESC_LBL_JS`.
  *
- * Rows are edit-in-place: the form edits the pairs it was opened with, no
- * add/remove row affordance.
+ * Rows are add/remove-able: each carries a remove button and each table an
+ * "Add variable" button, because a set that could only edit the rows it was
+ * opened with could never gain a second variable.
  *
  * @param payload   - Current form values — a flat `VarSetFormPayload` (create) or a
  *                    sub-set-grouped `VarsEditPayload` (edit); which one is read is
@@ -79,7 +97,6 @@ export function renderVarSetFormHtml(
     const csp = `default-src 'none'; script-src 'nonce-${safeNonce}'; `
         + `style-src ${cspSource} 'nonce-${safeNonce}';`;
 
-    const tagsHtml = payload.tags.map(t => `<span class="tag-chip">${escHtml(t)}</span>`).join('');
     // Tags are vault frontmatter (untrusted) and this value is embedded inside
     // an inline <script>, not HTML text — escHtml (meant for HTML/attributes)
     // would not stop a tag containing "</script>" from closing the block
@@ -119,10 +136,7 @@ ${styleLinkTags(cssUris)}
       <label for="vsfDescription">${escHtml(vscode.l10n.t('Description'))}</label>
       <textarea class="form-input form-textarea" id="vsfDescription">${escHtml(payload.description)}</textarea>
     </div>
-    <div class="form-section">
-      <label>${escHtml(vscode.l10n.t('Tags'))}</label>
-      <div class="tags-row">${tagsHtml}</div>
-    </div>
+    ${buildTagsField(payload.tags)}
     <div class="form-section">
       <label>${escHtml(vscode.l10n.t('Variables'))}</label>
       ${rowsHtml}
@@ -185,6 +199,54 @@ export function buildVarSetFormClientJs(mode: 'create' | 'edit', tagsJs: string)
 
     return `${collectPairs}
 
+  // Tags are LIVE, not the render-time array: this used to post \`tags: [...]\`
+  // baked in at build time, so a tag could never be added or removed — the
+  // field rendered as decoration. Shared with the artifact form.
+${WEBVIEW_ESC_LBL_JS}
+  let tags = ${tagsJs};
+  function markDirty() { /* the var-set form tracks no dirty state */ }
+${TAGS_FIELD_CLIENT_JS}
+  renderTags();
+
+  // ── Add / remove variable rows ───────────────────────────────────────────
+  // Without these the form could only edit the values it was opened with — a
+  // new set could never gain a second variable, and an unwanted row could
+  // never go. Rows are built by the same markup the server paints, so a
+  // round trip through collectPairs() sees no difference between them.
+  function addRow(table) {
+    const body = table.querySelector('tbody');
+    if (!body) { return; }
+    const tr = document.createElement('tr');
+    tr.className = 'var-row';
+    tr.innerHTML =
+      '<td class="var-name"><input class="form-input var-input" data-role="name" value=""></td>' +
+      '<td class="var-default"><input class="form-input var-input" data-role="value" value=""></td>' +
+      '<td class="var-actions"><button class="row-remove" aria-label="' + ${jsStr(escHtml(vscode.l10n.t('Remove variable')))} + '">\\xd7</button></td>';
+    body.appendChild(tr);
+    wireRowRemove();
+    const added = tr.querySelector('[data-role="name"]');
+    if (added) { added.focus(); }
+  }
+
+  function wireRowRemove() {
+    document.querySelectorAll('.row-remove').forEach(function (btn) {
+      if (btn.dataset.wired === '1') { return; }
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', function () {
+        const row = btn.closest('.var-row');
+        if (row) { row.remove(); }
+      });
+    });
+  }
+
+  document.querySelectorAll('.add-var-row').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const table = document.querySelectorAll('.vars-table')[Number(btn.dataset.table || '0')];
+      if (table) { addRow(table); }
+    });
+  });
+  wireRowRemove();
+
   document.getElementById('vsfCancel').addEventListener('click', function () {
     vscode.postMessage({ command: 'cancel' });
   });
@@ -201,7 +263,7 @@ export function buildVarSetFormClientJs(mode: 'create' | 'edit', tagsJs: string)
       payload: {
         title: document.getElementById('vsfTitle').value,
         description: document.getElementById('vsfDescription').value,
-        tags: ${tagsJs},
+        tags: tags.slice(),
         pairs: collectPairs(),
       },
     });

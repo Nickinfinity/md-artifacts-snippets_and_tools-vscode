@@ -16,10 +16,7 @@ import { isIndexArtifact } from '../../../services/multi-index.service.js';
 import { resolveDestination } from '../../../services/template-destination.service.js';
 import { MultiIndexRunner } from './multiIndex.js';
 import { chooseStepDestination } from './multiIndex.dest.js';
-import { openVarSetFormPanel } from '../varsetForm/varsetForm.panel.js';
-import { variablesFileToEditPayload, editPayloadToModel } from '../../../services/varset.service.js';
-import { writeVariablesFile } from '../../../services/variables-writer.service.js';
-import { validateVarSetForm } from '../../../services/varset-form.service.js';
+import { openVarsEditForm } from '../../../commands/open-vars-edit.helpers.js';
 
 /**
  * Opens a QuickPick navigator for the given vault artifact directory.
@@ -438,35 +435,8 @@ class ArtifactNavigator {
      * this.openEditForm(parsedVariablesFile);
      */
     private openEditForm(artifact: ParsedArtifactFile): void {
-        const vaultRoot = getVaultRootUri();
-        if (!vaultRoot) {
-            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
-            return;
-        }
-
-        const fileUri = vscode.Uri.file(artifact.filePath);
-        const payload = variablesFileToEditPayload(artifact);
-
         this.qp.hide();
-
-        openVarSetFormPanel(this.extensionUri, {
-            // Edit mode never reaches validate/write — the panel's `mode` branch
-            // routes it to writeEdit. Both are supplied inert because the bag's
-            // members are required and making them optional would retype the
-            // create path (varSetController.ts's handleSaveAsVarSet).
-            validate: validateVarSetForm,
-            write:    async () => { /* unreachable in edit mode */ },
-            post:     () => {},
-            close:    () => {},
-            writeEdit: async p => {
-                await writeVariablesFile({
-                    vaultRoot,
-                    chosenDir: vscode.Uri.joinPath(fileUri, '..'),
-                    fileName:  path.basename(artifact.filePath, '.md'),
-                    model:     editPayloadToModel(p, artifact),
-                });
-            },
-        }, { mode: 'edit', payload, sourceUri: fileUri });
+        void openVarsEditForm(artifact, this.extensionUri);
     }
 
     /**

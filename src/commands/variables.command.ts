@@ -4,6 +4,8 @@ import { getEntry } from '../services/artifact-type-config.service.js';
 import { validateArtifactFilename, deriveFileName } from '../services/filename.service.js';
 import { writeArtifact } from '../services/artifact-writer.service.js';
 import { renderVariablesFile } from '../services/variables-writer.service.js';
+import { parseArtifactFile } from '../services/parser.service.js';
+import { openVarsEditForm } from './open-vars-edit.helpers.js';
 import {
     addVar, renameVar, setVarValue, deleteVar,
     addSubSet, renameSubSet, deleteSubSet,
@@ -12,7 +14,7 @@ import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import type { VariableNode, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
 import {
     buildVariableCommandIds, resolveTarget, commitWrite, buildConfirmMessage, errMessage, at,
-    type CommandIO, defaultIO,
+    OPEN_FILE_COMMAND_ID, type CommandIO, defaultIO,
 } from './variables.command.helpers.js';
 
 /**
@@ -64,6 +66,7 @@ export async function handleNewFile(
     provider: VariablesViewProvider,
     io: CommandIO = defaultIO,
     vaultRoot: vscode.Uri | undefined = getVaultRootUri(),
+    openForm?: (fileUri: vscode.Uri) => Promise<void>,
 ): Promise<void> {
     if (!vaultRoot) {
         io.showError(vscode.l10n.t('Obsidian Artifacts: no vault configured.'));
@@ -82,16 +85,28 @@ export async function handleNewFile(
         return;
     }
 
+    // Seeded with one placeholder row, not empty: the form renders the pairs it
+    // was opened with and has no add-row affordance, so an empty file opens as a
+    // table with nothing to edit and no way to add anything.
     const model: ArtifactFormModel = {
         artifactType: 'Variables', title, description: '', tags: [],
-        blocks: [{ heading: '', description: '', language: '', code: '', vars: [] }],
+        blocks: [{
+            heading: '', description: '', language: '', code: '',
+            vars: [{ name: 'VK-name', defaultValue: '' }],
+        }],
     };
     const chosenDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir);
     const result = await writeArtifact({
         vaultRoot, type: 'Variables', chosenDir, fileName, content: renderVariablesFile(model), force: false,
     });
 
-    if (result.kind === 'success') { provider.refresh(); return; }
+    if (result.kind === 'success') {
+        provider.refresh();
+        // Creating a set and then leaving the user in the tree is a dead end —
+        // open the file that was just written so the values can be filled in.
+        if (openForm) { await openForm(vscode.Uri.joinPath(chosenDir, `${fileName}.md`)); }
+        return;
+    }
     const message = result.kind === 'collision' ? vscode.l10n.t('"{0}.md" already exists.', fileName) : result.message;
     io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', message));
 }
@@ -440,6 +455,70 @@ export async function handleDeleteFile(
  * // Called once inside activate():
  * registerVariablesCommands(context, variablesViewProvider);
  */
+/**
+ * Opens a Variables file in the var-set form's edit mode, by path.
+ *
+ * The pane's route into the form — used both by a file-node click and by
+ * `handleNewFile` right after it writes. Parses the file here because the tree
+ * carries paths, not parsed artifacts, and routes through the one shared
+ * `openVarsEditForm` so the callback bag is not built a second time.
+ *
+ * @param fileUri  - The `.md` to open.
+ * @param provider - Tree provider, refreshed after a successful save.
+ * @param extensionUri - Extension root, for the webview's `localResourceRoots`.
+ * @returns Resolves once the panel is open, or immediately when the file cannot be parsed.
+ *
+ * @example
+ * await openVariablesFileInForm(uri, provider, context.extensionUri);
+ */
+export async function openVariablesFileInForm(
+    fileUri: vscode.Uri,
+    provider: VariablesViewProvider,
+    extensionUri: vscode.Uri,
+    io: CommandIO = defaultIO,
+): Promise<void> {
+    let parsed;
+    try {
+        parsed = parseArtifactFile(fileUri.fsPath, vscode.Uri.joinPath(fileUri, '..').fsPath);
+    } catch (e) {
+        io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', errMessage(e)));
+        return;
+    }
+    if (!parsed) {
+        io.showError(vscode.l10n.t('Obsidian Artifacts: could not read "{0}".', fileUri.fsPath));
+        return;
+    }
+    await openVarsEditForm(parsed, extensionUri, () => provider.refresh());
+}
+
+/**
+ * Opens the clicked `file` tree node in the var-set form's edit mode.
+ *
+ * Reuses `resolveTarget` so the node→path resolution and its containment check
+ * are the shared ones, then hands the parsed file to `openVarsEditForm`.
+ *
+ * @param node         - Clicked `file` tree node.
+ * @param provider     - Tree provider, refreshed after a successful save.
+ * @param extensionUri - Extension root, for the webview's `localResourceRoots`.
+ * @param io           - Interaction bag; defaults to the real `vscode.window`-backed one.
+ * @param vaultRoot    - Vault root; defaults to `getVaultRootUri()`.
+ * @returns Resolves once the panel is open, or immediately when the node cannot be resolved.
+ *
+ * @example
+ * await handleOpenFile(node, provider, context.extensionUri);
+ */
+export async function handleOpenFile(
+    node: VariableNode | undefined,
+    provider: VariablesViewProvider,
+    extensionUri: vscode.Uri,
+    io: CommandIO = defaultIO,
+    vaultRoot: vscode.Uri | undefined = getVaultRootUri(),
+): Promise<void> {
+    const target = await resolveTarget(node, 'file', vaultRoot, io);
+    if (!target) { return; }
+    await openVariablesFileInForm(vscode.Uri.file(target.filePath), provider, extensionUri, io);
+}
+
 export function registerVariablesCommands(context: vscode.ExtensionContext, provider: VariablesViewProvider): void {
     const [
         newFileId, newSubSetId, addVarId, editValueId,
@@ -447,7 +526,12 @@ export function registerVariablesCommands(context: vscode.ExtensionContext, prov
     ] = buildVariableCommandIds();
 
     context.subscriptions.push(
-        vscode.commands.registerCommand(newFileId, () => handleNewFile(provider)),
+        vscode.commands.registerCommand(newFileId, () => handleNewFile(
+            provider, defaultIO, getVaultRootUri(),
+            uri => openVariablesFileInForm(uri, provider, context.extensionUri),
+        )),
+        vscode.commands.registerCommand(OPEN_FILE_COMMAND_ID, (node?: VariableNode) =>
+            handleOpenFile(node, provider, context.extensionUri)),
         vscode.commands.registerCommand(newSubSetId, (node?: VariableNode) => handleNewSubSet(node, provider)),
         vscode.commands.registerCommand(addVarId, (node?: VariableNode) => handleAddVar(node, provider)),
         vscode.commands.registerCommand(editValueId, (node?: VariableNode) => handleEditValue(node, provider)),

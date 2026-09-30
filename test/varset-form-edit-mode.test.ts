@@ -25,13 +25,24 @@ function bodyOnly(html: string): string {
     return html.slice(0, idx);
 }
 
+/**
+ * Reset ONCE, deliberately, after W7: the tags field became editable in both
+ * forms (`shared/tagsField.ts`), which legitimately changed create-mode markup —
+ * the read-only `<div class="tags-row"></div>` gained an `id` and an input. The
+ * diff was inspected line by line and contained *only* that field; the pair
+ * rows stayed byte-identical, because the add/remove row affordance is gated to
+ * edit mode precisely so this pin kept its meaning.
+ *
+ * That is the only circumstance for regenerating it. A failure here is a
+ * regression until someone has read the diff and can name the intended change.
+ */
 suite('varset form render — create-mode golden (regression pin, not genuine red)', () => {
     test('create-mode markup is byte-unchanged by the edit-mode extraction', () => {
         const payload: VarSetFormPayload = { title: 'x', description: '', tags: [], pairs: [['VK-a', 'b']] };
         const html = renderVarSetFormHtml(payload, 'x.css', "'self'", 'N0NCE');
         const golden = fs.readFileSync(GOLDEN_PATH, 'utf8');
         assert.strictEqual(bodyOnly(html), golden,
-            'create-mode markup changed — the extraction altered create-mode output; fix the extraction, never regenerate this golden');
+            'create-mode markup changed — fix the change, do not regenerate this golden to accommodate it');
     });
 });
 

@@ -34,7 +34,7 @@ import { confirmTextFor } from './variables.confirm.helpers.js';
 const VARIABLE_COMMAND_SUFFIXES = [
     'newFile', 'newSubSet', 'addVar', 'editValue',
     'renameVar', 'renameSubSet', 'deleteVar', 'deleteSubSet', 'deleteFile',
-    'applyToPreview', 'saveCurrentValues',
+    'applyToPreview', 'saveCurrentValues', 'openFile',
 ] as const;
 
 /**
@@ -65,6 +65,8 @@ export function buildVariableCommandIds(): string[] {
     return VARIABLE_COMMAND_SUFFIXES.map(variableCommandId);
 }
 
+/** Command id for "Open Variable Set" — the pane's route into the edit form. */
+export const OPEN_FILE_COMMAND_ID = variableCommandId('openFile');
 /** Command id for "Apply Variable Set to Preview" (T1.3). */
 export const APPLY_TO_PREVIEW_COMMAND_ID = variableCommandId('applyToPreview');
 /** Command id for "Save Preview Values as Variable Set" (T1.3). */

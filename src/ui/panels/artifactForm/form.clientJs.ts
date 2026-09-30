@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CODE_BLOCK_CLIENT_JS } from '../artifactPicker/codeBlock.js';
+import { TAGS_FIELD_CLIENT_JS } from '../shared/tagsField.js';
 import { jsStr } from '../artifactPicker/webviewSnippets.js';
 import { escHtml } from '../../../utils/html.js';
 
@@ -9,16 +10,13 @@ import { escHtml } from '../../../utils/html.js';
 // BEFORE it is quoted as a JS string literal — `jsStr(escHtml(...))` — because
 // the client script builds HTML by concatenation, so a bundle value crosses
 // two boundaries: script literal, then HTML sink. `jsStr` alone only covers
-// the first. REMOVE_TEMPLATE_JS keeps its `{0}` literal (no 2nd arg) — `t` is
-// a DOM value only known in the browser, so the script itself does the
-// `.replace('{0}', …)`; `{}` are not HTML-special so escaping first is safe.
+// the first. The tags field's own strings ('Remove {0}', 'Add tag…') live in
+// `shared/tagsField.ts` alongside the behaviour that uses them.
 const BLOCK_HEADING_JS = jsStr(escHtml(vscode.l10n.t('Block heading')));
 const EXPAND_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Expand block in editor')));
 const TOGGLE_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Toggle block')));
 const DESCRIPTION_JS = jsStr(escHtml(vscode.l10n.t('Description')));
 const OPTIONAL_BLOCK_DESC_JS = jsStr(escHtml(vscode.l10n.t('Optional block description')));
-const REMOVE_TEMPLATE_JS = jsStr(escHtml(vscode.l10n.t('Remove {0}')));
-const ADD_TAG_JS = jsStr(escHtml(vscode.l10n.t('Add tag…')));
 const TITLE_REQUIRED_JS = jsStr(vscode.l10n.t('Title is required.'));
 const NEEDS_CODE_JS = jsStr(vscode.l10n.t('At least one block must have code.'));
 const NEEDS_HEADINGS_JS = jsStr(vscode.l10n.t('Every block must have a heading.'));
@@ -252,40 +250,8 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
   }
 
   // ── Tag management ───────────────────────────────────────────────────────
-  function renderTags() {
-    const row = document.getElementById('tags-row');
-    if (!row) { return; }
-    const input = document.getElementById('tag-input');
-    const chips = tags.map(function(t) {
-      const safeTag = esc(t); // untrusted tag text — escape before it hits an attribute
-      return '<span class="tag-chip">' + safeTag +
-        '<button class="tag-remove" data-tag="' + safeTag + '" aria-label="' + ${REMOVE_TEMPLATE_JS}.replace('{0}', safeTag) + '">\xd7</button>' +
-        '</span>';
-    }).join('');
-    row.innerHTML = chips + (input ? input.outerHTML : '<input type="text" id="tag-input" class="tag-input" placeholder="' + ${ADD_TAG_JS} + '">');
-    wireTagInput();
-  }
-
-  function wireTagInput() {
-    const input = document.getElementById('tag-input');
-    if (!input) { return; }
-    input.addEventListener('keydown', function(ev) {
-      if (ev.key === ',' || ev.key === ']' || ev.key === 'Enter') {
-        ev.preventDefault();
-        const val = input.value.trim();
-        if (val && !tags.includes(val)) { tags.push(val); markDirty(); renderTags(); }
-        else { input.value = ''; }
-      }
-    });
-    document.querySelectorAll('.tag-remove').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        const tag = btn.dataset.tag;
-        tags = tags.filter(function(t) { return t !== tag; });
-        markDirty();
-        renderTags();
-      });
-    });
-  }
+  // Shared with the var-set form — THE one tag implementation (shared/tagsField.ts).
+  ${TAGS_FIELD_CLIENT_JS}
 
   // ── Name validation ──────────────────────────────────────────────────────
   const titleInput = document.getElementById('title');

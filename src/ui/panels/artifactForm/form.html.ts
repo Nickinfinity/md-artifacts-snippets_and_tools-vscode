@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getLanguageMode, getDefaultLanguage, canMultiBlock, getTypeSingular } from '../../../services/artifact-type-config.service.js';
 import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
+import { buildTagsField } from '../shared/tagsField.js';
 import { labelForAddBlock, labelForDeleteEntire } from './form.helpers.js';
 import { buildSingleBlockContent, buildMultiBlockArea } from './form.blocks.js';
 
@@ -139,7 +140,6 @@ ${link}
 function buildFrontmatterSection(model: ArtifactFormModel): string {
     const titleVal = escHtml(model.title);
     const descVal  = escHtml(model.description);
-    const chips    = buildTagChips(model.tags);
     return `<div class="form-section">
   <label class="slabel" for="title">${escHtml(vscode.l10n.t('Title'))}</label>
   <input type="text" id="title" class="form-input" value="${titleVal}" placeholder="${escHtml(vscode.l10n.t('Artifact title'))}">
@@ -148,12 +148,7 @@ function buildFrontmatterSection(model: ArtifactFormModel): string {
   <label class="slabel" for="description">${escHtml(vscode.l10n.t('Description'))}</label>
   <textarea id="description" class="form-input form-textarea" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional description'))}">${descVal}</textarea>
 </div>
-${buildExtensionField(model)}${buildAgentFieldsSection(model)}<div class="form-section">
-  <div class="slabel">${escHtml(vscode.l10n.t('Tags'))}</div>
-  <div class="tags-row" id="tags-row">
-${chips}    <input type="text" id="tag-input" class="tag-input" placeholder="${escHtml(vscode.l10n.t('Add tag…'))}">
-  </div>
-</div>`;
+${buildExtensionField(model)}${buildAgentFieldsSection(model)}${buildTagsField(model.tags, 'slabel')}`;
 }
 
 /**
@@ -229,24 +224,6 @@ function buildAgentFieldsSection(model: ArtifactFormModel): string {
         + buildOptionalTextField('provider', vscode.l10n.t('Provider'), model.provider, vscode.l10n.t('e.g. Claude'))
         + buildOptionalTextField('model', vscode.l10n.t('Model'), model.model, vscode.l10n.t('e.g. Opus'))
         + buildOptionalTextField('version', vscode.l10n.t('Version'), model.version, vscode.l10n.t('e.g. 4.8'));
-}
-
-/**
- * Builds `<span>` chip elements for each tag.
- *
- * @param tags - Tag strings from the model.
- * @returns HTML string of tag chip spans (may be empty).
- *
- * @example
- * buildTagChips(['api', 'express']) // → '<span class="tag-chip">api<button …>×</button></span>…'
- */
-function buildTagChips(tags: string[]): string {
-    if (tags.length === 0) { return ''; }
-    return tags.map(tag => {
-        const safe = escHtml(tag);
-        const removeLabel = escHtml(vscode.l10n.t('Remove {0}', tag));
-        return `    <span class="tag-chip">${safe}<button class="tag-remove" data-tag="${safe}" aria-label="${removeLabel}">×</button></span>\n`;
-    }).join('');
 }
 
 // ── Add-block button ──────────────────────────────────────────────────────────

@@ -47,13 +47,15 @@ suite('package.nls.json localisation guard', () => {
 
 	test('every localisable manifest site is covered, at the pinned count', () => {
 		// Without the length pin, this loop is vacuous over any subset — a helper
-		// returning 5 of 68 sites would pass just as well.
+		// returning 5 of 70 sites would pass just as well.
+		// 68 → 70: `variables.openFile` added a title and a category site (the
+		// pane's route into the var-set edit form).
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 68);
+		assert.strictEqual(sites.length, 70);
 
 		// UNFILTERED count: the `""` review sentinel is es-ONLY. The en bundle has
-		// exactly 51 keys and no sentinel.
-		assert.strictEqual(Object.keys(en).length, 51);
+		// exactly 52 keys and no sentinel. 51 → 52: `cmd.variables.openFile.title`.
+		assert.strictEqual(Object.keys(en).length, 52);
 
 		// A Map, not a Set of values: pins the key→value binding, not just the
 		// value set — red on a wrong value, a wrong key, and a mis-keyed pair.
@@ -80,9 +82,9 @@ suite('package.nls.json localisation guard', () => {
 		// its key, with no other guard in the suite going red.
 		//
 		// The length pin is what stops it being vacuous over a subset: without
-		// it, a helper returning 5 of 68 sites passes here and in the Map guard.
+		// it, a helper returning 5 of 70 sites passes here and in the Map guard.
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 68);
+		assert.strictEqual(sites.length, 70);
 
 		const bare = sites.filter(s => !/^%.+%$/.test(s.value));
 		assert.deepStrictEqual(bare, [],

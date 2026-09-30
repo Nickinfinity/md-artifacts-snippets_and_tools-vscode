@@ -66,7 +66,24 @@ suite('navigator — opensForEdit routing (source order)', () => {
         const openEditFormNextMember = source.indexOf('\n    private ', openEditFormStart);
         assert.ok(openEditFormNextMember >= 0, 'no next private member after openEditForm');
         const openEditFormBody = source.slice(openEditFormStart, openEditFormNextMember);
-        assert.ok(openEditFormBody.includes('openVarSetFormPanel'), 'openEditForm does not call openVarSetFormPanel');
+        // The bag construction lives in `commands/open-vars-edit.helpers.ts` —
+        // THE one place it is built, shared with the Variables pane's route, so
+        // neither caller carries a second copy of the write arguments or the
+        // vault-root guard. This asserts the delegation; the assertion below
+        // pins that the shared helper is what reaches the panel.
+        assert.ok(openEditFormBody.includes('openVarsEditForm'), 'openEditForm does not delegate to openVarsEditForm');
+
+        const sharedHelper = fs.readFileSync(
+            path.join(__dirname, '../../src/commands/open-vars-edit.helpers.ts'), 'utf8',
+        );
+        assert.ok(
+            sharedHelper.includes('openVarSetFormPanel'),
+            'the shared openVarsEditForm helper does not call openVarSetFormPanel',
+        );
+        assert.match(
+            sharedHelper, /mode:\s*'edit'/,
+            'the shared helper does not open the panel in edit mode',
+        );
 
         const editIndex = acceptSlice.indexOf('opensForEdit(');
         const multiIndex = acceptSlice.indexOf('isMultiBlockNav(');

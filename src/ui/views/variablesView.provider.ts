@@ -276,6 +276,13 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
         item.iconPath = new vscode.ThemeIcon(
             node.kind === 'file' ? 'file' : node.kind === 'subset' ? 'symbol-namespace' : 'symbol-variable',
         );
+        // No `item.command` on a file node — deliberately. A single click is
+        // RESERVED for a different behaviour (not yet decided), so it must stay
+        // unbound rather than being spent on "open the edit form": the edit form
+        // is reached by the inline pencil (`OPEN_FILE_COMMAND_ID`) and the
+        // context menu. VS Code's TreeItem exposes no double-click hook, so a
+        // double-click route would need a click-timing shim in the provider —
+        // not worth inventing until the single-click behaviour is specified.
         return item;
     }
 }

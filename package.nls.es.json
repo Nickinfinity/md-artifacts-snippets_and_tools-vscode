@@ -18,6 +18,7 @@
   "cmd.create.aiagentsconf.index.title": "Obsidian Artifacts: Crear índice de configuraciones de agente IA desde selección",
   "cmd.create.templates.index.title": "Obsidian Artifacts: Crear índice de plantillas desde selección",
   "cmd.variables.newFile.title": "Nuevo archivo de variables",
+  "cmd.variables.openFile.title": "Editar conjunto de variables",
   "cmd.variables.newSubSet.title": "Nuevo subconjunto",
   "cmd.variables.addVar.title": "Añadir variable",
   "cmd.variables.editValue.title": "Editar valor",
