@@ -9,3 +9,4 @@ node_modules
 
 # Local-only planning docs — never push (removed from remote 2026-07-18)
 src/docs/
+/docs/*
