@@ -15,16 +15,16 @@ const DEFAULT_PREVIEW_WIDTH_STEPS = 3;
  * @example
  * vscode.workspace.getConfiguration(CONFIG_SECTION)
  */
-export const CONFIG_SECTION = 'obsidianArtifacts';
+export const CONFIG_SECTION = 'mdArtifacts';
 
 /**
  * Reads the configured vault path from VS Code settings, trimmed.
  *
  * The single vault-path reader for the whole extension — every site that
- * used to open-code `getConfiguration('obsidianArtifacts').get<string>(...)`
+ * used to open-code `getConfiguration('mdArtifacts').get<string>(...)`
  * calls this instead.
  *
- * @returns The trimmed `obsidianArtifacts.vaultPath` setting, or `''` when unset.
+ * @returns The trimmed `mdArtifacts.vaultPath` setting, or `''` when unset.
  *
  * @example
  * const vaultPath = getVaultPath();

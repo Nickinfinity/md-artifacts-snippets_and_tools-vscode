@@ -11,4 +11,4 @@ import * as vscode from 'vscode';
  * import { out } from './shared.js';
  * out.appendLine('[picker] something happened');
  */
-export const out = vscode.window.createOutputChannel('Obsidian Artifacts');
+export const out = vscode.window.createOutputChannel('MD Artifacts');

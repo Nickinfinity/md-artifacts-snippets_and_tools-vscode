@@ -150,7 +150,7 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
 }
 
 /**
- * Read-only `TreeDataProvider` for the `obsidian-artifacts.variablesView`
+ * Read-only `TreeDataProvider` for the `md-artifacts.variablesView`
  * (contributed in `package.json`, registered in `extension.ts`).
  *
  * Scans the vault's `Variables/` directory through the *shared*
@@ -172,7 +172,7 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
  */
 export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNode> {
     /** The view id declared in `package.json`'s `contributes.views`. */
-    static readonly viewType = 'obsidian-artifacts.variablesView';
+    static readonly viewType = 'md-artifacts.variablesView';
 
     private readonly changeEmitter = new vscode.EventEmitter<VariableNode | undefined | null | void>();
     /** Fired by `refresh()` — mutation commands (T16) trigger a re-render through this. */

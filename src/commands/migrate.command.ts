@@ -10,13 +10,13 @@ let migrationChannel: vscode.OutputChannel | undefined;
  * Returns the shared output channel the migration report is printed to,
  * creating it on first use.
  *
- * @returns The `'Obsidian Artifacts: Migration'` output channel.
+ * @returns The `'MD Artifacts: Migration'` output channel.
  *
  * @example
  * getMigrationChannel().appendLine('...');
  */
 function getMigrationChannel(): vscode.OutputChannel {
-    migrationChannel ??= vscode.window.createOutputChannel('Obsidian Artifacts: Migration');
+    migrationChannel ??= vscode.window.createOutputChannel('MD Artifacts: Migration');
     return migrationChannel;
 }
 
@@ -32,7 +32,7 @@ function getMigrationChannel(): vscode.OutputChannel {
 function printDryRunReport(plan: MigrationPlan): void {
     const channel = getMigrationChannel();
     channel.clear();
-    channel.appendLine(`Obsidian Artifacts: Migrate Vault Frontmatter — dry run (${plan.changes.length} file(s) would change)`);
+    channel.appendLine(`MD Artifacts: Migrate Vault Frontmatter — dry run (${plan.changes.length} file(s) would change)`);
     for (const change of plan.changes) {
         channel.appendLine(`  ${change.relativePath}: "${change.oldLine}" -> "${change.newLine}"`);
     }
@@ -46,10 +46,10 @@ function printDryRunReport(plan: MigrationPlan): void {
 }
 
 /**
- * Registers the `obsidian-artifacts.migrateFrontmatter` command.
+ * Registers the `md-artifacts.migrateFrontmatter` command.
  *
  * Every invocation starts with a dry run: `planMigration` is read-only, and
- * its report is printed to the `'Obsidian Artifacts: Migration'` output
+ * its report is printed to the `'MD Artifacts: Migration'` output
  * channel before anything is written. Applying requires the user to accept an
  * explicit modal confirmation naming the file count — dismissing it (Cancel
  * or Escape) leaves the vault untouched, so "dry-run first" is not a mode
@@ -64,10 +64,10 @@ function printDryRunReport(plan: MigrationPlan): void {
  * registerMigrateCommand(context);
  */
 export function registerMigrateCommand(context: vscode.ExtensionContext): void {
-    const disposable = vscode.commands.registerCommand('obsidian-artifacts.migrateFrontmatter', async () => {
+    const disposable = vscode.commands.registerCommand('md-artifacts.migrateFrontmatter', async () => {
         const vaultPath = getVaultPath();
         if (!vaultPath) {
-            void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: No vault configured. Open Settings to select your vault.'));
+            void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: No vault configured. Open Settings to select your vault.'));
             return;
         }
         if (!validateObsidianVault(vaultPath)) { return; }
@@ -75,7 +75,7 @@ export function registerMigrateCommand(context: vscode.ExtensionContext): void {
         const plan = planMigration(vaultPath);
         if (plan.changes.length === 0 && plan.skipped.length === 0) {
             void vscode.window.showInformationMessage(
-                vscode.l10n.t('Obsidian Artifacts: vault frontmatter is already up to date — nothing to migrate.'),
+                vscode.l10n.t('MD Artifacts: vault frontmatter is already up to date — nothing to migrate.'),
             );
             return;
         }
@@ -84,14 +84,14 @@ export function registerMigrateCommand(context: vscode.ExtensionContext): void {
 
         if (plan.changes.length === 0) {
             void vscode.window.showWarningMessage(
-                vscode.l10n.t('Obsidian Artifacts: found {0} file(s) with unrecognised frontmatter — nothing to apply. See the "Obsidian Artifacts: Migration" output panel.', plan.skipped.length),
+                vscode.l10n.t('MD Artifacts: found {0} file(s) with unrecognised frontmatter — nothing to apply. See the "MD Artifacts: Migration" output panel.', plan.skipped.length),
             );
             return;
         }
 
         const confirmLabel = vscode.l10n.t('Apply Migration');
         const confirmed = await vscode.window.showWarningMessage(
-            vscode.l10n.t('Obsidian Artifacts: rewrite frontmatter in {0} vault file(s)? See the "Obsidian Artifacts: Migration" output panel for the full dry-run report.', plan.changes.length),
+            vscode.l10n.t('MD Artifacts: rewrite frontmatter in {0} vault file(s)? See the "MD Artifacts: Migration" output panel for the full dry-run report.', plan.changes.length),
             { modal: true },
             confirmLabel,
         );
@@ -100,7 +100,7 @@ export function registerMigrateCommand(context: vscode.ExtensionContext): void {
         const result = applyMigration(plan);
         getMigrationChannel().appendLine(`Applied: ${result.changedFiles.length} file(s) rewritten.`);
         void vscode.window.showInformationMessage(
-            vscode.l10n.t('Obsidian Artifacts: migrated {0} file(s). See the output panel for details.', result.changedFiles.length),
+            vscode.l10n.t('MD Artifacts: migrated {0} file(s). See the output panel for details.', result.changedFiles.length),
         );
     });
     context.subscriptions.push(disposable);

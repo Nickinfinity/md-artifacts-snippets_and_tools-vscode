@@ -93,16 +93,16 @@ export function everyLocalisableManifestSites(): ManifestSite[] {
 	const sites: ManifestSite[] = [];
 
 	for (const c of pkg.contributes.commands) {
-		const tail = c.command.replace(/^obsidian-artifacts\./, '');
+		const tail = c.command.replace(/^md-artifacts\./, '');
 		sites.push({ key: `cmd.${tail}.title`, value: c.title });
 		if (c.category) { sites.push({ key: 'cmd.category', value: c.category }); }
 	}
 	for (const s of pkg.contributes.submenus) {
-		const tail = s.id.replace(/^obsidian-artifacts\.submenu\./, '');
+		const tail = s.id.replace(/^md-artifacts\.submenu\./, '');
 		sites.push({ key: `submenu.${tail}.label`, value: s.label });
 	}
 	for (const v of pkg.contributes.viewsWelcome) {
-		const tail = v.view.replace(/^obsidian-artifacts\./, '');
+		const tail = v.view.replace(/^md-artifacts\./, '');
 		sites.push({ key: `viewsWelcome.${tail}.contents`, value: v.contents });
 	}
 	for (const [propKey, prop] of Object.entries(pkg.contributes.configuration.properties)) {
@@ -111,7 +111,7 @@ export function everyLocalisableManifestSites(): ManifestSite[] {
 	sites.push({ key: 'config.title', value: pkg.contributes.configuration.title });
 	for (const viewArr of Object.values(pkg.contributes.views)) {
 		for (const v of viewArr) {
-			const tail = v.id.replace(/^obsidian-artifacts\./, '');
+			const tail = v.id.replace(/^md-artifacts\./, '');
 			sites.push({ key: `view.${tail}.name`, value: v.name });
 		}
 	}

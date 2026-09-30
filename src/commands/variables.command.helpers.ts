@@ -24,7 +24,7 @@ import { confirmTextFor } from './variables.confirm.helpers.js';
  */
 
 /**
- * Suffixes appended to `obsidian-artifacts.variables.` for the contributed
+ * Suffixes appended to `md-artifacts.variables.` for the contributed
  * commands. The first nine are already present in `package.json`
  * (orchestrator-only — read, never edited here); `applyToPreview` and
  * `saveCurrentValues` (T1.3, VSX-246) are new and land in `package.json`
@@ -38,8 +38,8 @@ const VARIABLE_COMMAND_SUFFIXES = [
 ] as const;
 
 /**
- * Derives one fully-qualified `obsidian-artifacts.variables.*` command id
- * from its suffix — the one place `'obsidian-artifacts.variables.'` is
+ * Derives one fully-qualified `md-artifacts.variables.*` command id
+ * from its suffix — the one place `'md-artifacts.variables.'` is
  * spelled as a prefix, so `buildVariableCommandIds` and any single-id
  * constant agree by construction.
  *
@@ -47,19 +47,19 @@ const VARIABLE_COMMAND_SUFFIXES = [
  * @returns The fully-qualified command id.
  *
  * @example
- * variableCommandId('applyToPreview') // → 'obsidian-artifacts.variables.applyToPreview'
+ * variableCommandId('applyToPreview') // → 'md-artifacts.variables.applyToPreview'
  */
 function variableCommandId(suffix: typeof VARIABLE_COMMAND_SUFFIXES[number]): string {
-    return `obsidian-artifacts.variables.${suffix}`;
+    return `md-artifacts.variables.${suffix}`;
 }
 
 /**
- * Derives the `obsidian-artifacts.variables.*` command ids.
+ * Derives the `md-artifacts.variables.*` command ids.
  *
  * @returns The fully-qualified command ids, in `VARIABLE_COMMAND_SUFFIXES` order.
  *
  * @example
- * buildVariableCommandIds() // → ['obsidian-artifacts.variables.newFile', ...]
+ * buildVariableCommandIds() // → ['md-artifacts.variables.newFile', ...]
  */
 export function buildVariableCommandIds(): string[] {
     return VARIABLE_COMMAND_SUFFIXES.map(variableCommandId);
@@ -239,10 +239,10 @@ export const defaultIO: CommandIO = {
  *
  * @example
  * buildConfirmMessage({ kind: 'var', name: 'VK-host', varCount: 0, parent: 'Dev' })
- * // → 'Obsidian Artifacts: Delete variable VK-host? This cannot be undone.'
+ * // → 'MD Artifacts: Delete variable VK-host? This cannot be undone.'
  */
 export function buildConfirmMessage(input: Parameters<typeof confirmTextFor>[0]): string {
-    return vscode.l10n.t('Obsidian Artifacts: {0}', confirmTextFor(input));
+    return vscode.l10n.t('MD Artifacts: {0}', confirmTextFor(input));
 }
 
 /** Everything a command handler needs to act on the node the user clicked. */
@@ -296,22 +296,22 @@ export async function resolveTarget(
     io: CommandIO = defaultIO,
 ): Promise<ResolvedTarget | undefined> {
     if (node?.kind !== expectedKind) {
-        io.showError(vscode.l10n.t('Obsidian Artifacts: no variable-tree item selected.'));
+        io.showError(vscode.l10n.t('MD Artifacts: no variable-tree item selected.'));
         return undefined;
     }
     if (!vaultRoot) {
-        io.showError(vscode.l10n.t('Obsidian Artifacts: no vault configured.'));
+        io.showError(vscode.l10n.t('MD Artifacts: no vault configured.'));
         return undefined;
     }
     const filePath = fileNodePath(node);
     const rootDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir).fsPath;
     if (!isPathWithin(rootDir, filePath)) {
-        io.showError(vscode.l10n.t('Obsidian Artifacts: "{0}" is outside the Variables directory.', filePath));
+        io.showError(vscode.l10n.t('MD Artifacts: "{0}" is outside the Variables directory.', filePath));
         return undefined;
     }
     const parsed = parseArtifactFile(filePath, rootDir);
     if (!parsed) {
-        io.showError(vscode.l10n.t('Obsidian Artifacts: could not read "{0}".', filePath));
+        io.showError(vscode.l10n.t('MD Artifacts: could not read "{0}".', filePath));
         return undefined;
     }
     return {
@@ -374,7 +374,7 @@ export async function commitWrite(
         return;
     }
     const message = result.kind === 'error' ? result.message : vscode.l10n.t('"{0}" already exists.', filePath);
-    io.showError(vscode.l10n.t('Obsidian Artifacts: {0}', message));
+    io.showError(vscode.l10n.t('MD Artifacts: {0}', message));
 }
 
 /**

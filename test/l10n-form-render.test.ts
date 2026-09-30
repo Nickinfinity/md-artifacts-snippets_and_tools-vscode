@@ -119,8 +119,8 @@ suite('l10n — form/main-view/settings renderers (T6.2b)', () => {
     test('settings.panel.ts carries no hardcoded visible webview text', () => {
         const src = read('ui/panels/settings.panel.ts');
         const hardcoded = [
-            '<title>Obsidian Artifacts: AI Snippets &amp; Tools - CONFIG</title>',
-            '<h1>Obsidian Artifacts: AI Snippets &amp; Tools</h1>',
+            '<title>MD Artifacts: AI Snippets &amp; Tools - CONFIG</title>',
+            '<h1>MD Artifacts: AI Snippets &amp; Tools</h1>',
             '<p class="tagline">Bring your Obsidian vault into VS Code</p>',
             '>Vault Features</p>', '>Vault Location</p>',
             '<span id="folderPath">No vault selected</span>',

@@ -9,7 +9,7 @@ import { getCreateFormTypes } from '../services/artifact-type-config.service.js'
 import { unsupportedEditReason } from './create-prefill.helpers.js';
 
 /** Command id the preview pane's Edit action runs. */
-export const EDIT_ARTIFACT_COMMAND_ID = 'obsidian-artifacts.editArtifact';
+export const EDIT_ARTIFACT_COMMAND_ID = 'md-artifacts.editArtifact';
 
 /**
  * Registers the edit-artifact command.

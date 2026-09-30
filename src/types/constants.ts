@@ -10,8 +10,8 @@ import type { ArtifactsArray } from './artifact.types.js';
  *  4. Per-type create-form behaviour — language mode, label, multi-block (artifact-type-config.service.ts)
  *
  * Context key and command ID are derived from `dir.toLowerCase()`:
- *   context key — `obsidian-artifacts.<dir.toLowerCase()>Active`
- *   command     — `obsidian-artifacts.insert.<dir.toLowerCase()>`
+ *   context key — `md-artifacts.<dir.toLowerCase()>Active`
+ *   command     — `md-artifacts.insert.<dir.toLowerCase()>`
  *
  * `contexts: ['all']` means the artifact surfaces in every VS Code context menu.
  *

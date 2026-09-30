@@ -105,10 +105,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const vaultPath = getVaultPath();
 
 	if (!vaultPath) {
-		vscode.commands.executeCommand('obsidian-artifacts.settings');
+		vscode.commands.executeCommand('md-artifacts.settings');
 	}
 
-	// React to any obsidianArtifacts.* setting change (Settings Sync, manual edits, etc.)
+	// React to any mdArtifacts.* setting change (Settings Sync, manual edits, etc.)
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (!e.affectsConfiguration(CONFIG_SECTION)) { return; }

@@ -21,16 +21,16 @@ const MAX_CAPTURE_BYTES = 512 * 1024;
 /**
  * Derives the base VS Code command ID for an artifact's create command.
  *
- * Pattern: `obsidian-artifacts.create.<dir.toLowerCase()>`
+ * Pattern: `md-artifacts.create.<dir.toLowerCase()>`
  *
  * @param dir - The artifact's `dir` field (e.g. `'Snippets'`, `'AIAgentsConf'`).
  * @returns The fully-qualified VS Code command ID string.
  *
  * @example
- * createCommandId('Snippets') // → 'obsidian-artifacts.create.snippets'
+ * createCommandId('Snippets') // → 'md-artifacts.create.snippets'
  */
 export function createCommandId(dir: string): string {
-    return `obsidian-artifacts.create.${dir.toLowerCase()}`;
+    return `md-artifacts.create.${dir.toLowerCase()}`;
 }
 
 /**
@@ -44,7 +44,7 @@ export function createCommandId(dir: string): string {
  * @returns The fully-qualified terminal-surface create command ID string.
  *
  * @example
- * createTerminalCommandId('AIPrompts') // → 'obsidian-artifacts.create.aiprompts.terminal'
+ * createTerminalCommandId('AIPrompts') // → 'md-artifacts.create.aiprompts.terminal'
  */
 export function createTerminalCommandId(dir: string): string {
     return `${createCommandId(dir)}.terminal`;
@@ -58,7 +58,7 @@ export function createTerminalCommandId(dir: string): string {
  * @returns The fully-qualified index-surface create command ID string.
  *
  * @example
- * createIndexCommandId('Templates') // → 'obsidian-artifacts.create.templates.index'
+ * createIndexCommandId('Templates') // → 'md-artifacts.create.templates.index'
  */
 export function createIndexCommandId(dir: string): string {
     return `${createCommandId(dir)}.index`;
@@ -117,7 +117,7 @@ const SURFACES: readonly Exclude<ArtifactContext, 'all'>[] = ['editor', 'termina
  *
  * @example
  * deriveCreateSurfaceEntries().find(e => e.commandId.endsWith('.aiprompts.terminal'))
- * // → { commandId: 'obsidian-artifacts.create.aiprompts.terminal', type: 'AIPrompt' }
+ * // → { commandId: 'md-artifacts.create.aiprompts.terminal', type: 'AIPrompt' }
  */
 export function deriveCreateSurfaceEntries(
     surfaceTypes: (surface: Exclude<ArtifactContext, 'all'>) => ArtifactType[] = getCreateTypesForSurface,
@@ -157,7 +157,7 @@ export function deriveCreateSurfaceEntries(
  * @returns Every derived create command ID.
  *
  * @example
- * buildCreateCommandIds().includes('obsidian-artifacts.create.aiprompts.terminal') // → true
+ * buildCreateCommandIds().includes('md-artifacts.create.aiprompts.terminal') // → true
  */
 export function buildCreateCommandIds(): string[] {
     return deriveCreateSurfaceEntries().map(e => e.commandId);

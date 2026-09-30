@@ -27,7 +27,7 @@ export interface ViewTarget {
      */
     resolved: () => boolean;
     /**
-     * Reveals the pane (`executeCommand('obsidian-artifacts.mainView.focus')`)
+     * Reveals the pane (`executeCommand('md-artifacts.mainView.focus')`)
      * and resolves once `resolveWebviewView` has fired for it.
      */
     focus: () => Promise<void>;
@@ -44,7 +44,7 @@ export interface ViewTarget {
  * the reveal) and then **re-reads `target.resolved()`** rather than trusting
  * the call succeeded: `focus()`'s contract is "reveal and wait for
  * resolution", but nothing here enforces that a caller actually implements
- * it that way (e.g. wiring bare `executeCommand('obsidian-artifacts.mainView.focus')`,
+ * it that way (e.g. wiring bare `executeCommand('md-artifacts.mainView.focus')`,
  * whose returned promise settles when the reveal command completes, not when
  * `resolveWebviewView` fires) — so a `focus()` that returns without the view
  * ever resolving must surface as a thrown error, not a silent success a

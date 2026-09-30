@@ -20,7 +20,7 @@ import {
  * 2. Choose which vault feature directories to create/maintain
  *
  * Vault path and feature flags are persisted via the VS Code Settings API
- * (`obsidianArtifacts.*`) so they sync across devices via Settings Sync.
+ * (`mdArtifacts.*`) so they sync across devices via Settings Sync.
  *
  * @param {vscode.ExtensionContext} context - Extension context providing the extension URI
  *                                            for loading webview assets
@@ -31,7 +31,7 @@ import {
 export function openSettingsPanel(context: vscode.ExtensionContext) {
 	const panel = vscode.window.createWebviewPanel(
 		'settings',
-		vscode.l10n.t('Obsidian Artifacts: AI Snippets & Tools - Settings'),
+		vscode.l10n.t('MD Artifacts: AI Snippets & Tools - Settings'),
 		vscode.ViewColumn.One,
 		{
 			enableScripts: true,
@@ -294,14 +294,14 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
   ${styleTags}
   <!-- Section-local styles; nonce-matched, which is why style-src carries the nonce too -->
   <style nonce="${nonce}">${MAIN_PANE_SECTION_CSS}</style>
-  <title>${escHtml(vscode.l10n.t('Obsidian Artifacts: AI Snippets & Tools - CONFIG'))}</title>
+  <title>${escHtml(vscode.l10n.t('MD Artifacts: AI Snippets & Tools - CONFIG'))}</title>
 </head>
 <body class="settings-body">
   <div id="webviewContent">
     <!-- Header: extension logo and title -->
     <div class="logo-row">
       <span class="logo-icon">🔮</span>
-      <h1>${escHtml(vscode.l10n.t('Obsidian Artifacts: AI Snippets & Tools'))}</h1>
+      <h1>${escHtml(vscode.l10n.t('MD Artifacts: AI Snippets & Tools'))}</h1>
     </div>
     <p class="tagline">${escHtml(vscode.l10n.t('Bring your Obsidian vault into VS Code'))}</p>
 

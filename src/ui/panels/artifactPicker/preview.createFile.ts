@@ -83,7 +83,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     // ── D1: single-block only (template) / one config file (agent) ────────
     const blockCheck = validateSingleBlock(artifact, getTypeSingular(type));
     if (!blockCheck.ok) {
-        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', blockCheck.reason));
+        void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: {0}', blockCheck.reason));
         return { kind: 'error' };
     }
 
@@ -92,7 +92,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     if (!destDir) { return { kind: 'cancelled' }; }  // no workspace open, or the folder picker was cancelled
     const workspaceRoot = vscode.workspace.getWorkspaceFolder(destDir)?.uri;
     if (!workspaceRoot) {
-        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Destination is not inside an open workspace folder.'));
+        void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Destination is not inside an open workspace folder.'));
         return { kind: 'error' };
     }
 
@@ -104,7 +104,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs): Promise<Cr
     try {
         defaultName = resolveOutputFileName(artifact);
     } catch (err) {
-        void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', (err as Error).message));
+        void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: {0}', (err as Error).message));
         return { kind: 'error' };
     }
 
@@ -177,7 +177,7 @@ async function writeWithCollisionHandling(
         const result = await writeTemplateFile({ workspaceRoot, destDir, fileName: name, content, force });
         if (result.kind === 'success') { return result.filePath; }
         if (result.kind === 'error') {
-            void vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: {0}', result.message));
+            void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: {0}', result.message));
             return undefined;
         }
         // ── collision → ask ────────────────────────────────────────────────

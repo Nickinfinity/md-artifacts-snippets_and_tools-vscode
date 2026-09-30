@@ -8,7 +8,7 @@ import { escHtml } from '../../utils/html.js';
 import { jsStr } from './artifactPicker/webviewSnippets.js';
 
 /**
- * The settings keys this section owns, without the `obsidianArtifacts.` prefix.
+ * The settings keys this section owns, without the `mdArtifacts.` prefix.
  *
  * Named here so the panel's message handler cannot be asked to write an
  * arbitrary settings key: a `setMainPane` message naming anything outside this

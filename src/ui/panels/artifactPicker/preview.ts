@@ -664,7 +664,7 @@ export class PreviewPanelController {
         // Chained, not fire-and-forget: a remote/SSH host can reject the write, and the
         // toast must not claim success when it did (reviewer finding 1).
         void vscode.env.clipboard.writeText(resolveVars(code, resolvedVars))
-            .then(() => vscode.window.showInformationMessage(vscode.l10n.t('Obsidian Artifacts: Copied to clipboard.')));
+            .then(() => vscode.window.showInformationMessage(vscode.l10n.t('MD Artifacts: Copied to clipboard.')));
     }
 
     /** Routes to the Create File flow (D12); armed (batch step) pins `destDir`, skips

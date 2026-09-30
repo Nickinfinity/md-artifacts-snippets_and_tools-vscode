@@ -23,7 +23,7 @@ const pkg = JSON.parse(
     };
 };
 
-const VARIABLES_PREFIX = 'obsidian-artifacts.variables.';
+const VARIABLES_PREFIX = 'md-artifacts.variables.';
 
 suite('package.json — Variables view menus', () => {
     test('every viewItem the menus test for is a real provider node kind', () => {
@@ -81,7 +81,7 @@ suite('package.json — Variables view menus', () => {
         for (const entry of pkg.contributes.menus['view/title'] ?? []) {
             if (!entry.command.startsWith(VARIABLES_PREFIX)) { continue; }
             assert.ok(
-                entry.when?.includes('view == obsidian-artifacts.variablesView'),
+                entry.when?.includes('view == md-artifacts.variablesView'),
                 `${entry.command} is in view/title without a view scope — it renders on every view's title bar`,
             );
         }

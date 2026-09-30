@@ -48,7 +48,7 @@ function readBundle(file: string): Record<string, unknown> {
  * **Re-derived from H5.1's actual generated bundle at W5 close, as the plan
  * requires — this is a measurement, not the pre-generation placeholder.**
  * `@vscode/l10n-dev` extracted **103 keys from 91 files**, collapsed from 120
- * raw single-line call sites: 13 keys repeat, led by `Obsidian Artifacts: {0}`
+ * raw single-line call sites: 13 keys repeat, led by `MD Artifacts: {0}`
  * at 15×, `Delete` at 4× and `Overwrite` at 3×. That collapse is why a key
  * count can never be derived from a site count.
  *

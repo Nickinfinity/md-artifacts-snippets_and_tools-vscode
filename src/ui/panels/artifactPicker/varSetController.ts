@@ -266,7 +266,7 @@ async function writeVarSetFromForm(
 /**
  * Resolves the configured `<vault>/Variables` directory URI from VS Code settings.
  *
- * @returns The directory URI, or `null` when `obsidianArtifacts.vaultPath` is unset.
+ * @returns The directory URI, or `null` when `mdArtifacts.vaultPath` is unset.
  *
  * @example
  * const dir = getVariablesDirUri();

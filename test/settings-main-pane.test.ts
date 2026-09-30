@@ -12,7 +12,7 @@ import {
 /**
  * Guards the settings panel's Preview Pane section.
  *
- * `settings.panel.ts` is the **only** writer of the `obsidianArtifacts.*`
+ * `settings.panel.ts` is the **only** writer of the `mdArtifacts.*`
  * section, and the key it writes now arrives in a webview message — untrusted
  * input. `isMainPaneKey` is the boundary that stops the webview naming any
  * other key in the section, so it is asserted as a rejection list, not just

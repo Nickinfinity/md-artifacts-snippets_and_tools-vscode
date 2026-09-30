@@ -75,7 +75,7 @@ export async function openArtifactPicker(
     const vaultRoot = getVaultRootUri();
 
     if (!vaultRoot) {
-        vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: No vault configured. Open Settings to select your vault.'));
+        vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: No vault configured. Open Settings to select your vault.'));
         return;
     }
 
@@ -85,7 +85,7 @@ export async function openArtifactPicker(
         const stat = await vscode.workspace.fs.stat(rootUri);
         if ((stat.type & vscode.FileType.Directory) === 0) { throw new Error('not a directory'); }
     } catch {
-        vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Directory "{0}" not found in your vault.', artifactDir));
+        vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Directory "{0}" not found in your vault.', artifactDir));
         return;
     }
 
@@ -400,7 +400,7 @@ class ArtifactNavigator {
 
         const artifact = await this.getOrParse(item.uri);
         if (!artifact) {
-            vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Could not read file.'));
+            vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Could not read file.'));
             return;
         }
 
@@ -446,11 +446,11 @@ class ArtifactNavigator {
      * @example await this.runIndex(indexArtifact);
      */
     private async runIndex(artifact: ParsedArtifactFile): Promise<void> {
-        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Open a workspace folder to run a template index.')); return; }
+        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Open a workspace folder to run a template index.')); return; }
         const destDir = await resolveDestination(this.destUri);
         if (!destDir) { return; }
         const workspaceRoot = vscode.workspace.getWorkspaceFolder(destDir)?.uri;
-        if (!workspaceRoot) { vscode.window.showErrorMessage(vscode.l10n.t('Obsidian Artifacts: Destination is not inside an open workspace folder.')); return; }
+        if (!workspaceRoot) { vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Destination is not inside an open workspace folder.')); return; }
         this.keepPopupOnHide = true; this.qp.hide();
         const clickedRelPath = destDir.fsPath === workspaceRoot.fsPath ? '' : path.relative(workspaceRoot.fsPath, destDir.fsPath).replaceAll(path.sep, '/');
         const runner = new MultiIndexRunner({

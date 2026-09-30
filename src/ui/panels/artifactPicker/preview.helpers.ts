@@ -307,7 +307,7 @@ export async function performInsert(
             );
             if (choice !== SEND_LABEL) { return; }
         }
-        const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('Obsidian Artifacts');
+        const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('MD Artifacts');
         terminal.sendText(wrapForTerminal(artifact.frontmatter.artifactType, content), false);
         terminal.show(true);
         return;
@@ -321,7 +321,7 @@ export async function performInsert(
     // different things depending on state the user cannot see. The preview
     // hides Insert outright when no editor is open, so this is now only
     // reachable if the last editor closed between render and click.
-    vscode.window.showWarningMessage(vscode.l10n.t('Obsidian Artifacts: No editor open to insert into. Use Copy instead.'));
+    vscode.window.showWarningMessage(vscode.l10n.t('MD Artifacts: No editor open to insert into. Use Copy instead.'));
 }
 
 /**

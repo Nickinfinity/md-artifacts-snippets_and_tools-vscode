@@ -85,7 +85,7 @@ function isCreateTypeMessage(message: unknown): message is { command: 'createTyp
  * @returns The command id to execute, or `undefined` if this is not an idle-row message.
  *
  * @example
- * resolveIdleCommandId({ command: 'openSettings' }) // → 'obsidian-artifacts.settings'
+ * resolveIdleCommandId({ command: 'openSettings' }) // → 'md-artifacts.settings'
  */
 function resolveIdleCommandId(message: unknown): string | undefined {
     if (typeof message !== 'object' || message === null) {
@@ -126,7 +126,7 @@ function resolveIdleCommandId(message: unknown): string | undefined {
  */
 export class MainViewProvider implements vscode.WebviewViewProvider {
     /** The view id declared in `package.json`'s `contributes.views` — the one static mirror. */
-    static readonly viewType = 'obsidian-artifacts.mainView';
+    static readonly viewType = 'md-artifacts.mainView';
 
     private view?: vscode.WebviewView;
     private mode: MainViewMode = 'idle';
@@ -322,7 +322,7 @@ export class MainViewProvider implements vscode.WebviewViewProvider {
 
     /**
      * Handles a `createType` message by executing the derived base create
-     * command for that type — the same `obsidian-artifacts.create.<dir>`
+     * command for that type — the same `md-artifacts.create.<dir>`
      * id `insert.command.ts`'s `artifactCommandId` mirrors for insert.
      *
      * `resolveCreateCommandId` gates on `getCreateFormTypes()` membership, so

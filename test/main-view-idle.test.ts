@@ -39,7 +39,7 @@ suite('mainView — idle mode', () => {
     });
 
     test('resolveCreateCommandId resolves a create-form type to its base create id', () => {
-        assert.strictEqual(resolveCreateCommandId('Snippet'), 'obsidian-artifacts.create.snippets');
+        assert.strictEqual(resolveCreateCommandId('Snippet'), 'md-artifacts.create.snippets');
     });
 
     test('resolveCreateCommandId rejects a non-create-form type (e.g. Variables)', () => {

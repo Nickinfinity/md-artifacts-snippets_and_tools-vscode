@@ -19,7 +19,7 @@ import { VariablesViewProvider, type VariableNode } from '../src/ui/views/variab
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 /**
- * T16 — the nine `obsidian-artifacts.variables.*` tree commands (VSX-219).
+ * T16 — the nine `md-artifacts.variables.*` tree commands (VSX-219).
  *
  * The module does NOT exist yet — every test here fails on import until
  * `src/commands/variables.command.ts` is implemented (the plan's own "Test
@@ -109,7 +109,7 @@ suite('buildVariableCommandIds (T16)', () => {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as {
             contributes: { commands: { command: string }[] };
         };
-        const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('obsidian-artifacts.variables.'));
+        const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('md-artifacts.variables.'));
         // Derivation-sourced, not a second hardcoded count: W1 (H1.1) took this
         // from 9 to 11 and a literal here would have to be edited by every wave
         // that adds a command — the `deepStrictEqual` below is what pins the set.

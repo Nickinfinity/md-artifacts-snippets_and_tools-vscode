@@ -19,7 +19,7 @@ import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-const FORM_VIEW_TYPE = 'obsidian-artifacts.artifactForm';
+const FORM_VIEW_TYPE = 'md-artifacts.artifactForm';
 
 /**
  * Options for opening the Artifact Form panel.
@@ -81,15 +81,15 @@ export function decideFormPanelAction(args: {
  * @param type - The artifact type the form is targeting.
  * @returns The window title.
  * @example
- * panelTitle('Snippet', 'create'); // → 'Obsidian Artifacts: Create Snippets'
- * panelTitle('Snippet', 'edit');   // → 'Obsidian Artifacts: Edit Snippets'
+ * panelTitle('Snippet', 'create'); // → 'MD Artifacts: Create Snippets'
+ * panelTitle('Snippet', 'edit');   // → 'MD Artifacts: Edit Snippets'
  */
 function panelTitle(type: ArtifactType, mode: OpenFormOpts['mode']): string {
     // type always comes from getCreateFormTypes(), so the lookup cannot miss.
     const name = getEntry(type).name;
     return mode === 'edit'
-        ? vscode.l10n.t('Obsidian Artifacts: Edit {0}', name)
-        : vscode.l10n.t('Obsidian Artifacts: Create {0}', name);
+        ? vscode.l10n.t('MD Artifacts: Edit {0}', name)
+        : vscode.l10n.t('MD Artifacts: Create {0}', name);
 }
 
 /**

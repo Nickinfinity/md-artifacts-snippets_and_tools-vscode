@@ -7,7 +7,7 @@ import type { InvocationSurface } from '../ui/panels/artifactPicker/preview.help
 /**
  * Derives the VS Code command ID for an artifact's insert command.
  *
- * Pattern: `obsidian-artifacts.insert.<dir.toLowerCase()>`
+ * Pattern: `md-artifacts.insert.<dir.toLowerCase()>`
  *
  * This pattern must stay in sync with the command IDs declared in `package.json`
  * (`contributes.commands`) and the menu entries that reference them. Adding a new
@@ -18,11 +18,11 @@ import type { InvocationSurface } from '../ui/panels/artifactPicker/preview.help
  * @returns The fully-qualified VS Code command ID string.
  *
  * @example
- * artifactCommandId('Snippets')   // → 'obsidian-artifacts.insert.snippets'
- * artifactCommandId('AIAgentsConf') // → 'obsidian-artifacts.insert.aiagentsconf'
+ * artifactCommandId('Snippets')   // → 'md-artifacts.insert.snippets'
+ * artifactCommandId('AIAgentsConf') // → 'md-artifacts.insert.aiagentsconf'
  */
 export function artifactCommandId(dir: string): string {
-    return `obsidian-artifacts.insert.${dir.toLowerCase()}`;
+    return `md-artifacts.insert.${dir.toLowerCase()}`;
 }
 
 /**
@@ -41,7 +41,7 @@ export function artifactCommandId(dir: string): string {
  * @returns The fully-qualified terminal-surface command ID string.
  *
  * @example
- * artifactTerminalCommandId('AIPrompts') // → 'obsidian-artifacts.insert.aiprompts.terminal'
+ * artifactTerminalCommandId('AIPrompts') // → 'md-artifacts.insert.aiprompts.terminal'
  */
 export function artifactTerminalCommandId(dir: string): string {
     return `${artifactCommandId(dir)}.terminal`;
@@ -73,16 +73,16 @@ export function artifactTerminalCommandId(dir: string): string {
  * (`insert.variables`) appears in every context surface (editor, terminal, explorer).
  * In `package.json` it is placed in group `"2_variables@1"` while all other artifacts
  * use `"1_insert@N"` — VS Code renders different groups with a visual separator, so
- * Variables always appears at the bottom of the Obsidian Artifacts submenu or as a
+ * Variables always appears at the bottom of the MD Artifacts submenu or as a
  * standalone entry below the other artifacts when only it is active.
  *
  * ### Visibility — single entry vs. submenu
  *
  * Each context surface (`editor/context`, `terminal/context`, `explorer/context`) shows:
  * - A **direct menu entry** for each active artifact when only one is active in that surface
- *   (`!obsidian-artifacts.<surface>HasMultiple`).
- * - The **"Obsidian Artifacts" submenu** when two or more artifacts are active in that
- *   surface (`obsidian-artifacts.<surface>HasMultiple`).
+ *   (`!md-artifacts.<surface>HasMultiple`).
+ * - The **"MD Artifacts" submenu** when two or more artifacts are active in that
+ *   surface (`md-artifacts.<surface>HasMultiple`).
  *
  * These `when` clauses and the `*HasMultiple` context keys are managed by `context.service.ts`.
  *

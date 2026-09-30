@@ -78,11 +78,11 @@ suite('flag-delimited payloads — single region', () => {
             '',
             'vars:',
             '```vks',
-            'VK-repo=obsidian-artifacts',
+            'VK-repo=md-artifacts',
             '```',
         ].join('\n');
         assert.deepStrictEqual(parse(content).vars, [
-            { name: 'VK-repo', defaultValue: 'obsidian-artifacts' },
+            { name: 'VK-repo', defaultValue: 'md-artifacts' },
             { name: 'VK-branch', defaultValue: '' },
         ]);
     });

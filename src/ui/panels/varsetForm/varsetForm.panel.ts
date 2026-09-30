@@ -5,7 +5,7 @@ import { renderVarSetFormHtml, parseVarSetFormPayload, parseVarsEditPayload } fr
 import { validateVarPairs } from '../../../services/varset-form.service.js';
 import type { VarSetFormPayload, VarsEditPayload } from '../../../types/varset.types.js';
 
-const FORM_VIEW_TYPE = 'obsidianArtifacts.varSetForm';
+const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
 
 /**
  * Callback bag the var-set form panel is composed with — the repo's

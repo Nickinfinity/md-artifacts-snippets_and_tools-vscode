@@ -9,7 +9,7 @@ import { artifactCommandId } from '../../commands/insert.command.js';
 import type { ArtifactType } from '../../types/parsed-artifact.types.js';
 
 /** Command id the pane's Settings row runs — registered by `openSettings.command.ts`. */
-export const SETTINGS_COMMAND_ID = 'obsidian-artifacts.settings';
+export const SETTINGS_COMMAND_ID = 'md-artifacts.settings';
 
 /**
  * One row in the main pane's idle-mode create list.
@@ -47,17 +47,17 @@ export function buildCreateItems(): CreateItem[] {
  *
  * `type` crosses the webview boundary untrusted: `getEntry` alone would
  * accept any of the six `ArtifactType` literals (including `Variables`,
- * which has no create form), resolving to an `obsidian-artifacts.create.*`
+ * which has no create form), resolving to an `md-artifacts.create.*`
  * id that is never registered. Gating on membership in the same
  * `getCreateFormTypes()` list the rows are built from keeps the two in
  * lockstep — a type can never be clickable here without also being a valid
  * target.
  *
  * @param type - Raw `type` value from a `{ command: 'createType', type }` message.
- * @returns `obsidian-artifacts.create.<dir>` for a create-form type, else `undefined`.
+ * @returns `md-artifacts.create.<dir>` for a create-form type, else `undefined`.
  *
  * @example
- * resolveCreateCommandId('Snippet')   // → 'obsidian-artifacts.create.snippets'
+ * resolveCreateCommandId('Snippet')   // → 'md-artifacts.create.snippets'
  * resolveCreateCommandId('Variables') // → undefined — not a create-form type
  */
 export function resolveCreateCommandId(type: string): string | undefined {
@@ -90,15 +90,15 @@ export function buildBrowseItems(): CreateItem[] {
  *
  * Gated against `getBrowseTypes()` for the same reason `resolveCreateCommandId`
  * gates against `getCreateFormTypes()`: `type` crosses the webview boundary
- * untrusted, and an ungated value would build an `obsidian-artifacts.insert.*`
+ * untrusted, and an ungated value would build an `md-artifacts.insert.*`
  * id that was never registered — and `Variables` (D-11) must never resolve
  * here, since Open never renders it.
  *
  * @param type - Raw `type` value from a `{ command: 'browseType', type }` message.
- * @returns `obsidian-artifacts.insert.<dir>` for a browsable type, else `undefined`.
+ * @returns `md-artifacts.insert.<dir>` for a browsable type, else `undefined`.
  *
  * @example
- * resolveBrowseCommandId('Snippet')    // → 'obsidian-artifacts.insert.snippets'
+ * resolveBrowseCommandId('Snippet')    // → 'md-artifacts.insert.snippets'
  * resolveBrowseCommandId('Variables')  // → undefined — not a browse type (D-11)
  * resolveBrowseCommandId('Nonsense')   // → undefined
  */

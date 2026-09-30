@@ -17,7 +17,7 @@ import * as path from 'node:path';
 suite('icon SVG — O+A monogram (T4.1)', () => {
 
     const svg = fs.readFileSync(
-        path.join(__dirname, '..', '..', 'media', 'obsidian-artifacts.svg'),
+        path.join(__dirname, '..', '..', 'media', 'md-artifacts.svg'),
         'utf8',
     );
 

@@ -58,7 +58,7 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 	 * @param commandId - The command ID to look for.
 	 * @returns Whether any entry in that menu references the command.
 	 * @example
-	 * menuHasCommand('explorer/context', 'obsidian-artifacts.insert.templates') // → true
+	 * menuHasCommand('explorer/context', 'md-artifacts.insert.templates') // → true
 	 */
 	function menuHasCommand(menuKey: string, commandId: string): boolean {
 		const entries = pkg.contributes.menus[menuKey] ?? [];
@@ -88,7 +88,7 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 	 * @param a       - The `ARTIFACTS` entry under test.
 	 * @param surface - The concrete menu surface being checked.
 	 * @returns The expected command id for that surface.
-	 * @example commandIdFor(aiPromptEntry, 'terminal') // → 'obsidian-artifacts.insert.aiprompts.terminal'
+	 * @example commandIdFor(aiPromptEntry, 'terminal') // → 'md-artifacts.insert.aiprompts.terminal'
 	 */
 	function commandIdFor(a: Artifact, surface: ArtifactContext): string {
 		return surface === 'terminal' && isBothContextArtifact(a)
@@ -126,8 +126,8 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			for (const surface of surfacesFor(a.contexts)) {
 				const id = commandIdFor(a, surface);
 				assert.ok(
-					menuHasCommand(`obsidian-artifacts.submenu.${surface}`, id),
-					`${id} missing from obsidian-artifacts.submenu.${surface}`,
+					menuHasCommand(`md-artifacts.submenu.${surface}`, id),
+					`${id} missing from md-artifacts.submenu.${surface}`,
 				);
 			}
 		}
@@ -160,8 +160,8 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			assert.ok(menuHasCommand('terminal/context', terminalId), `terminal/context missing ${terminalId}`);
 			assert.ok(!menuHasCommand('terminal/context', baseId), `terminal/context must not reference the base id ${baseId}`);
 
-			assert.ok(menuHasCommand('obsidian-artifacts.submenu.terminal', terminalId), `submenu.terminal missing ${terminalId}`);
-			assert.ok(!menuHasCommand('obsidian-artifacts.submenu.terminal', baseId), `submenu.terminal must not reference the base id ${baseId}`);
+			assert.ok(menuHasCommand('md-artifacts.submenu.terminal', terminalId), `submenu.terminal missing ${terminalId}`);
+			assert.ok(!menuHasCommand('md-artifacts.submenu.terminal', baseId), `submenu.terminal must not reference the base id ${baseId}`);
 		}
 	});
 

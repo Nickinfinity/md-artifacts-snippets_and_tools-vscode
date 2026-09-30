@@ -61,7 +61,7 @@ Press **F5** in VS Code to launch the Extension Development Host.
 
 ## What This Extension Does
 
-**Obsidian Artifacts: AI Snippets & Tools** bridges an Obsidian vault and VS Code, letting developers insert vault content — snippets, templates, commands, agent configs, AI prompts, and variables — directly into the editor or terminal without leaving VS Code.
+**MD Artifacts: AI Snippets & Tools** bridges an Obsidian vault and VS Code, letting developers insert vault content — snippets, templates, commands, agent configs, AI prompts, and variables — directly into the editor or terminal without leaving VS Code.
 
 - **Settings panel** — pick and validate the vault root, toggle artifact directories.
 - **Artifact picker** — a `vscode.QuickPick` hierarchical navigator with a
@@ -71,7 +71,7 @@ Press **F5** in VS Code to launch the Extension Development Host.
 - **Create form** — a webview form that writes new artifacts into the vault.
 - **Variable Sets** — reusable `<VK-xxx>` default bundles, applied with a diff
   preview or saved from current values.
-- **Activity-bar home** — a dedicated container (icon: `media/obsidian-artifacts.svg`,
+- **Activity-bar home** — a dedicated container (icon: `media/md-artifacts.svg`,
   freely replaceable — nothing reads or fingerprints it) holds two panes: the
   **main pane**, a two-mode webview that lists create-form types (`idle`) and
   hosts the insert preview (`preview`) once an artifact is picked; and the
@@ -86,10 +86,10 @@ Press **F5** in VS Code to launch the Extension Development Host.
 src/
 ├── extension.ts                      # Entry point — activate() / deactivate()
 ├── commands/
-│   ├── openSettings.command.ts       # Registers obsidian-artifacts.settings
+│   ├── openSettings.command.ts       # Registers md-artifacts.settings
 │   ├── insert.command.ts             # One insert command per artifact (loop over ARTIFACTS)
 │   ├── create.command.ts             # Create-artifact flow + editor-selection capture
-│   ├── migrate.command.ts            # obsidian-artifacts.migrateFrontmatter — dry-run, then apply
+│   ├── migrate.command.ts            # md-artifacts.migrateFrontmatter — dry-run, then apply
 │   ├── capture/                      # One CaptureFn per surface, vscode-free
 │   │   └── editor.capture.ts · terminal.capture.ts · explorer.capture.ts
 │   ├── create-prefill.helpers.ts     # THE prefill builders (pure)
@@ -151,7 +151,7 @@ src/
 │   ├── html.ts                       # THE escHtml (& < > " ') + styleLinkTags
 │   └── path-containment.ts           # THE containment rule — isPathWithin(root, candidate)
 ├── features/ · providers/            # (empty) reserved
-media/obsidian-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
+media/md-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
 test/                                 # 1362 tests. fixtures/ + snapshots/
 ├── snapshots/varset/*.md             # Byte-exact var-set emission goldens — NEVER edit
 ├── snapshots/form-html/*.html        # Form-panel HTML snapshots
@@ -176,7 +176,7 @@ Sync — **create only, never auto-delete.**
 
 On folder pick: `validateObsidianVault()` (requires `.obsidian/`) →
 `detectVaultDirs()` → auto-create the `default: true` entries → persist path and
-feature flags to `obsidianArtifacts.*` (Settings Sync). It is the only **panel** that writes that config section, and sources the
+feature flags to `mdArtifacts.*` (Settings Sync). It is the only **panel** that writes that config section, and sources the
 section name from `CONFIG_SECTION`. One programmatic writer also exists —
 `config.service.ts`'s `setVariablesHeightFraction`, for the drag handle, which
 lives beside its matching reader rather than reaching into the section from a
@@ -235,7 +235,7 @@ new artifact wired in constants but missing from `package.json` shows **no
 menu entry, no error** without it.
 
 **Never write `ARTIFACTS.find(...)`, a second `escHtml`, or a second slug.**
-Never call `vscode.workspace.getConfiguration('obsidianArtifacts')` outside
+Never call `vscode.workspace.getConfiguration('mdArtifacts')` outside
 `config.service.ts`.
 
 ### Artifact picker (`src/ui/panels/artifactPicker/`)
@@ -499,7 +499,7 @@ because of a hard VS Code constraint:
 > matching `contributes.commands` entry. Per-item overrides in
 > `contributes.menus` are silently ignored.
 
-IDs follow `obsidian-artifacts.insert.<dir.toLowerCase()>` via
+IDs follow `md-artifacts.insert.<dir.toLowerCase()>` via
 `artifactCommandId(dir)` and must match `package.json`. A type declaring
 **both** `'editor'` and `'terminal'` in `contexts` (only `AIPrompt` today) also
 registers `artifactTerminalCommandId(dir)` — `<base>.terminal` — a second
@@ -520,7 +520,7 @@ and the type-config accessors. Then, for menu presentation only:
 and is labelled **"See/Edit Variables"** (browse/edit, not insert); it sits in
 `package.json` group `"2_variables@1"` while others use `"1_insert@N"`, so VS
 Code's group separator keeps it last. Each surface shows direct entries when one
-artifact is active there, or an "Obsidian Artifacts" submenu when two or more
+artifact is active there, or an "MD Artifacts" submenu when two or more
 are (`*HasMultiple` context keys, maintained by `context.service.ts`).
 
 **Insert target — the invocation surface, not focus.** `AIPrompt` is the first

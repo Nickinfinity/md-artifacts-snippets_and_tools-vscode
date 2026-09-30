@@ -48,10 +48,10 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	 *
 	 * @param type - The artifact type.
 	 * @returns The base create command id.
-	 * @example createId('Snippet'); // → 'obsidian-artifacts.create.snippets'
+	 * @example createId('Snippet'); // → 'md-artifacts.create.snippets'
 	 */
 	function createId(type: ArtifactType): string {
-		return `obsidian-artifacts.create.${getEntry(type).dir.toLowerCase()}`;
+		return `md-artifacts.create.${getEntry(type).dir.toLowerCase()}`;
 	}
 
 	/**
@@ -60,7 +60,7 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	 * whole-file type on the explorer.
 	 *
 	 * @returns Every create command id the derivation implies.
-	 * @example expectedIds().has('obsidian-artifacts.create.aiprompts.terminal'); // → true
+	 * @example expectedIds().has('md-artifacts.create.aiprompts.terminal'); // → true
 	 */
 	function expectedIds(): Set<string> {
 		const ids = new Set<string>();
@@ -94,7 +94,7 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	const declaredCreateIds = new Set(
 		PKG.contributes.commands
 			.map(c => c.command)
-			.filter(id => id.startsWith('obsidian-artifacts.create.'))
+			.filter(id => id.startsWith('md-artifacts.create.'))
 			.filter(id => !LEGACY_IDS.includes(id)),
 	);
 
@@ -127,8 +127,8 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	test('every create menu entry sits in the 3_create group', () => {
 		for (const surface of SURFACES) {
 			for (const e of PKG.contributes.menus[MENU_KEY[surface]] ?? []) {
-				const isCreate = e.command?.startsWith('obsidian-artifacts.create.')
-					|| e.submenu?.startsWith('obsidian-artifacts.submenu.create.');
+				const isCreate = e.command?.startsWith('md-artifacts.create.')
+					|| e.submenu?.startsWith('md-artifacts.submenu.create.');
 				if (!isCreate) { continue; }
 				assert.ok(
 					e.group?.startsWith('3_create@'),
@@ -141,9 +141,9 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	test('each surface splits direct entries from its submenu on <surface>CreateHasMultiple', () => {
 		for (const surface of SURFACES) {
 			const entries = (PKG.contributes.menus[MENU_KEY[surface]] ?? [])
-				.filter(e => e.command?.startsWith('obsidian-artifacts.create.')
-					|| e.submenu?.startsWith('obsidian-artifacts.submenu.create.'));
-			const key = `obsidian-artifacts.${surface}CreateHasMultiple`;
+				.filter(e => e.command?.startsWith('md-artifacts.create.')
+					|| e.submenu?.startsWith('md-artifacts.submenu.create.'));
+			const key = `md-artifacts.${surface}CreateHasMultiple`;
 
 			const submenuEntry = entries.find(e => e.submenu);
 			assert.ok(submenuEntry, `${surface}: no create submenu entry`);
@@ -171,7 +171,7 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 
 	test('each surface declares its own create submenu', () => {
 		for (const surface of SURFACES) {
-			const id = `obsidian-artifacts.submenu.create.${surface}`;
+			const id = `md-artifacts.submenu.create.${surface}`;
 			assert.ok(
 				PKG.contributes.submenus.some(s => s.id === id),
 				`missing submenu declaration ${id}`,
@@ -185,7 +185,7 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 
 	test('explorer splits single-file from index on listMultiSelection', () => {
 		const entries = (PKG.contributes.menus['explorer/context'] ?? [])
-			.filter(e => e.command?.startsWith('obsidian-artifacts.create.'));
+			.filter(e => e.command?.startsWith('md-artifacts.create.'));
 		for (const e of entries) {
 			const isIndex = e.command!.endsWith('.index');
 			// An index needs 2+ files; a single-file capture needs exactly one.
@@ -201,8 +201,8 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 
 	test('editor create entries require a real selection', () => {
 		for (const e of PKG.contributes.menus['editor/context'] ?? []) {
-			if (!e.command?.startsWith('obsidian-artifacts.create.')
-				&& !e.submenu?.startsWith('obsidian-artifacts.submenu.create.')) { continue; }
+			if (!e.command?.startsWith('md-artifacts.create.')
+				&& !e.submenu?.startsWith('md-artifacts.submenu.create.')) { continue; }
 			assert.ok(
 				e.when?.includes('editorHasSelection'),
 				`${e.command ?? e.submenu}: editor create entries must require editorHasSelection`,
