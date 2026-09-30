@@ -121,9 +121,12 @@ suite('create surface registration — extension host', () => {
 		assert.ok(treeIds.length > 0, 'no tree views contributed — expected md-artifacts.variablesView');
 
 		const source = fs.readFileSync(path.resolve(__dirname, '..', '..', 'src', 'extension.ts'), 'utf8');
+		// Either API binds a provider; createTreeView also hands back the view
+		// (the Variables tree needs it for its search description). Matched as
+		// calls, so a comment naming the API cannot satisfy the guard.
 		assert.ok(
-			source.includes('registerTreeDataProvider'),
-			'extension.ts calls registerTreeDataProvider nowhere, so every contributed tree view is dead',
+			/\b(?:registerTreeDataProvider|createTreeView)\(/.test(source),
+			'extension.ts calls neither registerTreeDataProvider nor createTreeView, so every contributed tree view is dead',
 		);
 
 		for (const id of treeIds) {

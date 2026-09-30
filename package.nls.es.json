@@ -51,5 +51,7 @@
   "config.title": "MD Artifacts: AI Snippets & Tools",
   "view.mainView.name": "Artefactos",
   "view.variablesView.name": "Variables",
-  "container.title": "MD Artifacts"
+  "container.title": "MD Artifacts",
+  "cmd.variables.search.title": "Buscar conjuntos de variables",
+  "cmd.variables.clearSearch.title": "Borrar búsqueda"
 }

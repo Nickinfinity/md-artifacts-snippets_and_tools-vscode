@@ -330,3 +330,9 @@
 .btn-danger:hover {
   background-color: var(--vscode-inputValidation-errorBackground, rgba(244, 135, 113, 0.1));
 }
+
+/* ── Variable-set form: sub-sets (edit mode) ─────────────────────────────── */
+.subset-heading,
+.subset-heading-input { margin: 14px 0 4px; }
+.add-var-row { margin-top: 4px; }
+.add-subset { margin-top: 14px; }

@@ -22,6 +22,13 @@ export const VARIABLE_NODE_KINDS = ['file', 'subset', 'var'] as const;
 export type VariableNodeKind = typeof VARIABLE_NODE_KINDS[number];
 
 /**
+ * Every `contextValue` a tree row can carry — the node kinds plus
+ * `fileSingle` (a one-sub-set file, which also takes sub-set actions).
+ * `package-variables-menus.test.ts` pins the manifest's `viewItem` clauses to it.
+ */
+export const VARIABLE_CONTEXT_VALUES = [...VARIABLE_NODE_KINDS, 'fileSingle'] as const;
+
+/**
  * Max characters shown for a var's value before it is truncated with `…`.
  * A value at exactly this length is untouched; one character over is cut
  * and marked — see `truncateValue`.
@@ -76,6 +83,14 @@ export interface VariableNode {
     kind: VariableNodeKind;
     /** Display label — already sanitized to a single line. */
     label: string;
+    /**
+     * `file` nodes only: the file has exactly one sub-set, so its vars hang
+     * straight off the file (no sub-set level) and sub-set commands accept the
+     * file node as sub-set 0 — see `resolveTarget`.
+     */
+    single?: boolean;
+    /** Lower-cased text the search filter matches against (name + value for a var). */
+    searchText?: string;
 }
 
 /**
@@ -119,34 +134,80 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
 
     for (const file of files) {
         const fileId = file.filePath;
+        const subSets = extractSubSets(file);
+        const single = subSets.length === 1;
+        const fileLabel = stripControlChars(file.frontmatter.title || file.fileName);
         nodes.push({
             id: fileId,
             parentId: null,
             kind: 'file',
-            label: stripControlChars(file.frontmatter.title || file.fileName),
+            label: fileLabel,
+            single,
+            searchText: fileLabel.toLowerCase(),
         });
 
-        extractSubSets(file).forEach((subSet, subIdx) => {
+        subSets.forEach((subSet, subIdx) => {
+            // Ids keep the `::subset:<i>` segment even when the level is not
+            // shown — every var command decodes its sub-set from the id.
             const subsetId = `${fileId}::subset:${subIdx}`;
-            nodes.push({
-                id: subsetId,
-                parentId: fileId,
-                kind: 'subset',
-                label: stripControlChars(subSet.heading),
-            });
+            if (!single) {
+                const heading = stripControlChars(subSet.heading);
+                nodes.push({ id: subsetId, parentId: fileId, kind: 'subset', label: heading, searchText: heading.toLowerCase() });
+            }
 
             subSet.vars.forEach((v, varIdx) => {
+                const name = stripControlChars(v.name);
                 nodes.push({
                     id: `${subsetId}::var:${varIdx}`,
-                    parentId: subsetId,
+                    parentId: single ? fileId : subsetId,
                     kind: 'var',
-                    label: `${stripControlChars(v.name)} = ${truncateValue(v.defaultValue)}`,
+                    label: `${name} = ${truncateValue(v.defaultValue)}`,
+                    searchText: `${name} ${stripControlChars(v.defaultValue)}`.toLowerCase(),
                 });
             });
         });
     }
 
     return nodes;
+}
+
+/**
+ * Narrows a node list to a case-insensitive search, keeping tree shape.
+ *
+ * A node survives when it matches, when an ancestor matches (a matching set
+ * or sub-set shows everything inside it), or when a descendant matches (the
+ * path down to a matching var stays visible). An empty query keeps all.
+ *
+ * @param nodes - Output of {@link buildVariableNodes}, parents before children.
+ * @param query - Raw search text; trimmed and lower-cased here.
+ * @returns The surviving nodes, original order.
+ *
+ * @example
+ * filterVariableNodes(nodes, 'host') // the VK-host rows plus their sub-set and file
+ */
+export function filterVariableNodes(nodes: VariableNode[], query: string): VariableNode[] {
+    const q = query.trim().toLowerCase();
+    if (q === '') { return nodes; }
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const keep = new Set<string>();
+    const matchedOrUnder = new Set<string>();
+    // ── Down: a match keeps its whole subtree (parents precede children) ──
+    for (const n of nodes) {
+        const parentHit = n.parentId !== null && matchedOrUnder.has(n.parentId);
+        if (parentHit || (n.searchText ?? n.label.toLowerCase()).includes(q)) {
+            matchedOrUnder.add(n.id);
+            keep.add(n.id);
+        }
+    }
+    // ── Up: every kept node keeps its ancestors ──
+    for (const id of [...keep]) {
+        let parentId = byId.get(id)?.parentId ?? null;
+        while (parentId !== null && !keep.has(parentId)) {
+            keep.add(parentId);
+            parentId = byId.get(parentId)?.parentId ?? null;
+        }
+    }
+    return nodes.filter(n => keep.has(n.id));
 }
 
 /**
@@ -180,6 +241,25 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
 
     private readonly scanner = getVarSetScanner();
     private nodes: VariableNode[] = [];
+    private filter = '';
+
+    /** Current search text (`''` when none). */
+    get filterText(): string { return this.filter; }
+
+    /**
+     * Sets the search text and redraws. Re-uses the scanner cache, so typing
+     * does not re-read the vault.
+     *
+     * @param query - Search text; `''` clears.
+     * @returns Nothing.
+     *
+     * @example
+     * provider.setFilter('host');
+     */
+    setFilter(query: string): void {
+        this.filter = query;
+        this.changeEmitter.fire();
+    }
 
     /**
      * Re-renders the tree whenever the shared scanner cache is invalidated —
@@ -248,7 +328,7 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
             }
             const variablesDirUri = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir);
             const files = await this.scanner.scan(variablesDirUri);
-            this.nodes = buildVariableNodes(files);
+            this.nodes = filterVariableNodes(buildVariableNodes(files), this.filter);
             return this.nodes.filter(n => n.parentId === null);
         }
         return this.nodes.filter(n => n.parentId === element.id);
@@ -267,12 +347,18 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
      * provider.getTreeItem({ id: 'a', parentId: null, kind: 'file', label: 'Local Dev' });
      */
     getTreeItem(node: VariableNode): vscode.TreeItem {
-        const collapsibleState = node.kind === 'var'
-            ? vscode.TreeItemCollapsibleState.None
-            : vscode.TreeItemCollapsibleState.Collapsed;
+        const filtering = this.filter.trim() !== '';
+        let collapsibleState = vscode.TreeItemCollapsibleState.None;
+        if (node.kind !== 'var') {
+            collapsibleState = filtering
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed;
+        }
         const item = new vscode.TreeItem(node.label, collapsibleState);
-        item.id = node.id;
-        item.contextValue = node.kind;
+        // VS Code remembers expansion per item id and ignores a new state for a
+        // known id, so filtered results get their own ids to open expanded.
+        item.id = filtering ? `${node.id}#search` : node.id;
+        item.contextValue = node.kind === 'file' && node.single ? VARIABLE_CONTEXT_VALUES[3] : node.kind;
         item.iconPath = new vscode.ThemeIcon(
             node.kind === 'file' ? 'file' : node.kind === 'subset' ? 'symbol-namespace' : 'symbol-variable',
         );

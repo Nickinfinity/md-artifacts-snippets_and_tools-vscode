@@ -142,3 +142,41 @@ export function toVarSetModel(payload: VarSetFormPayload): ArtifactFormModel {
         payload.pairs,
     );
 }
+
+/**
+ * Validates the sub-set headings of an edit-mode Save.
+ *
+ * With one sub-set a heading is optional — a heading-less file stays flat.
+ * With two or more, every sub-set is emitted as a `## ` heading, so each must
+ * be non-empty (a bare `## ` would not re-parse), unique (sub-sets are picked
+ * by heading), and free of newline/backtick (either would break the heading
+ * line or the fence under it).
+ *
+ * @param headings - Final headings, one per sub-set, in file order.
+ * @returns `{ ok: true }` or the first failure reason.
+ *
+ * @example
+ * validateSubSetHeadings(['Dev', 'Prod']); // { ok: true }
+ * validateSubSetHeadings(['Dev', '']);     // { ok: false, reason: 'Every sub-set needs a name…' }
+ */
+export function validateSubSetHeadings(headings: string[]): VarSetFormValidation {
+    if (headings.length < 2) {
+        return headings.some(h => FENCE_BREAKING_RE.test(h))
+            ? { ok: false, reason: 'Sub-set name contains an illegal character (newline or backtick).' }
+            : { ok: true };
+    }
+    const seen = new Set<string>();
+    for (const h of headings) {
+        if (h === '') {
+            return { ok: false, reason: 'Every sub-set needs a name when the set has more than one.' };
+        }
+        if (FENCE_BREAKING_RE.test(h)) {
+            return { ok: false, reason: `Sub-set name "${h}" contains an illegal character (newline or backtick).` };
+        }
+        if (seen.has(h)) {
+            return { ok: false, reason: `Sub-set name "${h}" is used twice.` };
+        }
+        seen.add(h);
+    }
+    return { ok: true };
+}

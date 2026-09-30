@@ -49,13 +49,15 @@ suite('package.nls.json localisation guard', () => {
 		// Without the length pin, this loop is vacuous over any subset — a helper
 		// returning 5 of 70 sites would pass just as well.
 		// 68 → 70: `variables.openFile` added a title and a category site (the
-		// pane's route into the var-set edit form).
+		// pane's route into the var-set edit form). 70 → 74: `variables.search`
+		// and `variables.clearSearch`, a title and a category site each.
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 70);
+		assert.strictEqual(sites.length, 74);
 
 		// UNFILTERED count: the `""` review sentinel is es-ONLY. The en bundle has
-		// exactly 52 keys and no sentinel. 51 → 52: `cmd.variables.openFile.title`.
-		assert.strictEqual(Object.keys(en).length, 52);
+		// exactly 54 keys and no sentinel. 51 → 52: `cmd.variables.openFile.title`.
+		// 52 → 54: `cmd.variables.search.title`, `cmd.variables.clearSearch.title`.
+		assert.strictEqual(Object.keys(en).length, 54);
 
 		// A Map, not a Set of values: pins the key→value binding, not just the
 		// value set — red on a wrong value, a wrong key, and a mis-keyed pair.
@@ -84,7 +86,7 @@ suite('package.nls.json localisation guard', () => {
 		// The length pin is what stops it being vacuous over a subset: without
 		// it, a helper returning 5 of 70 sites passes here and in the Map guard.
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 70);
+		assert.strictEqual(sites.length, 74);
 
 		const bare = sites.filter(s => !/^%.+%$/.test(s.value));
 		assert.deepStrictEqual(bare, [],

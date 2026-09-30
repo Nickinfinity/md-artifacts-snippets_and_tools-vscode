@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { getNonce } from '../../../utils/helpers.js';
 import { renderVarSetFormHtml, parseVarSetFormPayload, parseVarsEditPayload } from './varsetForm.render.js';
-import { validateVarPairs } from '../../../services/varset-form.service.js';
+import { validateVarPairs, validateSubSetHeadings } from '../../../services/varset-form.service.js';
 import type { VarSetFormPayload, VarsEditPayload } from '../../../types/varset.types.js';
 
 const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
@@ -136,17 +136,25 @@ async function handleEditSave(
         }
     }
 
-    // Headings and `env` never ride the wire — re-attach them from the payload the
-    // panel was opened with, index-aligned to the rendered sub-set order.
+    // `env` never rides the wire, and neither does an existing heading — both are
+    // re-attached from the payload the panel was opened with, index-aligned to the
+    // rendered sub-set order. A typed heading is used only where the base has none
+    // (an added sub-set, or a heading-less file's lone one), so the webview can
+    // name a sub-set but never rename one.
+    const headings = wire.pairs.map((_, i) =>
+        base.subSets[i]?.heading || (wire.headings?.[i] ?? '').trim());
+    const headingCheck = validateSubSetHeadings(headings);
+    if (!headingCheck.ok) {
+        cb.post({ command: 'saveFailed', reason: headingCheck.reason });
+        return;
+    }
+
     const payload: VarsEditPayload = {
         title:       wire.title,
         description: wire.description,
         tags:        wire.tags,
         env:         base.env,
-        subSets:     wire.pairs.map((pairs, i) => ({
-            heading: base.subSets[i]?.heading ?? '',
-            pairs,
-        })),
+        subSets:     wire.pairs.map((pairs, i) => ({ heading: headings[i], pairs })),
     };
 
     await cb.writeEdit?.(payload);

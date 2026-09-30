@@ -162,6 +162,18 @@
         "title": "%cmd.variables.saveCurrentValues.title%",
         "category": "%cmd.category%",
         "icon": "$(save)"
+      },
+      {
+        "command": "md-artifacts.variables.search",
+        "title": "%cmd.variables.search.title%",
+        "category": "%cmd.category%",
+        "icon": "$(search)"
+      },
+      {
+        "command": "md-artifacts.variables.clearSearch",
+        "title": "%cmd.variables.clearSearch.title%",
+        "category": "%cmd.category%",
+        "icon": "$(clear-all)"
       }
     ],
     "submenus": [
@@ -250,6 +262,14 @@
         },
         {
           "command": "md-artifacts.variables.applyToPreview",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.search",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.clearSearch",
           "when": "false"
         }
       ],
@@ -473,6 +493,16 @@
       ],
       "view/title": [
         {
+          "command": "md-artifacts.variables.search",
+          "when": "view == md-artifacts.variablesView",
+          "group": "navigation@0"
+        },
+        {
+          "command": "md-artifacts.variables.clearSearch",
+          "when": "view == md-artifacts.variablesView && md-artifacts.variablesFiltered",
+          "group": "navigation@0"
+        },
+        {
           "command": "md-artifacts.variables.newFile",
           "when": "view == md-artifacts.variablesView",
           "group": "navigation@1"
@@ -486,28 +516,38 @@
       "view/item/context": [
         {
           "command": "md-artifacts.variables.openFile",
-          "when": "view == md-artifacts.variablesView && viewItem == file",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
           "group": "inline@1"
         },
         {
           "command": "md-artifacts.variables.newSubSet",
-          "when": "view == md-artifacts.variablesView && viewItem == file",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
           "group": "inline@2"
         },
         {
           "command": "md-artifacts.variables.openFile",
-          "when": "view == md-artifacts.variablesView && viewItem == file",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
           "group": "1_modify@1"
         },
         {
           "command": "md-artifacts.variables.deleteFile",
-          "when": "view == md-artifacts.variablesView && viewItem == file",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
           "group": "inline@3"
         },
         {
           "command": "md-artifacts.variables.deleteFile",
-          "when": "view == md-artifacts.variablesView && viewItem == file",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
           "group": "1_modify@2"
+        },
+        {
+          "command": "md-artifacts.variables.addVar",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSingle",
+          "group": "inline@0"
+        },
+        {
+          "command": "md-artifacts.variables.applyToPreview",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSingle",
+          "group": "2_preview@1"
         },
         {
           "command": "md-artifacts.variables.addVar",

@@ -34,7 +34,7 @@ import { confirmTextFor } from './variables.confirm.helpers.js';
 const VARIABLE_COMMAND_SUFFIXES = [
     'newFile', 'newSubSet', 'addVar', 'editValue',
     'renameVar', 'renameSubSet', 'deleteVar', 'deleteSubSet', 'deleteFile',
-    'applyToPreview', 'saveCurrentValues', 'openFile',
+    'applyToPreview', 'saveCurrentValues', 'openFile', 'search', 'clearSearch',
 ] as const;
 
 /**
@@ -71,6 +71,10 @@ export const OPEN_FILE_COMMAND_ID = variableCommandId('openFile');
 export const APPLY_TO_PREVIEW_COMMAND_ID = variableCommandId('applyToPreview');
 /** Command id for "Save Preview Values as Variable Set" (T1.3). */
 export const SAVE_CURRENT_VALUES_COMMAND_ID = variableCommandId('saveCurrentValues');
+/** Command id for "Search Variable Sets" — live filter over the Variables tree. */
+export const SEARCH_COMMAND_ID = variableCommandId('search');
+/** Command id for "Clear Search" — shown only while a filter is active. */
+export const CLEAR_SEARCH_COMMAND_ID = variableCommandId('clearSearch');
 
 /**
  * Extracts the absolute file path a `VariableNode` belongs to.
@@ -295,7 +299,10 @@ export async function resolveTarget(
     vaultRoot: vscode.Uri | undefined,
     io: CommandIO = defaultIO,
 ): Promise<ResolvedTarget | undefined> {
-    if (node?.kind !== expectedKind) {
+    // A one-sub-set file shows no sub-set level, so its file node stands in for
+    // sub-set 0 — one rule here serves every sub-set command.
+    const lone = expectedKind === 'subset' && node?.kind === 'file' && node.single === true;
+    if (node?.kind !== expectedKind && !lone) {
         io.showError(vscode.l10n.t('MD Artifacts: no variable-tree item selected.'));
         return undefined;
     }
@@ -320,7 +327,7 @@ export async function resolveTarget(
         parsed,
         model: toFormModel(parsed),
         subSets: extractSubSets(parsed),
-        subIdx: subsetIndex(node),
+        subIdx: lone ? 0 : subsetIndex(node),
         varIdx: varIndex(node),
     };
 }

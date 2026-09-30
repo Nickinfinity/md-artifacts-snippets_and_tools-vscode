@@ -9,6 +9,7 @@ import { registerCreateSurfaceCommands } from './commands/create-from-surface.co
 import { MainViewProvider, setMainViewProvider } from './ui/views/mainView.provider.js';
 import { VariablesViewProvider } from './ui/views/variablesView.provider.js';
 import { registerVariablesCommands } from './commands/variables.command.js';
+import { registerVariablesSearchCommands } from './commands/variables-search.command.js';
 import { handleApplyToPreview, handleSaveCurrentValues, liveApplyDeps } from './commands/variables-apply.command.js';
 import { APPLY_TO_PREVIEW_COMMAND_ID, SAVE_CURRENT_VALUES_COMMAND_ID } from './commands/variables.command.helpers.js';
 import type { VariableNode } from './ui/views/variablesView.provider.js';
@@ -53,16 +54,18 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	const variablesProvider = new VariablesViewProvider();
+	// createTreeView (not registerTreeDataProvider) because search writes the
+	// view's header description.
+	const variablesView = vscode.window.createTreeView(VariablesViewProvider.viewType, {
+		treeDataProvider: variablesProvider,
+	});
 
 	// The Variables tree. Read-only this wave; T16 (Wave 6) adds the CRUD
 	// commands that call `refresh()`. Registered here for the same reason the
 	// main pane is: a contributed view with no provider renders as a permanently
 	// empty pane and reports nothing anywhere (ledger #52).
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider(
-			VariablesViewProvider.viewType,
-			variablesProvider,
-		),
+		variablesView,
 		// The provider itself, because it subscribes to the process-wide
 		// VarSetScanner singleton — without this the listener outlives the
 		// provider for the life of the host (H0.1).
@@ -72,6 +75,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Variables CRUD commands. Registered after the tree provider above, so the
 	// refresh callback they fire always has a provider to reach.
 	registerVariablesCommands(context, variablesProvider);
+	registerVariablesSearchCommands(context, variablesProvider, variablesView);
 
 	// The two Variables-pane commands that act on a live preview (W1/T1.3).
 	// Ids come from the `VARIABLE_COMMAND_SUFFIXES` derivation, never hand-typed

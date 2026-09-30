@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { VARIABLE_NODE_KINDS } from '../src/ui/views/variablesView.provider.js';
+import { VARIABLE_CONTEXT_VALUES } from '../src/ui/views/variablesView.provider.js';
 
 /**
  * Pins `package.json`'s Variables view menus to the provider's node kinds.
@@ -26,29 +26,38 @@ const pkg = JSON.parse(
 const VARIABLES_PREFIX = 'md-artifacts.variables.';
 
 suite('package.json — Variables view menus', () => {
-    test('every viewItem the menus test for is a real provider node kind', () => {
-        const kinds = new Set<string>(VARIABLE_NODE_KINDS);
-        const referenced = (pkg.contributes.menus['view/item/context'] ?? [])
-            .map(entry => /viewItem == (\w+)/.exec(entry.when ?? '')?.[1])
-            .filter((v): v is string => v !== undefined);
+    // A clause is `viewItem == x` (exact) or `viewItem =~ /^x/` (prefix — the
+    // file actions use it so they also reach `fileSingle`).
+    const clauses = (pkg.contributes.menus['view/item/context'] ?? []).flatMap(entry => {
+        const when = entry.when ?? '';
+        const exact = /viewItem == (\w+)/.exec(when)?.[1];
+        const prefix = /viewItem =~ \/\^(\w+)\//.exec(when)?.[1];
+        if (exact) { return [{ value: exact, test: (v: string) => v === exact }]; }
+        if (prefix) { return [{ value: `/^${prefix}/`, test: (v: string) => v.startsWith(prefix) }]; }
+        return [];
+    });
 
-        assert.ok(referenced.length > 0, 'no view/item/context entries found — the tree has no actions');
-        for (const viewItem of referenced) {
+    test('every viewItem the menus test for is a real provider context value', () => {
+        assert.ok(clauses.length > 0, 'no view/item/context entries found — the tree has no actions');
+        for (const c of clauses) {
             assert.ok(
-                kinds.has(viewItem),
-                `menu targets viewItem "${viewItem}", which no VariableNode.kind produces — the entry silently never renders`,
+                VARIABLE_CONTEXT_VALUES.some(v => c.test(v)),
+                `menu targets viewItem "${c.value}", which no tree row produces — the entry silently never renders`,
             );
         }
     });
 
-    test('every provider node kind has at least one menu entry', () => {
-        const referenced = new Set(
-            (pkg.contributes.menus['view/item/context'] ?? [])
-                .map(entry => /viewItem == (\w+)/.exec(entry.when ?? '')?.[1]),
-        );
-        for (const kind of VARIABLE_NODE_KINDS) {
-            assert.ok(referenced.has(kind), `node kind "${kind}" has no menu entry — that row is inert`);
+    test('every provider context value has at least one menu entry', () => {
+        for (const v of VARIABLE_CONTEXT_VALUES) {
+            assert.ok(clauses.some(c => c.test(v)), `context value "${v}" has no menu entry — that row is inert`);
         }
+    });
+
+    test('a one-sub-set file row carries the sub-set actions', () => {
+        const forSingle = (pkg.contributes.menus['view/item/context'] ?? [])
+            .filter(e => (e.when ?? '').includes('viewItem == fileSingle')).map(e => e.command);
+        assert.ok(forSingle.includes('md-artifacts.variables.addVar'));
+        assert.ok(forSingle.includes('md-artifacts.variables.applyToPreview'));
     });
 
     test('applyToPreview is palette-hidden and saveCurrentValues is palette-visible', () => {

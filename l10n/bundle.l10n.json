@@ -188,5 +188,12 @@
   "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.": "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.",
   "Used clipboard contents — verify before saving.": "Used clipboard contents — verify before saving.",
   "That file is {0} KiB — too large to load into a create form (limit {1} KiB).": "That file is {0} KiB — too large to load into a create form (limit {1} KiB).",
-  "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" cannot be used as an artifact filename — it must be a plain file name."
+  "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.",
+  "Add variable": "Add variable",
+  "Remove variable": "Remove variable",
+  "Add sub-set": "Add sub-set",
+  "Sub-set name": "Sub-set name",
+  "Filter: {0}": "Filter: {0}",
+  "Search Variable Sets": "Search Variable Sets",
+  "Set, sub-set, variable name or value": "Set, sub-set, variable name or value"
 }

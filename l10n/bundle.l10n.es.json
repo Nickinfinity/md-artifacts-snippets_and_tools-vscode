@@ -188,5 +188,12 @@
   "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.": "Este artefacto es un índice de plantillas. El formulario no incluye enlaces de índice, por lo que guardarlo haría que dejara de ser un índice — abra el .md directamente en su lugar.",
   "Used clipboard contents — verify before saving.": "Se usó el contenido del portapapeles — verifíquelo antes de guardar.",
   "That file is {0} KiB — too large to load into a create form (limit {1} KiB).": "Ese archivo tiene {0} KiB — demasiado grande para cargarlo en un formulario de creación (límite {1} KiB).",
-  "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" no se puede usar como nombre de archivo de artefacto — debe ser un nombre de archivo simple."
+  "\"{0}\" cannot be used as an artifact filename — it must be a plain file name.": "\"{0}\" no se puede usar como nombre de archivo de artefacto — debe ser un nombre de archivo simple.",
+  "Add variable": "Añadir variable",
+  "Remove variable": "Quitar variable",
+  "Add sub-set": "Añadir subconjunto",
+  "Sub-set name": "Nombre del subconjunto",
+  "Filter: {0}": "Filtro: {0}",
+  "Search Variable Sets": "Buscar conjuntos de variables",
+  "Set, sub-set, variable name or value": "Conjunto, subconjunto, nombre o valor de variable"
 }

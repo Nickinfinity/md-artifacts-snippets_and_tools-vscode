@@ -179,4 +179,10 @@ export interface VarsEditWirePayload {
     tags: string[];
     /** Rows grouped per sub-set, index-aligned to the rendered `.vars-table` order. */
     pairs: [string, string][][];
+    /**
+     * Typed headings, index-aligned to `pairs`; `''` where the sub-set keeps the
+     * heading the file already has. Only a new sub-set, or the lone sub-set of a
+     * heading-less file, carries one — an existing heading is never overwritten.
+     */
+    headings?: string[];
 }

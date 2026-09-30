@@ -48,6 +48,37 @@ export function renderVarPairRows(pairs: [string, string][], subSetIndex?: numbe
 }
 
 /**
+ * Renders one edit-mode sub-set heading.
+ *
+ * A heading the file already has stays a read-only `<h3>` — the webview never
+ * rewrites an existing heading (see `VarsEditWirePayload`). A sub-set with
+ * **no** heading (the lone sub-set of a heading-less file) gets an input
+ * instead, because the moment a second sub-set is added every sub-set needs a
+ * `## ` heading, and this one has none to re-attach.
+ *
+ * When that heading-less sub-set is the **only** one, the input starts
+ * `hidden`: a one-block file is quick-edited as a plain variable list, and
+ * the name only matters once Add sub-set is clicked (which reveals it).
+ *
+ * @param heading     - The sub-set's heading from the file, `''` when absent.
+ * @param subSetIndex - Index aligning the input to its `.vars-table`.
+ * @param lone        - True when this is the file's only sub-set.
+ * @returns The `<h3>` or heading `<input>` markup, escaped.
+ *
+ * @example
+ * renderSubSetHeading('Dev', 0, false); // '<h3 class="subset-heading">Dev</h3>'
+ * renderSubSetHeading('', 0, true);     // '<input … data-role="heading" data-subset="0" … hidden>'
+ */
+export function renderSubSetHeading(heading: string, subSetIndex: number, lone = false): string {
+    if (heading !== '') {
+        return `<h3 class="subset-heading">${escHtml(heading)}</h3>`;
+    }
+    const placeholder = escHtml(vscode.l10n.t('Sub-set name'));
+    const hidden = lone ? ' hidden' : '';
+    return `<input class="form-input subset-heading-input" data-role="heading" data-subset="${subSetIndex}" placeholder="${placeholder}" value=""${hidden}>`;
+}
+
+/**
  * Renders the variable-set form's webview HTML — create mode (a flat pair
  * list) or edit mode (one `<table>` per sub-set, headed by an `<h3>`).
  *
@@ -111,9 +142,10 @@ export function renderVarSetFormHtml(
     // edit-mode caller always passes VarsEditPayload (has `subSets`).
     const rowsHtml = 'pairs' in payload
         ? renderVarPairRows(payload.pairs)
-        : payload.subSets.map((sub, i) => `
-      <h3 class="subset-heading">${escHtml(sub.heading)}</h3>
-      ${renderVarPairRows(sub.pairs, i)}`).join('');
+        : `<div id="vsfSubSets">${payload.subSets.map((sub, i) => `
+      ${renderSubSetHeading(sub.heading, i, payload.subSets.length === 1)}
+      ${renderVarPairRows(sub.pairs, i)}`).join('')}</div>
+      <button class="add-subset">${escHtml(vscode.l10n.t('Add sub-set'))}</button>`;
 
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -190,12 +222,62 @@ export function buildVarSetFormClientJs(mode: 'create' | 'edit', tagsJs: string)
       var values = Array.from(table.querySelectorAll('[data-role="value"]'));
       return names.map(function (el, i) { return [el.value, values[i].value]; });
     });
+  }
+
+  // Only typed headings travel — one slot per .vars-table, '' where the
+  // sub-set keeps the heading the file already has (the panel re-attaches it).
+  function collectHeadings() {
+    var headings = Array.from(document.querySelectorAll('.vars-table')).map(function () { return ''; });
+    document.querySelectorAll('[data-role="heading"]').forEach(function (el) {
+      var i = Number(el.dataset.subset);
+      if (i >= 0 && i < headings.length) { headings[i] = el.value; }
+    });
+    return headings;
   }`
         : `function collectPairs() {
     var names  = Array.from(document.querySelectorAll('[data-role="name"]'));
     var values = Array.from(document.querySelectorAll('[data-role="value"]'));
     return names.map(function (el, i) { return [el.value, values[i].value]; });
   }`;
+
+    // Built with createElement, not a markup string, so the script carries no
+    // `class="vars-table"` / heading literal a whole-document scan would count.
+    const addSubSet = mode === 'edit' ? `
+  // ── Add sub-set ──────────────────────────────────────────────────────────
+  // A new sub-set is a heading input + an empty table, appended to the same
+  // container the server-rendered ones live in, so .vars-table order (which
+  // collectPairs and collectHeadings index by) stays document order.
+  function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }
+  document.querySelectorAll('.add-subset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const container = document.getElementById('vsfSubSets');
+      if (!container) { return; }
+      // A lone heading-less sub-set hid its name field; with two it needs one.
+      document.querySelectorAll('[data-role="heading"]').forEach(function (h) { h.hidden = false; });
+      const index = String(document.querySelectorAll('.vars-table').length);
+      const group = el('div', 'subset-group');
+      const heading = el('input', 'form-input subset-heading-input');
+      heading.setAttribute('data-role', 'heading');
+      heading.setAttribute('data-subset', index);
+      heading.setAttribute('placeholder', ${jsStr(vscode.l10n.t('Sub-set name'))});
+      const table = el('table', 'vars-table');
+      table.appendChild(document.createElement('tbody'));
+      const add = el('button', 'add-var-row');
+      add.setAttribute('data-table', index);
+      add.textContent = ${jsStr(vscode.l10n.t('Add variable'))};
+      group.appendChild(heading);
+      group.appendChild(table);
+      group.appendChild(add);
+      container.appendChild(group);
+      wireAddVar();
+      heading.focus();
+    });
+  });
+` : '';
+
+    // Create mode posts exactly what it always has — no headings key.
+    const headingsField = mode === 'edit' ? `
+        headings: collectHeadings(),` : '';
 
     return `${collectPairs}
 
@@ -239,14 +321,20 @@ ${TAGS_FIELD_CLIENT_JS}
     });
   }
 
-  document.querySelectorAll('.add-var-row').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const table = document.querySelectorAll('.vars-table')[Number(btn.dataset.table || '0')];
-      if (table) { addRow(table); }
+  function wireAddVar() {
+    document.querySelectorAll('.add-var-row').forEach(function (btn) {
+      if (btn.dataset.wired === '1') { return; }
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', function () {
+        const table = document.querySelectorAll('.vars-table')[Number(btn.dataset.table || '0')];
+        if (table) { addRow(table); }
+      });
     });
-  });
+  }
+  wireAddVar();
   wireRowRemove();
 
+${addSubSet}
   document.getElementById('vsfCancel').addEventListener('click', function () {
     vscode.postMessage({ command: 'cancel' });
   });
@@ -264,7 +352,7 @@ ${TAGS_FIELD_CLIENT_JS}
         title: document.getElementById('vsfTitle').value,
         description: document.getElementById('vsfDescription').value,
         tags: tags.slice(),
-        pairs: collectPairs(),
+        pairs: collectPairs(),${headingsField}
       },
     });
   });
@@ -384,5 +472,12 @@ export function parseVarsEditPayload(raw: unknown): VarsEditWirePayload | undefi
         pairs.push(subSet);
     }
 
-    return { title: obj.title, description, tags, pairs };
+    if (obj.headings === undefined) {
+        return { title: obj.title, description, tags, pairs };
+    }
+    if (!Array.isArray(obj.headings) || obj.headings.length !== pairs.length
+        || !obj.headings.every(h => typeof h === 'string')) {
+        return undefined;
+    }
+    return { title: obj.title, description, tags, pairs, headings: obj.headings as string[] };
 }

@@ -64,16 +64,19 @@ function mkArtifact(overrides: Partial<ParsedArtifactFile> = {}): ParsedArtifact
 
 suite('buildVariableNodes', () => {
 
-    test('single-block file with 2 vars → flat [file, subset, var, var], right order', () => {
+    // A one-sub-set file shows no sub-set level: its vars hang off the file
+    // so a single-block set is worked on directly (the sub-set commands take
+    // the file node as sub-set 0 — see resolveTarget).
+    test('single-block file with 2 vars → flat [file, var, var], right order', () => {
         const artifact = mkArtifact({
             vars: mkVars([['VK-host', 'localhost'], ['VK-port', '8080']]),
         });
         const nodes = buildVariableNodes([artifact]);
 
-        assert.deepStrictEqual(nodes.map(n => n.kind), ['file', 'subset', 'var', 'var']);
+        assert.deepStrictEqual(nodes.map(n => n.kind), ['file', 'var', 'var']);
     });
 
-    test('file node label is frontmatter.title, subset node label is the sub-set heading', () => {
+    test('file node label is frontmatter.title; a single-block file emits no sub-set node', () => {
         const artifact = mkArtifact({
             frontmatter: { artifactType: 'Variables', title: 'Express API Environments' },
             vars:        mkVars([['VK-host', 'localhost']]),
@@ -81,8 +84,7 @@ suite('buildVariableNodes', () => {
         const nodes = buildVariableNodes([artifact]);
 
         assert.strictEqual(nodes[0].label, 'Express API Environments');
-        // Single-block sub-set heading falls back to the same title (extractSubSets' rule).
-        assert.strictEqual(nodes[1].label, 'Express API Environments');
+        assert.ok(!nodes.some(n => n.kind === 'subset'), 'a single-block file emitted a sub-set node');
     });
 
     test('var node label is exactly "name = value"', () => {
@@ -119,13 +121,23 @@ suite('buildVariableNodes', () => {
     });
 
     test('parentId links each node to its actual parent — not just declaration order', () => {
-        const artifact = mkArtifact({ vars: mkVars([['VK-host', 'localhost']]) });
+        const artifact = mkArtifact({
+            vars: [],
+            blocks: [
+                { heading: 'Dev',  description: '', code: '', vars: mkVars([['VK-a', '1']]) },
+                { heading: 'Prod', description: '', code: '', vars: mkVars([['VK-b', '2']]) },
+            ],
+        });
         const nodes = buildVariableNodes([artifact]);
         const [fileNode, subsetNode, varNode] = nodes;
 
         assert.strictEqual(fileNode.parentId, null);
         assert.strictEqual(subsetNode.parentId, fileNode.id);
         assert.strictEqual(varNode.parentId, subsetNode.id);
+
+        // Single-block: the var's parent is the file itself.
+        const [single, singleVar] = buildVariableNodes([mkArtifact({ vars: mkVars([['VK-host', 'localhost']]) })]);
+        assert.strictEqual(singleVar.parentId, single.id);
     });
 
     test('a file with no vars produces only the file node — no dangling empty subset', () => {
