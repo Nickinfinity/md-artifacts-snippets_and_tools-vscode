@@ -16,24 +16,6 @@
 				"kind": "build",
 				"isDefault": true
 			}
-		},
-		{
-			// Opens the dev host paused on 127.0.0.1:9339 for the
-			// "Run Extension" launch config.
-			"label": "Launch Dev Host (inspect 9339)",
-			"type": "process",
-			"command": "code",
-			"args": [
-				"--new-window",
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--disable-extensions",
-				"--inspect-brk-extensions=9339"
-			],
-			"dependsOn": "Watch TypeScript",
-			"presentation": {
-				"reveal": "never"
-			},
-			"problemMatcher": []
 		}
 	]
 }
