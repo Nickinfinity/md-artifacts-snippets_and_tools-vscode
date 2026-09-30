@@ -18,7 +18,7 @@
      custom property `buildCodeBlockHtml` sets — the fallback here only applies
      if that property is ever missing. `min-height` beats `max-height` in CSS,
      so this wins on a small artifact and the max still caps a long one. */
-  min-height: calc(var(--oa-code-min-lines, 8) * 1.5em);
+  min-height: calc(var(--mda-code-min-lines, 8) * 1.5em);
   border: 1px solid var(--vscode-panel-border);
   padding: 6px 0;
   outline: none;

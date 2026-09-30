@@ -51,7 +51,7 @@ test's stale compiled artifact keeps running and *inflates* the pass count into
 a phantom green. `rm -rf dist` after any delete or rename.
 
 **macOS socket-path caveat.** `.vscode-test.mjs` pins
-`--user-data-dir=/tmp/oa-vsct` because macOS caps unix socket paths at 103 chars
+`--user-data-dir=/tmp/mda-vsct` because macOS caps unix socket paths at 103 chars
 and the default under a deep repo path overflows it (`listen EINVAL … .sock`).
 Seeing that does not mean the suite is broken — never fall back to a partial gate.
 

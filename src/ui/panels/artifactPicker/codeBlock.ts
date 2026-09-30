@@ -36,7 +36,7 @@ export function buildCodeBlockHtml(rowsHtml: string, lang: string): string {
             aria-label="${expandLabel}">⤢</button>
   </div>
   <div id="codeWrapper" class="code-block-wrapper editable" contenteditable="true" spellcheck="false"
-       style="--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;
+       style="--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;
 }
 
 /**

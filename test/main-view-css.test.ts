@@ -75,8 +75,8 @@ suite('main-view.css — narrow-pane sheet (T22, VSX-223)', () => {
         test('#varsSection is height-bounded to a T2-overridable custom property and scrolls', () => {
             const body = ruleBody(readSheet(), /#varsSection\s*\{([^}]*)\}/);
             assert.ok(
-                /max-height:\s*var\(--oa-vars-height,\s*[^)]+\)/.exec(body),
-                'expected #varsSection max-height to read var(--oa-vars-height, <default>)',
+                /max-height:\s*var\(--mda-vars-height,\s*[^)]+\)/.exec(body),
+                'expected #varsSection max-height to read var(--mda-vars-height, <default>)',
             );
             assert.ok(/overflow-y:\s*auto/.exec(body), 'expected #varsSection to scroll on its own');
         });

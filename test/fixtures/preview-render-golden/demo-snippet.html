@@ -24,7 +24,7 @@
             aria-label="Open this block in the editor">⤢</button>
   </div>
   <div id="codeWrapper" class="code-block-wrapper editable" contenteditable="true" spellcheck="false"
-       style="--oa-code-min-lines: 8" data-lang="javascript"><div class="code-line-row"><span class="line-number" contenteditable="false">1</span><span class="code-content"><span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="vk-var">&lt;VK-msg&gt;</span>);</span></div></div>
+       style="--mda-code-min-lines: 8" data-lang="javascript"><div class="code-line-row"><span class="line-number" contenteditable="false">1</span><span class="code-content"><span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="vk-var">&lt;VK-msg&gt;</span>);</span></div></div>
   <div class="slabel">Variables</div>
   <div id="varsSection">
     <div class="inputs" id="varInputs">
@@ -277,7 +277,7 @@
 
     function applyLocal(fraction) {
       // Local feedback only; the authoritative bounds live in the extension.
-      document.documentElement.style.setProperty('--oa-vars-height', (fraction * 100) + 'vh');
+      document.documentElement.style.setProperty('--mda-vars-height', (fraction * 100) + 'vh');
     }
 
     varsResizeHandle.addEventListener('pointerdown', function (ev) {
@@ -421,7 +421,7 @@
     }
     // Authoritative height from the extension (config, already clamped).
     if (msg.command === 'setVarsHeight' && msg.value) {
-      document.documentElement.style.setProperty('--oa-vars-height', msg.value);
+      document.documentElement.style.setProperty('--mda-vars-height', msg.value);
     }
     // The extension host cannot read this pane's width — no such member exists
     // on WebviewView. The webview can: it is a real DOM. Reported back so the

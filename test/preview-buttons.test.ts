@@ -118,7 +118,7 @@ suite('preview client script ↔ rendered buttons', () => {
         // as a custom property. If the sheet ever hard-codes a line count again,
         // the constant becomes decorative and changing it silently does nothing.
         assert.ok(
-            renderedHtml().includes(`--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}`),
+            renderedHtml().includes(`--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}`),
             'the rendered code area does not set the custom property from the constant',
         );
         const sheet = fs.readFileSync(
@@ -126,7 +126,7 @@ suite('preview client script ↔ rendered buttons', () => {
             'utf8',
         );
         assert.ok(
-            sheet.includes('var(--oa-code-min-lines'),
+            sheet.includes('var(--mda-code-min-lines'),
             'code-block.css does not read the custom property',
         );
         assert.strictEqual(

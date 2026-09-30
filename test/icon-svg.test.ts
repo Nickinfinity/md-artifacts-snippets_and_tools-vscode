@@ -3,16 +3,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * T4.1 — the activity-bar icon becomes an O+A monogram.
+ * T4.1 — the activity-bar icon is an O+A monogram, with a Markdown (M + down-arrow)
+ * badge in the bottom-right corner since the MD Artifacts rename.
  *
  * The icon is an SVG monogram and cannot be proven correct by assertion —
  * the visual verdict is the orchestrator's F5 pass. These guards only pin
- * the shape a monogram needs (two paths) and the security/theming
+ * the shape the mark needs (O, A, badge) and the security/theming
  * invariants a webview-adjacent asset must keep (no external refs, no
  * hardcoded colour, no fixed size).
  *
  * @example
- * // exactly two `<path` elements: one for the O, one for the A
+ * // exactly three drawn `<path` elements: the O, the A and the badge
  */
 suite('icon SVG — O+A monogram (T4.1)', () => {
 
@@ -21,10 +22,19 @@ suite('icon SVG — O+A monogram (T4.1)', () => {
         'utf8',
     );
 
-    test('is composed of exactly two paths — the O and the A', () => {
-        const pathCount = [...svg.matchAll(/<path/g)].length;
-        assert.strictEqual(pathCount, 2,
-            'the O and the A are two paths; today the file is a single gem glyph');
+    // Drawn marks only — the clip path inside <defs> shapes the gap around the
+    // badge and is never painted.
+    const drawn = svg.replace(/<defs>[\s\S]*?<\/defs>/, '');
+
+    test('is composed of exactly three drawn paths — the O, the A and the Markdown badge', () => {
+        const pathCount = [...drawn.matchAll(/<path/g)].length;
+        assert.strictEqual(pathCount, 3,
+            'the O, the A and the Markdown (M + down-arrow) badge are three paths');
+    });
+
+    test('the O+A is clipped clear of the badge, never overlapping it', () => {
+        assert.match(svg, /<clipPath id="badge-gap">/);
+        assert.match(drawn, /clip-path="url\(#badge-gap\)"/);
     });
 
     test('declares the 24x24 viewBox the activity bar renders at', () => {

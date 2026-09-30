@@ -260,11 +260,11 @@ export const MAX_PANE_WIDTH_PX = 700;
  *
  * A short artifact would otherwise render a two-line sliver that is awkward to
  * edit in. Applied as a CSS custom property rather than a hard-coded rule
- * (`code-block.css` reads `--oa-code-min-lines`), because a stylesheet cannot
+ * (`code-block.css` reads `--mda-code-min-lines`), because a stylesheet cannot
  * import a constant and a second spelling of the number is exactly the drift
  * this repo keeps writing guard tests about.
  *
  * @example
- * `style="--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}"`
+ * `style="--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}"`
  */
 export const CODE_BLOCK_MIN_LINES = 8;

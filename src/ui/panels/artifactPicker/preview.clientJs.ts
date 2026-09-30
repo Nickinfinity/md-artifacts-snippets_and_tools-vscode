@@ -163,7 +163,7 @@ export const PREVIEW_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
 
     function applyLocal(fraction) {
       // Local feedback only; the authoritative bounds live in the extension.
-      document.documentElement.style.setProperty('--oa-vars-height', (fraction * 100) + 'vh');
+      document.documentElement.style.setProperty('--mda-vars-height', (fraction * 100) + 'vh');
     }
 
     varsResizeHandle.addEventListener('pointerdown', function (ev) {
@@ -307,7 +307,7 @@ export const PREVIEW_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     }
     // Authoritative height from the extension (config, already clamped).
     if (msg.command === 'setVarsHeight' && msg.value) {
-      document.documentElement.style.setProperty('--oa-vars-height', msg.value);
+      document.documentElement.style.setProperty('--mda-vars-height', msg.value);
     }
     // The extension host cannot read this pane's width — no such member exists
     // on WebviewView. The webview can: it is a real DOM. Reported back so the

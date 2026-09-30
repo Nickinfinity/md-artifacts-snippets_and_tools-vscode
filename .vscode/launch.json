@@ -6,7 +6,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Run Extension",
+			"name": "Run Extension (built-in launcher)",
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
@@ -17,6 +17,25 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			// Workaround for "Extension host did not start in 10 seconds": the
+			// built-in launcher attaches via `localhost`, which macOS resolves to
+			// ::1 first, while the extension host inspector listens on 127.0.0.1
+			// only. Here the dev host is started by a task and we attach to the
+			// IPv4 address explicitly.
+			"name": "Run Extension",
+			"type": "node",
+			"request": "attach",
+			"address": "127.0.0.1",
+			"port": 9339,
+			"timeout": 30000,
+			"continueOnAttach": true,
+			"sourceMaps": true,
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"preLaunchTask": "Launch Dev Host (inspect 9339)"
 		}
 	]
 }

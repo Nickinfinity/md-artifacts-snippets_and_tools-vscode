@@ -46,18 +46,18 @@
 
 /*
  * Height-bounded so the action row below it stays reachable no matter how
- * many <VK-xxx> vars an artifact declares. `--oa-vars-height` is the hook
+ * many <VK-xxx> vars an artifact declares. `--mda-vars-height` is the hook
  * T2's drag handle writes to at runtime; this sheet only owns the fallback.
  */
 #varsSection {
-  max-height: var(--oa-vars-height, calc(100vh / 6));
+  max-height: var(--mda-vars-height, calc(100vh / 6));
   overflow-y: auto;
 }
 
 /*
  * Drag handle for the variables section. The pane cannot report its own height
  * to the extension, so the drag converts a pointer position into a *fraction*
- * of the pane and writes `--oa-vars-height` locally; the extension only ever
+ * of the pane and writes `--mda-vars-height` locally; the extension only ever
  * sees that fraction (clamped by `pane-layout.service`).
  */
 .vars-resize-handle {

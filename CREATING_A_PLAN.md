@@ -702,7 +702,7 @@ rm -rf dist && npm test && npx tsc --noEmit
 ```
 
 `npm test` runs compile + lint + the full suite. The macOS 103-char unix-socket
-limit no longer bites: `.vscode-test.mjs` pins `--user-data-dir=/tmp/oa-vsct`,
+limit no longer bites: `.vscode-test.mjs` pins `--user-data-dir=/tmp/mda-vsct`,
 which keeps the VS Code IPC socket path short. (The old workaround — a direct
 `mocha` invocation because `pnpm test` supposedly could not run — was stale and
 has been removed.)
