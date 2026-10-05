@@ -10,8 +10,9 @@ import { MainViewProvider, setMainViewProvider } from './ui/views/mainView.provi
 import { VariablesViewProvider } from './ui/views/variablesView.provider.js';
 import { registerVariablesCommands } from './commands/variables.command.js';
 import { registerVariablesSearchCommands } from './commands/variables-search.command.js';
-import { handleApplyToPreview, handleSaveCurrentValues, liveApplyDeps } from './commands/variables-apply.command.js';
-import { APPLY_TO_PREVIEW_COMMAND_ID, SAVE_CURRENT_VALUES_COMMAND_ID } from './commands/variables.command.helpers.js';
+import { handleApplyToPreview, handleApplyToEditor, handleSaveCurrentValues, liveApplyDeps } from './commands/variables-apply.command.js';
+import { onPreviewTargetChanged } from './services/preview-target.service.js';
+import { APPLY_TO_PREVIEW_COMMAND_ID, APPLY_TO_EDITOR_COMMAND_ID, SAVE_CURRENT_VALUES_COMMAND_ID } from './commands/variables.command.helpers.js';
 import type { VariableNode } from './ui/views/variablesView.provider.js';
 import { sweepOrphans } from './services/scratch-file.service.js';
 import { SCRATCH_SUBDIR as FORM_BLOCK_SUBDIR } from './ui/panels/artifactForm/blockExpand.js';
@@ -87,6 +88,14 @@ export async function activate(context: vscode.ExtensionContext) {
 			APPLY_TO_PREVIEW_COMMAND_ID,
 			(node?: VariableNode) => handleApplyToPreview(node, liveApplyDeps()),
 		),
+		vscode.commands.registerCommand(
+			APPLY_TO_EDITOR_COMMAND_ID,
+			(node?: VariableNode) => handleApplyToEditor(node, liveApplyDeps()),
+		),
+		// The Variables pane shows Apply-to-preview only while a preview is open.
+		new vscode.Disposable(onPreviewTargetChanged(active => {
+			void vscode.commands.executeCommand('setContext', 'md-artifacts.previewActive', active);
+		})),
 		vscode.commands.registerCommand(
 			SAVE_CURRENT_VALUES_COMMAND_ID,
 			() => handleSaveCurrentValues(liveApplyDeps()),

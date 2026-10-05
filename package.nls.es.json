@@ -53,5 +53,6 @@
   "view.variablesView.name": "Variables",
   "container.title": "MD Artifacts",
   "cmd.variables.search.title": "Buscar conjuntos de variables",
-  "cmd.variables.clearSearch.title": "Borrar búsqueda"
+  "cmd.variables.clearSearch.title": "Borrar búsqueda",
+  "cmd.variables.applyToEditor.title": "Rellenar variables en el editor"
 }

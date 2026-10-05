@@ -34,7 +34,7 @@ import { confirmTextFor } from './variables.confirm.helpers.js';
 const VARIABLE_COMMAND_SUFFIXES = [
     'newFile', 'newSubSet', 'addVar', 'editValue',
     'renameVar', 'renameSubSet', 'deleteVar', 'deleteSubSet', 'deleteFile',
-    'applyToPreview', 'saveCurrentValues', 'openFile', 'search', 'clearSearch',
+    'applyToPreview', 'applyToEditor', 'saveCurrentValues', 'openFile', 'search', 'clearSearch',
 ] as const;
 
 /**
@@ -71,6 +71,8 @@ export const OPEN_FILE_COMMAND_ID = variableCommandId('openFile');
 export const APPLY_TO_PREVIEW_COMMAND_ID = variableCommandId('applyToPreview');
 /** Command id for "Save Preview Values as Variable Set" (T1.3). */
 export const SAVE_CURRENT_VALUES_COMMAND_ID = variableCommandId('saveCurrentValues');
+/** Command id for "Fill Variables in Editor" — fills `<VK-xxx>` tokens in the active editor. */
+export const APPLY_TO_EDITOR_COMMAND_ID = variableCommandId('applyToEditor');
 /** Command id for "Search Variable Sets" — live filter over the Variables tree. */
 export const SEARCH_COMMAND_ID = variableCommandId('search');
 /** Command id for "Clear Search" — shown only while a filter is active. */

@@ -195,5 +195,7 @@
   "Sub-set name": "Nombre del subconjunto",
   "Filter: {0}": "Filtro: {0}",
   "Search Variable Sets": "Buscar conjuntos de variables",
-  "Set, sub-set, variable name or value": "Conjunto, subconjunto, nombre o valor de variable"
+  "Set, sub-set, variable name or value": "Conjunto, subconjunto, nombre o valor de variable",
+  "MD Artifacts: no editor open — open a file to fill its variables.": "MD Artifacts: no hay ningún editor abierto — abra un archivo para rellenar sus variables.",
+  "MD Artifacts: no matching variables in the editor for \"{0}\".": "MD Artifacts: no hay variables coincidentes en el editor para \"{0}\"."
 }

@@ -49,6 +49,28 @@ export interface PreviewVarTarget {
 /** The currently registered preview, or `undefined` when none is open. */
 let activeTarget: PreviewVarTarget | undefined;
 
+/** Called with `true` when a preview registers, `false` when the last one releases. */
+const changeListeners = new Set<(active: boolean) => void>();
+
+/**
+ * Subscribes to "is a preview open?" changes — the Variables pane uses it to
+ * show its Apply-to-preview button only when there is a preview to apply to.
+ *
+ * @param listener - Receives `true` on register, `false` on release.
+ * @returns A function that unsubscribes the listener.
+ *
+ * @example
+ * const off = onPreviewTargetChanged(active => setContext('md-artifacts.previewActive', active));
+ */
+export function onPreviewTargetChanged(listener: (active: boolean) => void): () => void {
+    changeListeners.add(listener);
+    return () => { changeListeners.delete(listener); };
+}
+
+function notifyChanged(): void {
+    for (const listener of changeListeners) { listener(activeTarget !== undefined); }
+}
+
 /**
  * Registers the preview that should receive variable-set actions.
  *
@@ -67,9 +89,11 @@ let activeTarget: PreviewVarTarget | undefined;
  */
 export function setPreviewTarget(t: PreviewVarTarget): () => void {
     activeTarget = t;
+    notifyChanged();
     return () => {
         if (activeTarget === t) {
             activeTarget = undefined;
+            notifyChanged();
         }
     };
 }

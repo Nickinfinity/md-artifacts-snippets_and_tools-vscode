@@ -155,7 +155,13 @@
         "command": "md-artifacts.variables.applyToPreview",
         "title": "%cmd.variables.applyToPreview.title%",
         "category": "%cmd.category%",
-        "icon": "$(symbol-variable)"
+        "icon": "$(play)"
+      },
+      {
+        "command": "md-artifacts.variables.applyToEditor",
+        "title": "%cmd.variables.applyToEditor.title%",
+        "category": "%cmd.category%",
+        "icon": "$(replace-all)"
       },
       {
         "command": "md-artifacts.variables.saveCurrentValues",
@@ -270,6 +276,10 @@
         },
         {
           "command": "md-artifacts.variables.clearSearch",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
           "when": "false"
         }
       ],
@@ -543,6 +553,21 @@
           "command": "md-artifacts.variables.addVar",
           "when": "view == md-artifacts.variablesView && viewItem == fileSingle",
           "group": "inline@0"
+        },
+        {
+          "command": "md-artifacts.variables.applyToPreview",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/ && md-artifacts.previewActive",
+          "group": "inline@8"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/ && editorIsOpen",
+          "group": "inline@9"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
+          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/",
+          "group": "2_preview@2"
         },
         {
           "command": "md-artifacts.variables.applyToPreview",

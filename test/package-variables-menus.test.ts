@@ -26,14 +26,15 @@ const pkg = JSON.parse(
 const VARIABLES_PREFIX = 'md-artifacts.variables.';
 
 suite('package.json — Variables view menus', () => {
-    // A clause is `viewItem == x` (exact) or `viewItem =~ /^x/` (prefix — the
-    // file actions use it so they also reach `fileSingle`).
+    // A clause is `viewItem == x` (exact) or `viewItem =~ /re/` (a regex — file
+    // actions use `/^file/` to also reach `fileSingle`; the apply buttons use
+    // `/^(subset|fileSingle)$/`). The regex is evaluated as VS Code would.
     const clauses = (pkg.contributes.menus['view/item/context'] ?? []).flatMap(entry => {
         const when = entry.when ?? '';
         const exact = /viewItem == (\w+)/.exec(when)?.[1];
-        const prefix = /viewItem =~ \/\^(\w+)\//.exec(when)?.[1];
+        const regex = /viewItem =~ \/(.+?)\/(?:\s|$)/.exec(when)?.[1];
         if (exact) { return [{ value: exact, test: (v: string) => v === exact }]; }
-        if (prefix) { return [{ value: `/^${prefix}/`, test: (v: string) => v.startsWith(prefix) }]; }
+        if (regex) { const re = new RegExp(regex); return [{ value: `/${regex}/`, test: (v: string) => re.test(v) }]; }
         return [];
     });
 

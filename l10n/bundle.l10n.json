@@ -195,5 +195,7 @@
   "Sub-set name": "Sub-set name",
   "Filter: {0}": "Filter: {0}",
   "Search Variable Sets": "Search Variable Sets",
-  "Set, sub-set, variable name or value": "Set, sub-set, variable name or value"
+  "Set, sub-set, variable name or value": "Set, sub-set, variable name or value",
+  "MD Artifacts: no editor open — open a file to fill its variables.": "MD Artifacts: no editor open — open a file to fill its variables.",
+  "MD Artifacts: no matching variables in the editor for \"{0}\".": "MD Artifacts: no matching variables in the editor for \"{0}\"."
 }
