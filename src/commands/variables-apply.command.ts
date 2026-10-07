@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getVaultRootUri } from '../services/config.service.js';
 import { getPreviewTarget } from '../services/preview-target.service.js';
 import { resolveVars } from '../services/parser.service.js';
+import { subSetLabel } from '../services/varset.service.js';
 import type { ParsedVar } from '../types/parsed-artifact.types.js';
 import { at, defaultIO, resolveTarget, type CommandIO } from './variables.command.helpers.js';
 import type { VariableNode } from '../ui/views/variablesView.provider.js';
@@ -92,7 +93,7 @@ export async function handleApplyToPreview(
         return;
     }
 
-    target.applyVarSet(subSet.heading, subSet.vars);
+    target.applyVarSet(subSetLabel(subSet), subSet.vars);
 }
 
 /**
@@ -179,7 +180,7 @@ export async function handleApplyToEditor(
         .map(r => ({ ...r, after: fillVarTokens(r.before, subSet.vars) }))
         .filter(r => r.after !== r.before);
     if (replacements.length === 0) {
-        deps.notifyInfo(vscode.l10n.t('MD Artifacts: no matching variables in the editor for "{0}".', subSet.heading));
+        deps.notifyInfo(vscode.l10n.t('MD Artifacts: no matching variables in the editor for "{0}".', subSetLabel(subSet)));
         return;
     }
     await editor.edit(builder => {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { extractSubSets } from '../../services/varset.service.js';
+import { extractSubSets, getVarsFileShape, type VarsFileShape } from '../../services/varset.service.js';
 import { getVarSetScanner } from '../panels/varsetPicker.panel.js';
 import { getVaultRootUri } from '../../services/config.service.js';
 import { getEntry } from '../../services/artifact-type-config.service.js';
@@ -22,11 +22,32 @@ export const VARIABLE_NODE_KINDS = ['file', 'subset', 'var'] as const;
 export type VariableNodeKind = typeof VARIABLE_NODE_KINDS[number];
 
 /**
- * Every `contextValue` a tree row can carry — the node kinds plus
- * `fileSingle` (a one-sub-set file, which also takes sub-set actions).
+ * `contextValue` of a file row, one per {@link VarsFileShape} — the menus key
+ * each row's single `+` off it (blank: Add…, flat: Add variable, sets: Add
+ * sub-set). Index-aligned with no other list; `fileContextValue` maps a shape.
+ */
+export const FILE_CONTEXT_VALUES = ['fileBlank', 'fileFlat', 'fileSets'] as const;
+
+/**
+ * Every `contextValue` a tree row can carry — the three file shapes plus the
+ * `subset` and `var` kinds. A bare `file` is never produced.
  * `package-variables-menus.test.ts` pins the manifest's `viewItem` clauses to it.
  */
-export const VARIABLE_CONTEXT_VALUES = [...VARIABLE_NODE_KINDS, 'fileSingle'] as const;
+export const VARIABLE_CONTEXT_VALUES = [...FILE_CONTEXT_VALUES, 'subset', 'var'] as const;
+
+/**
+ * Maps a file shape to its row's `contextValue`.
+ *
+ * @param shape - The file's {@link VarsFileShape}.
+ * @returns `'fileBlank'`, `'fileFlat'` or `'fileSets'`.
+ *
+ * @example
+ * fileContextValue('flat'); // → 'fileFlat'
+ */
+export function fileContextValue(shape: VarsFileShape): typeof FILE_CONTEXT_VALUES[number] {
+    if (shape === 'blank') { return 'fileBlank'; }
+    return shape === 'flat' ? 'fileFlat' : 'fileSets';
+}
 
 /**
  * Max characters shown for a var's value before it is truncated with `…`.
@@ -84,13 +105,20 @@ export interface VariableNode {
     /** Display label — already sanitized to a single line. */
     label: string;
     /**
-     * `file` nodes only: the file has exactly one sub-set, so its vars hang
-     * straight off the file (no sub-set level) and sub-set commands accept the
-     * file node as sub-set 0 — see `resolveTarget`.
+     * `file` nodes only: the file's {@link VarsFileShape}. A `flat` file's vars
+     * hang straight off the file (no sub-set level) and sub-set commands accept
+     * the file node as block 0 — see `resolveTarget`.
      */
-    single?: boolean;
+    shape?: VarsFileShape;
     /** Lower-cased text the search filter matches against (name + value for a var). */
     searchText?: string;
+    /**
+     * Grey text beside the label (`TreeItem.description`): a file's tags as
+     * `#tag`, a sub-set's description — single-line, length-bounded.
+     */
+    detail?: string;
+    /** Hover text (`TreeItem.tooltip`): the full description, plus tags for a file. */
+    tooltip?: string;
 }
 
 /**
@@ -134,32 +162,49 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
 
     for (const file of files) {
         const fileId = file.filePath;
-        const subSets = extractSubSets(file);
-        const single = subSets.length === 1;
+        // Empty sub-sets included — a just-created one must appear (and its index
+        // must match `resolveTarget`'s, which reads the same list).
+        const subSets = extractSubSets(file, { includeEmpty: true });
+        const shape = getVarsFileShape(file);
+        // Only an untitled one-block file skips the sub-set level — a single
+        // *titled* sub-set is still listed, so a title is never hidden.
+        const flat = shape === 'flat';
         const fileLabel = stripControlChars(file.frontmatter.title || file.fileName);
+        const tagLine = (file.frontmatter.tags ?? []).map(t => `#${stripControlChars(t)}`).join(' ');
+        const fileDesc = stripControlChars(file.frontmatter.description ?? '');
         nodes.push({
             id: fileId,
             parentId: null,
             kind: 'file',
             label: fileLabel,
-            single,
-            searchText: fileLabel.toLowerCase(),
+            shape,
+            // Tags beside the name (compact); description + tags on hover; all searchable.
+            detail: tagLine || undefined,
+            tooltip: [fileDesc, tagLine].filter(Boolean).join('\n') || undefined,
+            searchText: `${fileLabel} ${fileDesc} ${tagLine}`.toLowerCase(),
         });
 
         subSets.forEach((subSet, subIdx) => {
             // Ids keep the `::subset:<i>` segment even when the level is not
             // shown — every var command decodes its sub-set from the id.
             const subsetId = `${fileId}::subset:${subIdx}`;
-            if (!single) {
+            if (!flat) {
                 const heading = stripControlChars(subSet.heading);
-                nodes.push({ id: subsetId, parentId: fileId, kind: 'subset', label: heading, searchText: heading.toLowerCase() });
+                // `subSets` is block-aligned for a sub-sets file (empty ones included).
+                const desc = stripControlChars(file.blocks[subIdx]?.description ?? '');
+                nodes.push({
+                    id: subsetId, parentId: fileId, kind: 'subset', label: heading,
+                    detail: desc ? truncateValue(desc) : undefined,
+                    tooltip: desc || undefined,
+                    searchText: `${heading} ${desc}`.toLowerCase(),
+                });
             }
 
             subSet.vars.forEach((v, varIdx) => {
                 const name = stripControlChars(v.name);
                 nodes.push({
                     id: `${subsetId}::var:${varIdx}`,
-                    parentId: single ? fileId : subsetId,
+                    parentId: flat ? fileId : subsetId,
                     kind: 'var',
                     label: `${name} = ${truncateValue(v.defaultValue)}`,
                     searchText: `${name} ${stripControlChars(v.defaultValue)}`.toLowerCase(),
@@ -354,11 +399,16 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
                 ? vscode.TreeItemCollapsibleState.Expanded
                 : vscode.TreeItemCollapsibleState.Collapsed;
         }
-        const item = new vscode.TreeItem(node.label, collapsibleState);
+        // A sub-set row with no title can only come from a hand-written file
+        // (the form and the pane always name one); shown, never written.
+        const label = node.kind === 'subset' && node.label === '' ? vscode.l10n.t('(no name)') : node.label;
+        const item = new vscode.TreeItem(label, collapsibleState);
+        item.description = node.detail;
+        item.tooltip = node.tooltip;
         // VS Code remembers expansion per item id and ignores a new state for a
         // known id, so filtered results get their own ids to open expanded.
         item.id = filtering ? `${node.id}#search` : node.id;
-        item.contextValue = node.kind === 'file' && node.single ? VARIABLE_CONTEXT_VALUES[3] : node.kind;
+        item.contextValue = node.kind === 'file' ? fileContextValue(node.shape ?? 'blank') : node.kind;
         item.iconPath = new vscode.ThemeIcon(
             node.kind === 'file' ? 'file' : node.kind === 'subset' ? 'symbol-namespace' : 'symbol-variable',
         );

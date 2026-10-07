@@ -264,6 +264,30 @@
   padding: 6px 0;
 }
 
+/* Fixed `VK-` label + the editable rest of the name, drawn as one field. */
+.vk-name {
+  display: flex;
+  align-items: stretch;
+}
+.vk-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, #444));
+  border-right: none;
+  border-radius: 3px 0 0 3px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85rem;
+  user-select: none;
+}
+.vk-name .var-input {
+  border-left: none;
+  border-radius: 0 3px 3px 0;
+  padding-left: 0;
+}
+
 .var-input {
   width: 100%;
   padding: 4px 8px;
@@ -332,7 +356,39 @@
 }
 
 /* ── Variable-set form: sub-sets (edit mode) ─────────────────────────────── */
-.subset-heading,
-.subset-heading-input { margin: 14px 0 4px; }
+.subset-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 4px;
+}
+.subset-heading { margin: 0; }
+.subset-heading-input { flex: 1 1 auto; margin: 0; }
+/* Icon-only, so they stay quiet next to the name until hovered. */
+.subset-rename,
+.subset-delete,
+.row-remove {
+  padding: 2px 6px;
+  color: var(--vscode-icon-foreground, inherit);
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.7;
+}
+.subset-rename:hover,
+.subset-rename:focus,
+.subset-delete:hover,
+.subset-delete:focus,
+.row-remove:hover,
+.row-remove:focus {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, transparent);
+}
+.subset-delete { margin-left: auto; }
 .add-var-row { margin-top: 4px; }
+.subset-desc { margin: 0 0 6px; min-height: 0; font-size: 0.85rem; }
+/* Shared ↑/↓ (shared/reorderControls.ts) inside the var-set form's rows and headers. */
+.var-actions { white-space: nowrap; width: 1%; }
+.var-actions .reorder-btn,
+.subset-header .reorder-btn { padding: 1px 6px; }
+.reorder-slot { display: inline-flex; gap: 4px; }
 .add-subset { margin-top: 14px; }

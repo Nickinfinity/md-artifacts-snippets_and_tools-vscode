@@ -8,8 +8,8 @@ import type { VarsEditPayload } from '../src/types/varset.types.js';
 /**
  * The var-set edit form can add a sub-set (a `## heading` + `vks` fence).
  * Covers the markup, the client round trip (headings ride the wire), the
- * panel's heading merge (an existing heading is never renamed) and the
- * heading validator.
+ * panel's heading handling (posted headings win, so renames land) and the
+ * heading validator. Rename/delete live in varset-form-subset-controls.test.ts.
  */
 
 const base: VarsEditPayload = {
@@ -44,13 +44,15 @@ suite('varset form — add sub-set: markup', () => {
         assert.ok(!html.includes('class="add-subset"'));
     });
 
-    test('an existing heading stays a read-only <h3>; a heading-less sub-set gets an input', () => {
+    test('a named sub-set shows an <h3> with a hidden name input; a heading-less one shows only the input', () => {
         const markup = (p: VarsEditPayload) => {
             const html = renderVarSetFormHtml(p, [], 'csp', 'n', 'edit');
             return html.slice(0, html.indexOf('<script nonce='));
         };
-        assert.ok(!markup(base).includes('data-role="heading"'));
+        assert.ok(markup(base).includes('<h3 class="subset-heading">Dev</h3>'));
+        assert.ok(/data-role="heading"[^>]*value="Dev" hidden>/.test(markup(base)));
         assert.ok(markup(headingless).includes('data-role="heading" data-subset="0"'));
+        assert.ok(!markup(headingless).includes('subset-heading"'), 'heading-less sub-set rendered an <h3>');
     });
 });
 
@@ -59,18 +61,19 @@ suite('varset form — add sub-set: client round trip', () => {
         const seedHtml = `
           <input id="vsfTitle" value="Bundles"><textarea id="vsfDescription"></textarea>
           <div id="vsfError" hidden></div><button id="vsfCancel"></button><button id="vsfSave"></button>
-          <div id="vsfSubSets">
-            <h3 class="subset-heading">Dev</h3>
+          <div id="vsfSubSets"><div class="subset-group">
+            <div class="subset-header"><h3 class="subset-heading">Dev</h3>
+              <input data-role="heading" value="Dev" hidden><button class="subset-delete" hidden></button></div>
             <table class="vars-table"><tbody><tr class="var-row">
               <td><input data-role="name" value="VK-host"></td><td><input data-role="value" value="localhost"></td>
             </tr></tbody></table>
-          </div>
+          </div></div>
           <button class="add-subset"></button>`;
         const dom = makeWebviewDom({ seedHtml, script: buildVarSetFormClientJs('edit', '[]') });
 
         dom.fire(dom.el('.add-subset'), 'click');
         assert.strictEqual(dom.all('.vars-table').length, 2, 'Add sub-set did not append a table');
-        const heading = dom.el('[data-role="heading"]');
+        const heading = dom.all('[data-role="heading"]')[1];
         assert.ok(heading, 'new sub-set has no heading input');
         heading.value = 'Prod';
 
@@ -78,16 +81,16 @@ suite('varset form — add sub-set: client round trip', () => {
         const msg = dom.posted[0] as { payload: { pairs: unknown[]; headings: string[] } };
         assert.strictEqual(msg.payload.pairs.length, 2);
         assert.deepStrictEqual(msg.payload.pairs[1], []);
-        assert.deepStrictEqual(msg.payload.headings, ['', 'Prod']);
+        assert.deepStrictEqual(msg.payload.headings, ['Dev', 'Prod']);
     });
 });
 
 suite('varset form — add sub-set: panel merge', () => {
-    test('a new sub-set reaches writeEdit with its typed heading; the existing one keeps its own', async () => {
+    test('posted headings win — an existing sub-set can be renamed, a new one named', async () => {
         let got: VarsEditPayload | undefined;
         await save({ title: 'Bundles', description: '', tags: [],
             pairs: [[['VK-host', 'localhost']], [['VK-host', 'prod']]], headings: ['Renamed', ' Prod '] }, base, bag(p => { got = p; }));
-        assert.deepStrictEqual(got?.subSets.map(s => s.heading), ['Dev', 'Prod']);
+        assert.deepStrictEqual(got?.subSets.map(s => s.heading), ['Renamed', 'Prod']);
         assert.strictEqual(got?.env, 'staging');
     });
 

@@ -2,7 +2,32 @@ import * as vscode from 'vscode';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
 import { jsStr, WEBVIEW_ESC_LBL_JS } from '../artifactPicker/webviewSnippets.js';
 import { buildTagsField, TAGS_FIELD_CLIENT_JS } from '../shared/tagsField.js';
+import { buildReorderButtons } from '../shared/reorderControls.js';
+import { renderSubSetGroup, SUBSET_EDIT_CLIENT_JS } from './varsetForm.subsets.js';
 import type { VarSetFormPayload, VarsEditPayload, VarsEditWirePayload } from '../../../types/varset.types.js';
+
+/** Every variable name carries this prefix; the form shows it fixed and edits only the rest. */
+const VK_PREFIX = 'VK-';
+
+/**
+ * Renders a variable-name cell: a fixed, non-editable `VK-` label beside an
+ * input holding only the part after it. The client's `vkName` puts the
+ * prefix back on Save, so the posted name is always the full `VK-xxx`.
+ *
+ * @param name     - Full variable name as stored (`VK-host`); a legacy name
+ *                   without the prefix is shown as-is and gains it on Save.
+ * @param inputAttrs - Extra attributes for the input (`data-index`, `data-subset`).
+ * @returns The `<td class="var-name">…</td>` markup, value escaped.
+ *
+ * @example
+ * renderVarNameCell('VK-host', ' data-index="0"');
+ * // → '<td class="var-name"><div class="vk-name"><span class="vk-prefix">VK-</span><input … value="host"></div></td>'
+ */
+function renderVarNameCell(name: string, inputAttrs: string): string {
+    const rest = name.startsWith(VK_PREFIX) ? name.slice(VK_PREFIX.length) : name;
+    return `<td class="var-name"><div class="vk-name"><span class="vk-prefix" aria-hidden="true">${VK_PREFIX}</span>`
+        + `<input class="form-input var-input" data-role="name"${inputAttrs} aria-label="${escHtml(vscode.l10n.t('Variable name'))}" value="${escHtml(rest)}"></div></td>`;
+}
 
 /**
  * Renders one `<table class="vars-table">` of editable `[name, value]` rows.
@@ -32,50 +57,23 @@ export function renderVarPairRows(pairs: [string, string][], subSetIndex?: numbe
     // fixed by definition; edit mode is where a set gains or loses a variable.
     const isEdit = subSetIndex !== undefined;
     const subsetAttr = isEdit ? ` data-subset="${subSetIndex}"` : '';
-    const removeCell = isEdit
+    // Edit-mode actions: the shared ↑/↓ (row order = order in the vks fence) + remove.
+    const actionsCell = (i: number): string => isEdit
         ? `
-        <td class="var-actions"><button class="row-remove" aria-label="${escHtml(vscode.l10n.t('Remove variable'))}">&#215;</button></td>`
+        <td class="var-actions">${buildReorderButtons('var-row', i, pairs.length)}<button class="row-remove" title="${escHtml(vscode.l10n.t('Remove variable'))}" aria-label="${escHtml(vscode.l10n.t('Remove variable'))}"><span class="codicon codicon-trash" aria-hidden="true"></span></button></td>`
         : '';
-    const rowsHtml = pairs.map(([name, value], i) => `
+    const rowsHtml = pairs.map(([name, value], i) => {
+        const nameAttrs = ' data-index="' + i + '"' + subsetAttr;
+        return `
       <tr class="var-row">
-        <td class="var-name"><input class="form-input var-input" data-role="name" data-index="${i}"${subsetAttr} value="${escHtml(name)}"></td>
-        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}"${subsetAttr} value="${escHtml(value)}"></td>${removeCell}
-      </tr>`).join('');
+        ${renderVarNameCell(name, nameAttrs)}
+        <td class="var-default"><input class="form-input var-input" data-role="value" data-index="${i}"${subsetAttr} value="${escHtml(value)}"></td>${actionsCell(i)}
+      </tr>`;
+    }).join('');
     const table = `<table class="vars-table"><tbody>${rowsHtml}</tbody></table>`;
     if (!isEdit) { return table; }
     const addLabel = escHtml(vscode.l10n.t('Add variable'));
-    return `${table}<button class="add-var-row" data-table="${subSetIndex}">${addLabel}</button>`;
-}
-
-/**
- * Renders one edit-mode sub-set heading.
- *
- * A heading the file already has stays a read-only `<h3>` — the webview never
- * rewrites an existing heading (see `VarsEditWirePayload`). A sub-set with
- * **no** heading (the lone sub-set of a heading-less file) gets an input
- * instead, because the moment a second sub-set is added every sub-set needs a
- * `## ` heading, and this one has none to re-attach.
- *
- * When that heading-less sub-set is the **only** one, the input starts
- * `hidden`: a one-block file is quick-edited as a plain variable list, and
- * the name only matters once Add sub-set is clicked (which reveals it).
- *
- * @param heading     - The sub-set's heading from the file, `''` when absent.
- * @param subSetIndex - Index aligning the input to its `.vars-table`.
- * @param lone        - True when this is the file's only sub-set.
- * @returns The `<h3>` or heading `<input>` markup, escaped.
- *
- * @example
- * renderSubSetHeading('Dev', 0, false); // '<h3 class="subset-heading">Dev</h3>'
- * renderSubSetHeading('', 0, true);     // '<input … data-role="heading" data-subset="0" … hidden>'
- */
-export function renderSubSetHeading(heading: string, subSetIndex: number, lone = false): string {
-    if (heading !== '') {
-        return `<h3 class="subset-heading">${escHtml(heading)}</h3>`;
-    }
-    const placeholder = escHtml(vscode.l10n.t('Sub-set name'));
-    const hidden = lone ? ' hidden' : '';
-    return `<input class="form-input subset-heading-input" data-role="heading" data-subset="${subSetIndex}" placeholder="${placeholder}" value=""${hidden}>`;
+    return `${table}<button class="add-var-row">${addLabel}</button>`;
 }
 
 /**
@@ -125,8 +123,11 @@ export function renderVarSetFormHtml(
     // contain no HTML-special characters, for no security benefit.
     // Nonced inline <style> requires the matching nonce in style-src, or the
     // sheet is silently blocked at runtime with no visible error (T2.1 note).
+    // Edit mode draws codicon glyphs (rename / delete), so it alone needs the
+    // vendored font; create mode's header stays byte-identical to its golden.
+    const fontSrc = mode === 'edit' ? ` font-src ${cspSource};` : '';
     const csp = `default-src 'none'; script-src 'nonce-${safeNonce}'; `
-        + `style-src ${cspSource} 'nonce-${safeNonce}';`;
+        + `style-src ${cspSource} 'nonce-${safeNonce}';${fontSrc}`;
 
     // Tags are vault frontmatter (untrusted) and this value is embedded inside
     // an inline <script>, not HTML text — escHtml (meant for HTML/attributes)
@@ -142,9 +143,8 @@ export function renderVarSetFormHtml(
     // edit-mode caller always passes VarsEditPayload (has `subSets`).
     const rowsHtml = 'pairs' in payload
         ? renderVarPairRows(payload.pairs)
-        : `<div id="vsfSubSets">${payload.subSets.map((sub, i) => `
-      ${renderSubSetHeading(sub.heading, i, payload.subSets.length === 1)}
-      ${renderVarPairRows(sub.pairs, i)}`).join('')}</div>
+        : `<div id="vsfSubSets">${payload.subSets.map((sub, i) =>
+            renderSubSetGroup(sub.heading, i, payload.subSets.length, renderVarPairRows(sub.pairs, i), sub.description)).join('')}</div>
       <button class="add-subset">${escHtml(vscode.l10n.t('Add sub-set'))}</button>`;
 
     return /* html */`<!DOCTYPE html>
@@ -199,14 +199,14 @@ ${styleLinkTags(cssUris)}
  * that calls `acquireVsCodeApi()` itself throws `ReferenceError` there.
  *
  * `mode` is baked in as a literal (mirroring `mainView.render.ts:207`'s
- * interpolation), selecting `collectPairs`'s behaviour: `'edit'` groups rows
- * per `.vars-table` (one array of rows per sub-set, **always** — including
- * for exactly one table); `'create'` returns the historical flat array. The
- * selector is `.vars-table`, never `table.vars-table` — the harness's
- * `matches()` only supports `#id` / `.class` / `[attr]` / `.class[attr]`, so
- * a tag-qualified selector would silently match nothing.
+ * interpolation). `'edit'` pulls in `SUBSET_EDIT_CLIENT_JS`
+ * (`varsetForm.subsets.ts`): rows and headings grouped per `.subset-group`
+ * (one entry per sub-set, **always** — including for exactly one), plus the
+ * rename / delete / Add sub-set controls. `'create'` returns the historical
+ * flat array. Selectors stay class/attr-only — the harness's `matches()`
+ * supports `#id` / `.class` / `[attr]` / `.class[attr]` and nothing else.
  *
- * @param mode   - `'create'` or `'edit'` — which `collectPairs` shape to emit.
+ * @param mode   - `'create'` or `'edit'` — which `collectPairs` shape (and sub-set controls) to emit.
  * @param tagsJs - Pre-escaped, `JSON.stringify`'d + `<`-guarded tags array literal.
  * @returns The script body to interpolate between the template's IIFE braces.
  *
@@ -215,71 +215,30 @@ ${styleLinkTags(cssUris)}
  */
 export function buildVarSetFormClientJs(mode: 'create' | 'edit', tagsJs: string): string {
     const collectPairs = mode === 'edit'
-        ? `function collectPairs() {
-    var tables = Array.from(document.querySelectorAll('.vars-table'));
-    return tables.map(function (table) {
-      var names  = Array.from(table.querySelectorAll('[data-role="name"]'));
-      var values = Array.from(table.querySelectorAll('[data-role="value"]'));
-      return names.map(function (el, i) { return [el.value, values[i].value]; });
-    });
-  }
+        ? SUBSET_EDIT_CLIENT_JS
+        : `// Create mode has fixed rows — nothing to reorder.
+  function rowsChanged() { /* no reorder controls in create mode */ }
 
-  // Only typed headings travel — one slot per .vars-table, '' where the
-  // sub-set keeps the heading the file already has (the panel re-attaches it).
-  function collectHeadings() {
-    var headings = Array.from(document.querySelectorAll('.vars-table')).map(function () { return ''; });
-    document.querySelectorAll('[data-role="heading"]').forEach(function (el) {
-      var i = Number(el.dataset.subset);
-      if (i >= 0 && i < headings.length) { headings[i] = el.value; }
-    });
-    return headings;
-  }`
-        : `function collectPairs() {
+  function collectPairs() {
     var names  = Array.from(document.querySelectorAll('[data-role="name"]'));
     var values = Array.from(document.querySelectorAll('[data-role="value"]'));
-    return names.map(function (el, i) { return [el.value, values[i].value]; });
+    return names.map(function (el, i) { return [vkName(el.value), values[i].value]; });
   }`;
-
-    // Built with createElement, not a markup string, so the script carries no
-    // `class="vars-table"` / heading literal a whole-document scan would count.
-    const addSubSet = mode === 'edit' ? `
-  // ── Add sub-set ──────────────────────────────────────────────────────────
-  // A new sub-set is a heading input + an empty table, appended to the same
-  // container the server-rendered ones live in, so .vars-table order (which
-  // collectPairs and collectHeadings index by) stays document order.
-  function el(tag, cls) { const e = document.createElement(tag); e.className = cls; return e; }
-  document.querySelectorAll('.add-subset').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const container = document.getElementById('vsfSubSets');
-      if (!container) { return; }
-      // A lone heading-less sub-set hid its name field; with two it needs one.
-      document.querySelectorAll('[data-role="heading"]').forEach(function (h) { h.hidden = false; });
-      const index = String(document.querySelectorAll('.vars-table').length);
-      const group = el('div', 'subset-group');
-      const heading = el('input', 'form-input subset-heading-input');
-      heading.setAttribute('data-role', 'heading');
-      heading.setAttribute('data-subset', index);
-      heading.setAttribute('placeholder', ${jsStr(vscode.l10n.t('Sub-set name'))});
-      const table = el('table', 'vars-table');
-      table.appendChild(document.createElement('tbody'));
-      const add = el('button', 'add-var-row');
-      add.setAttribute('data-table', index);
-      add.textContent = ${jsStr(vscode.l10n.t('Add variable'))};
-      group.appendChild(heading);
-      group.appendChild(table);
-      group.appendChild(add);
-      container.appendChild(group);
-      wireAddVar();
-      heading.focus();
-    });
-  });
-` : '';
 
     // Create mode posts exactly what it always has — no headings key.
     const headingsField = mode === 'edit' ? `
-        headings: collectHeadings(),` : '';
+        headings: collectHeadings(),
+        descriptions: collectDescriptions(),` : '';
 
     return `${collectPairs}
+
+  // The name input holds only what follows the fixed VK- label. An empty row
+  // stays '' (so validation still sees a missing name), and a pasted full
+  // name is not doubled.
+  function vkName(rest) {
+    if (rest === '') { return ''; }
+    return rest.indexOf(${jsStr(VK_PREFIX)}) === 0 ? rest : ${jsStr(VK_PREFIX)} + rest;
+  }
 
   // Tags are LIVE, not the render-time array: this used to post \`tags: [...]\`
   // baked in at build time, so a tag could never be added or removed — the
@@ -301,11 +260,12 @@ ${TAGS_FIELD_CLIENT_JS}
     const tr = document.createElement('tr');
     tr.className = 'var-row';
     tr.innerHTML =
-      '<td class="var-name"><input class="form-input var-input" data-role="name" value=""></td>' +
+      '<td class="var-name"><div class="vk-name"><span class="vk-prefix" aria-hidden="true">${VK_PREFIX}</span><input class="form-input var-input" data-role="name" aria-label="' + ${jsStr(escHtml(vscode.l10n.t('Variable name')))} + '" value=""></div></td>' +
       '<td class="var-default"><input class="form-input var-input" data-role="value" value=""></td>' +
-      '<td class="var-actions"><button class="row-remove" aria-label="' + ${jsStr(escHtml(vscode.l10n.t('Remove variable')))} + '">\\xd7</button></td>';
+      '<td class="var-actions">' + reorderButtonsHtml('var-row') + '<button class="row-remove" title="' + ${jsStr(escHtml(vscode.l10n.t('Remove variable')))} + '" aria-label="' + ${jsStr(escHtml(vscode.l10n.t('Remove variable')))} + '"><span class="codicon codicon-trash" aria-hidden="true"></span></button></td>';
     body.appendChild(tr);
     wireRowRemove();
+    rowsChanged();
     const added = tr.querySelector('[data-role="name"]');
     if (added) { added.focus(); }
   }
@@ -316,7 +276,7 @@ ${TAGS_FIELD_CLIENT_JS}
       btn.dataset.wired = '1';
       btn.addEventListener('click', function () {
         const row = btn.closest('.var-row');
-        if (row) { row.remove(); }
+        if (row) { row.remove(); rowsChanged(); }
       });
     });
   }
@@ -326,7 +286,8 @@ ${TAGS_FIELD_CLIENT_JS}
       if (btn.dataset.wired === '1') { return; }
       btn.dataset.wired = '1';
       btn.addEventListener('click', function () {
-        const table = document.querySelectorAll('.vars-table')[Number(btn.dataset.table || '0')];
+        const group = btn.closest('.subset-group');
+        const table = group ? group.querySelector('.vars-table') : null;
         if (table) { addRow(table); }
       });
     });
@@ -334,7 +295,6 @@ ${TAGS_FIELD_CLIENT_JS}
   wireAddVar();
   wireRowRemove();
 
-${addSubSet}
   document.getElementById('vsfCancel').addEventListener('click', function () {
     vscode.postMessage({ command: 'cancel' });
   });
@@ -472,12 +432,15 @@ export function parseVarsEditPayload(raw: unknown): VarsEditWirePayload | undefi
         pairs.push(subSet);
     }
 
-    if (obj.headings === undefined) {
-        return { title: obj.title, description, tags, pairs };
-    }
-    if (!Array.isArray(obj.headings) || obj.headings.length !== pairs.length
-        || !obj.headings.every(h => typeof h === 'string')) {
-        return undefined;
-    }
-    return { title: obj.title, description, tags, pairs, headings: obj.headings as string[] };
+    // Optional, but when present: one string per sub-set, or the payload is malformed.
+    const alignedStrings = (v: unknown): v is string[] =>
+        Array.isArray(v) && v.length === pairs.length && v.every(x => typeof x === 'string');
+    if (obj.headings !== undefined && !alignedStrings(obj.headings)) { return undefined; }
+    if (obj.descriptions !== undefined && !alignedStrings(obj.descriptions)) { return undefined; }
+
+    return {
+        title: obj.title, description, tags, pairs,
+        ...(obj.headings === undefined ? {} : { headings: obj.headings as string[] }),
+        ...(obj.descriptions === undefined ? {} : { descriptions: obj.descriptions as string[] }),
+    };
 }

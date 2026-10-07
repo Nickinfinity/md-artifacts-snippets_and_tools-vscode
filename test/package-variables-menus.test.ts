@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { VARIABLE_CONTEXT_VALUES } from '../src/ui/views/variablesView.provider.js';
+import { VARIABLES_ROW_ACTIONS, VARIABLES_MENU_CATEGORIES, VARIABLES_INLINE_WHEN } from '../src/types/constants.js';
 
 /**
  * Pins `package.json`'s Variables view menus to the provider's node kinds.
@@ -27,8 +28,8 @@ const VARIABLES_PREFIX = 'md-artifacts.variables.';
 
 suite('package.json — Variables view menus', () => {
     // A clause is `viewItem == x` (exact) or `viewItem =~ /re/` (a regex — file
-    // actions use `/^file/` to also reach `fileSingle`; the apply buttons use
-    // `/^(subset|fileSingle)$/`). The regex is evaluated as VS Code would.
+    // actions use `/^file/` to reach every file shape; the apply buttons use
+    // `/^(subset|fileFlat)$/`). The regex is evaluated as VS Code would.
     const clauses = (pkg.contributes.menus['view/item/context'] ?? []).flatMap(entry => {
         const when = entry.when ?? '';
         const exact = /viewItem == (\w+)/.exec(when)?.[1];
@@ -54,11 +55,68 @@ suite('package.json — Variables view menus', () => {
         }
     });
 
-    test('a one-sub-set file row carries the sub-set actions', () => {
-        const forSingle = (pkg.contributes.menus['view/item/context'] ?? [])
-            .filter(e => (e.when ?? '').includes('viewItem == fileSingle')).map(e => e.command);
-        assert.ok(forSingle.includes('md-artifacts.variables.addVar'));
-        assert.ok(forSingle.includes('md-artifacts.variables.applyToPreview'));
+    // Evaluates a menu entry's `viewItem` clause against one context value, as VS Code would.
+    const reaches = (e: { when?: string }, v: string): boolean => {
+        const when = e.when ?? '';
+        const exact = /viewItem == (\w+)/.exec(when)?.[1];
+        const regex = /viewItem =~ \/(.+?)\/(?:\s|$)/.exec(when)?.[1];
+        return exact === v || (regex !== undefined && new RegExp(regex).test(v));
+    };
+    const entries = pkg.contributes.menus['view/item/context'] ?? [];
+    const ADD_COMMANDS = ['addToBlank', 'addVar', 'newSubSet'].map(c => VARIABLES_PREFIX + c);
+
+    test('the menus are exactly VARIABLES_ROW_ACTIONS (constants.ts) — no entry missing, extra or regrouped', () => {
+        // THE rules live in the table; package.json is only the static mirror VS
+        // Code reads before activation. Rebuilt here the way it was generated.
+        const V = 'view == md-artifacts.variablesView && viewItem == ';
+        const expected: { command: string; when: string; group: string }[] = [];
+        for (const [row, a] of Object.entries(VARIABLES_ROW_ACTIONS)) {
+            a.inline.forEach((cmd, i) => expected.push({
+                command: VARIABLES_PREFIX + cmd,
+                when: V + row + (VARIABLES_INLINE_WHEN[cmd] ? ` && ${VARIABLES_INLINE_WHEN[cmd]}` : ''),
+                group: `inline@${i}`,
+            }));
+            VARIABLES_MENU_CATEGORIES.forEach((cat, ci) => a[cat].forEach((cmd, i) => expected.push({
+                command: VARIABLES_PREFIX + cmd, when: V + row, group: `${ci + 1}_${cat}@${i}`,
+            })));
+        }
+        const key = (e: { command: string; when?: string; group?: string }) => `${e.when} | ${e.group} | ${e.command}`;
+        const actual = entries.filter(e => (e.when ?? '').includes('md-artifacts.variablesView')).map(key).sort();
+        assert.deepStrictEqual(actual, expected.map(key).sort());
+    });
+
+    test('the table covers every row kind, and names only contributed commands', () => {
+        assert.deepStrictEqual(Object.keys(VARIABLES_ROW_ACTIONS).sort(), [...VARIABLE_CONTEXT_VALUES].sort());
+        const contributed = new Set(pkg.contributes.commands.map(c => c.command));
+        for (const a of Object.values(VARIABLES_ROW_ACTIONS)) {
+            for (const cmd of [a.inline, ...VARIABLES_MENU_CATEGORIES.map(c => a[c])].flat()) {
+                assert.ok(contributed.has(VARIABLES_PREFIX + cmd), `${cmd} is not a contributed command`);
+            }
+        }
+    });
+
+    test('every row has exactly one inline +, chosen by its file shape', () => {
+        const expected: Record<string, string> = {
+            fileBlank: 'addToBlank', // asks: Variable (one block) or Sub-set
+            fileFlat:  'addVar',     // one untitled block — no sub-set level
+            fileSets:  'newSubSet',  // sub-sets, even just one titled one
+            subset:    'addVar',
+        };
+        for (const [row, cmd] of Object.entries(expected)) {
+            const inlineAdds = entries
+                .filter(e => (e.group ?? '').startsWith('inline') && reaches(e, row) && ADD_COMMANDS.includes(e.command))
+                .map(e => e.command);
+            assert.deepStrictEqual(inlineAdds, [VARIABLES_PREFIX + cmd], `${row} row`);
+        }
+    });
+
+    test('a one-block file row keeps New sub-set on right-click, and its variables stay applicable', () => {
+        const forFlat = entries.filter(e => reaches(e, 'fileFlat'));
+        assert.ok(forFlat.some(e => e.command === VARIABLES_PREFIX + 'newSubSet' && !(e.group ?? '').startsWith('inline')));
+        assert.ok(forFlat.some(e => e.command === VARIABLES_PREFIX + 'applyToPreview'));
+        // A one-block file has no sub-set to delete — only a sub-set row offers it.
+        assert.ok(!forFlat.some(e => e.command === VARIABLES_PREFIX + 'deleteSubSet'));
+        assert.ok(entries.some(e => e.command === VARIABLES_PREFIX + 'deleteSubSet' && reaches(e, 'subset')));
     });
 
     test('applyToPreview is palette-hidden and saveCurrentValues is palette-visible', () => {

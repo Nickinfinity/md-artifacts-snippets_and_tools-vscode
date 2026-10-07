@@ -164,22 +164,70 @@ export function scoreVarSet(
 }
 
 /**
+ * Display name for a sub-set wherever it stands alone (the Apply picker, the
+ * `from:` badge): its heading, or — for an untitled block — the set's title.
+ *
+ * @param subSet - A sub-set from {@link extractSubSets}.
+ * @returns A non-empty label whenever the file has a title or a name.
+ *
+ * @example
+ * subSetLabel({ heading: '', vars: [], sourceFile }); // → sourceFile's title
+ */
+export function subSetLabel(subSet: VarSubSet): string {
+    return subSet.heading || subSet.sourceFile.frontmatter.title || subSet.sourceFile.fileName;
+}
+
+/**
+ * The three shapes a Variables file can take — **the** rule every view of a
+ * set (the pane's rows, its menus, its commands) derives from:
+ *
+ * - `blank` — frontmatter only: no `vks` fence, no `## ` sub-sets.
+ * - `flat`  — one untitled `vks` fence: variables, no sub-sets.
+ * - `sets`  — one or more `## Title` sub-sets (even just one).
+ *
+ * Read from the file's structure, never from a count: a single **titled**
+ * sub-set is `sets`, a single **untitled** fence is `flat`. A flat file with
+ * no variables writes no fence at all, so it reads back as `blank` — the two
+ * are deliberately the same thing.
+ */
+export type VarsFileShape = 'blank' | 'flat' | 'sets';
+
+/**
+ * Classifies a parsed Variables file — see {@link VarsFileShape}.
+ *
+ * @param file - Parsed `artifactType: Variables` file.
+ * @returns `'sets'` when it has any `## ` sub-set, `'flat'` when it has only
+ *          untitled variables, otherwise `'blank'`.
+ *
+ * @example
+ * getVarsFileShape(parseFromContent('---\nartifactType: Variables\n---\n', p, dir)); // → 'blank'
+ */
+export function getVarsFileShape(file: ParsedArtifactFile): VarsFileShape {
+    if (file.blocks.length > 0) { return 'sets'; }
+    return file.vars.length > 0 ? 'flat' : 'blank';
+}
+
+/**
  * Pure transform — flattens a parsed variable artifact file into one or more
  * `VarSubSet` entries. Multi-block files yield one sub-set per `## Heading` that
  * has at least one var. Single-block files yield one sub-set wrapping the
  * top-level `vars` and using `frontmatter.title || fileName` as the heading.
- * Sub-sets with no vars are excluded.
+ * Sub-sets with no vars are excluded unless `includeEmpty` is set — applying a
+ * set needs vars, but the Variables pane must show a sub-set the moment it is
+ * created, or "New sub-set" looks like it did nothing.
  *
  * @param artifact - Fully parsed variable file.
+ * @param opts     - `includeEmpty`: keep `## ` sub-sets that hold no vars (pane + its commands).
  * @returns Ordered array of `VarSubSet`; `[]` when no qualifying sub-set exists.
  *
  * @example
- * extractSubSets(parsedFile)
+ * extractSubSets(parsedFile)                         // apply picker — vars only
+ * extractSubSets(parsedFile, { includeEmpty: true }) // Variables pane
  */
-export function extractSubSets(artifact: ParsedArtifactFile): VarSubSet[] {
+export function extractSubSets(artifact: ParsedArtifactFile, opts: { includeEmpty?: boolean } = {}): VarSubSet[] {
     if (artifact.blocks.length > 0) {
         return artifact.blocks
-            .filter(b => b.vars.length > 0)
+            .filter(b => opts.includeEmpty || b.vars.length > 0)
             .map(b => ({ heading: b.heading, vars: b.vars, sourceFile: artifact }));
     }
 
@@ -298,11 +346,9 @@ export function buildVarSetModel(
  */
 export function variablesFileToEditPayload(file: ParsedArtifactFile): VarsEditPayload {
     const fm = file.frontmatter;
+    const pairsOf = (vars: ParsedVar[]) => vars.map(v => [v.name, v.defaultValue] as [string, string]);
     const subSets = file.blocks.length > 0
-        ? file.blocks.map(b => ({
-            heading: b.heading,
-            pairs: b.vars.map(v => [v.name, v.defaultValue] as [string, string]),
-        }))
+        ? file.blocks.map(b => ({ heading: b.heading, description: b.description, pairs: pairsOf(b.vars) }))
         : [{
             heading: '',
             pairs: file.vars.map(v => [v.name, v.defaultValue] as [string, string]),
@@ -342,7 +388,8 @@ export function editPayloadToModel(payload: VarsEditPayload, original: ParsedArt
         env: payload.env ?? original.frontmatter.env,
         blocks: payload.subSets.map(s => ({
             heading: s.heading,
-            description: '',
+            // An untitled block has no `## ` line to hang a description under.
+            description: s.heading === '' ? '' : (s.description ?? ''),
             language: '',
             code: '',
             vars: s.pairs.map(([name, defaultValue]) => ({ name, defaultValue })),

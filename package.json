@@ -116,6 +116,27 @@
         "icon": "$(add)"
       },
       {
+        "command": "md-artifacts.variables.addToBlank",
+        "title": "%cmd.variables.addToBlank.title%",
+        "category": "%cmd.category%",
+        "icon": "$(add)"
+      },
+      {
+        "command": "md-artifacts.variables.editDescription",
+        "title": "%cmd.variables.editDescription.title%",
+        "category": "%cmd.category%"
+      },
+      {
+        "command": "md-artifacts.variables.editTags",
+        "title": "%cmd.variables.editTags.title%",
+        "category": "%cmd.category%"
+      },
+      {
+        "command": "md-artifacts.variables.viewInfo",
+        "title": "%cmd.variables.viewInfo.title%",
+        "category": "%cmd.category%"
+      },
+      {
         "command": "md-artifacts.variables.editValue",
         "title": "%cmd.variables.editValue.title%",
         "category": "%cmd.category%",
@@ -240,6 +261,22 @@
         },
         {
           "command": "md-artifacts.variables.addVar",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.addToBlank",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.editDescription",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.editTags",
+          "when": "false"
+        },
+        {
+          "command": "md-artifacts.variables.viewInfo",
           "when": "false"
         },
         {
@@ -525,89 +562,244 @@
       ],
       "view/item/context": [
         {
+          "command": "md-artifacts.variables.addToBlank",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "inline@0"
+        },
+        {
           "command": "md-artifacts.variables.openFile",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
           "group": "inline@1"
         },
         {
-          "command": "md-artifacts.variables.newSubSet",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
           "group": "inline@2"
         },
         {
-          "command": "md-artifacts.variables.openFile",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
-          "group": "1_modify@1"
-        },
-        {
-          "command": "md-artifacts.variables.deleteFile",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
-          "group": "inline@3"
-        },
-        {
-          "command": "md-artifacts.variables.deleteFile",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^file/",
-          "group": "1_modify@2"
+          "command": "md-artifacts.variables.viewInfo",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "1_view@0"
         },
         {
           "command": "md-artifacts.variables.addVar",
-          "when": "view == md-artifacts.variablesView && viewItem == fileSingle",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "2_create@0"
+        },
+        {
+          "command": "md-artifacts.variables.newSubSet",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "2_create@1"
+        },
+        {
+          "command": "md-artifacts.variables.openFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "3_edit@0"
+        },
+        {
+          "command": "md-artifacts.variables.editDescription",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "md-artifacts.variables.editTags",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileBlank",
+          "group": "5_delete@0"
+        },
+        {
+          "command": "md-artifacts.variables.addVar",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "inline@0"
+        },
+        {
+          "command": "md-artifacts.variables.openFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "inline@1"
+        },
+        {
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "inline@2"
+        },
+        {
+          "command": "md-artifacts.variables.applyToPreview",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat && md-artifacts.previewActive",
+          "group": "inline@3"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat && editorIsOpen",
+          "group": "inline@4"
+        },
+        {
+          "command": "md-artifacts.variables.viewInfo",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "1_view@0"
+        },
+        {
+          "command": "md-artifacts.variables.addVar",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "2_create@0"
+        },
+        {
+          "command": "md-artifacts.variables.newSubSet",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "2_create@1"
+        },
+        {
+          "command": "md-artifacts.variables.openFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "3_edit@0"
+        },
+        {
+          "command": "md-artifacts.variables.editDescription",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "md-artifacts.variables.editTags",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "md-artifacts.variables.applyToPreview",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "4_apply@0"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "4_apply@1"
+        },
+        {
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileFlat",
+          "group": "5_delete@0"
+        },
+        {
+          "command": "md-artifacts.variables.newSubSet",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "inline@0"
+        },
+        {
+          "command": "md-artifacts.variables.openFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "inline@1"
+        },
+        {
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "inline@2"
+        },
+        {
+          "command": "md-artifacts.variables.viewInfo",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "1_view@0"
+        },
+        {
+          "command": "md-artifacts.variables.newSubSet",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "2_create@0"
+        },
+        {
+          "command": "md-artifacts.variables.openFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "3_edit@0"
+        },
+        {
+          "command": "md-artifacts.variables.editDescription",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "md-artifacts.variables.editTags",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "3_edit@2"
+        },
+        {
+          "command": "md-artifacts.variables.deleteFile",
+          "when": "view == md-artifacts.variablesView && viewItem == fileSets",
+          "group": "5_delete@0"
+        },
+        {
+          "command": "md-artifacts.variables.addVar",
+          "when": "view == md-artifacts.variablesView && viewItem == subset",
           "group": "inline@0"
         },
         {
           "command": "md-artifacts.variables.applyToPreview",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/ && md-artifacts.previewActive",
-          "group": "inline@8"
+          "when": "view == md-artifacts.variablesView && viewItem == subset && md-artifacts.previewActive",
+          "group": "inline@1"
         },
         {
           "command": "md-artifacts.variables.applyToEditor",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/ && editorIsOpen",
-          "group": "inline@9"
+          "when": "view == md-artifacts.variablesView && viewItem == subset && editorIsOpen",
+          "group": "inline@2"
         },
         {
-          "command": "md-artifacts.variables.applyToEditor",
-          "when": "view == md-artifacts.variablesView && viewItem =~ /^(subset|fileSingle)$/",
-          "group": "2_preview@2"
-        },
-        {
-          "command": "md-artifacts.variables.applyToPreview",
-          "when": "view == md-artifacts.variablesView && viewItem == fileSingle",
-          "group": "2_preview@1"
+          "command": "md-artifacts.variables.viewInfo",
+          "when": "view == md-artifacts.variablesView && viewItem == subset",
+          "group": "1_view@0"
         },
         {
           "command": "md-artifacts.variables.addVar",
           "when": "view == md-artifacts.variablesView && viewItem == subset",
-          "group": "inline@1"
+          "group": "2_create@0"
         },
         {
           "command": "md-artifacts.variables.renameSubSet",
           "when": "view == md-artifacts.variablesView && viewItem == subset",
-          "group": "1_modify@1"
+          "group": "3_edit@0"
         },
         {
-          "command": "md-artifacts.variables.deleteSubSet",
+          "command": "md-artifacts.variables.editDescription",
           "when": "view == md-artifacts.variablesView && viewItem == subset",
-          "group": "1_modify@2"
+          "group": "3_edit@1"
         },
         {
           "command": "md-artifacts.variables.applyToPreview",
           "when": "view == md-artifacts.variablesView && viewItem == subset",
-          "group": "2_preview@1"
+          "group": "4_apply@0"
+        },
+        {
+          "command": "md-artifacts.variables.applyToEditor",
+          "when": "view == md-artifacts.variablesView && viewItem == subset",
+          "group": "4_apply@1"
+        },
+        {
+          "command": "md-artifacts.variables.deleteSubSet",
+          "when": "view == md-artifacts.variablesView && viewItem == subset",
+          "group": "5_delete@0"
         },
         {
           "command": "md-artifacts.variables.editValue",
           "when": "view == md-artifacts.variablesView && viewItem == var",
-          "group": "inline@1"
+          "group": "inline@0"
+        },
+        {
+          "command": "md-artifacts.variables.viewInfo",
+          "when": "view == md-artifacts.variablesView && viewItem == var",
+          "group": "1_view@0"
+        },
+        {
+          "command": "md-artifacts.variables.editValue",
+          "when": "view == md-artifacts.variablesView && viewItem == var",
+          "group": "3_edit@0"
         },
         {
           "command": "md-artifacts.variables.renameVar",
           "when": "view == md-artifacts.variablesView && viewItem == var",
-          "group": "1_modify@1"
+          "group": "3_edit@1"
         },
         {
           "command": "md-artifacts.variables.deleteVar",
           "when": "view == md-artifacts.variablesView && viewItem == var",
-          "group": "1_modify@2"
+          "group": "5_delete@0"
         }
       ]
     },

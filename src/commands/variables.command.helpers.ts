@@ -2,12 +2,12 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getEntry } from '../services/artifact-type-config.service.js';
 import { parseArtifactFile } from '../services/parser.service.js';
-import { extractSubSets } from '../services/varset.service.js';
+import { extractSubSets, getVarsFileShape } from '../services/varset.service.js';
 import { writeVariablesFile } from '../services/variables-writer.service.js';
 import type { WriteResult } from '../services/artifact-writer.service.js';
 import type { VarSubSet } from '../types/varset.types.js';
-import type { ParsedArtifactFile } from '../types/parsed-artifact.types.js';
-import type { ArtifactFormModel } from '../types/artifact-form.types.js';
+import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
+import type { ArtifactFormModel, ArtifactFormBlock } from '../types/artifact-form.types.js';
 import type { VariableNode, VariableNodeKind, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
 import { isPathWithin } from '../utils/path-containment.js';
 import { confirmTextFor } from './variables.confirm.helpers.js';
@@ -35,6 +35,7 @@ const VARIABLE_COMMAND_SUFFIXES = [
     'newFile', 'newSubSet', 'addVar', 'editValue',
     'renameVar', 'renameSubSet', 'deleteVar', 'deleteSubSet', 'deleteFile',
     'applyToPreview', 'applyToEditor', 'saveCurrentValues', 'openFile', 'search', 'clearSearch',
+    'addToBlank', 'editDescription', 'editTags', 'viewInfo',
 ] as const;
 
 /**
@@ -77,6 +78,18 @@ export const APPLY_TO_EDITOR_COMMAND_ID = variableCommandId('applyToEditor');
 export const SEARCH_COMMAND_ID = variableCommandId('search');
 /** Command id for "Clear Search" — shown only while a filter is active. */
 export const CLEAR_SEARCH_COMMAND_ID = variableCommandId('clearSearch');
+
+/** "Add…" on a blank file row — asks Variable (one block, no sub-sets) or Sub-set. */
+export const ADD_TO_BLANK_COMMAND_ID = variableCommandId('addToBlank');
+
+/** "Edit Description…" — a file's frontmatter description, or a sub-set's prose. */
+export const EDIT_DESCRIPTION_COMMAND_ID = variableCommandId('editDescription');
+
+/** "Edit Tags…" — a file's frontmatter tags, as a comma-separated list. */
+export const EDIT_TAGS_COMMAND_ID = variableCommandId('editTags');
+
+/** "View Info" — the read-only summary popup for a set, sub-set or variable. */
+export const VIEW_INFO_COMMAND_ID = variableCommandId('viewInfo');
 
 /**
  * Extracts the absolute file path a `VariableNode` belongs to.
@@ -153,18 +166,17 @@ export function at<T>(arr: readonly T[], i: number | undefined): T | undefined {
  * side speaks `ParsedArtifactFile`, write side speaks `ArtifactFormModel`,
  * and the command layer is the sole crossing point).
  *
- * Each block's `heading` is built to match what `extractSubSets` would
- * produce for the same file: a real `## `-headed block keeps its own
- * heading; a single-block file (no `## ` headings at all) gets one synthetic
- * block headed `frontmatter.title || fileName`, mirroring
- * `extractSubSets`'s single-block branch exactly. That equality is load-
- * bearing — `findSubSetIndex` (`variables-crud.service.ts`) matches sub-sets
- * by heading string, and `resolveTarget` below identifies the clicked
- * sub-set via `extractSubSets(parsed)[subIdx].heading` — so the two heading
- * values must agree, or a lookup silently misses. Harmless to the file
- * itself either way: `serializeArtifact` never emits a `## ` heading for a
- * single-block model (`blocks.length === 1`), so this synthetic heading is
- * never written to disk.
+ * Built per {@link getVarsFileShape}, block-for-block aligned with
+ * `extractSubSets(parsed, { includeEmpty: true })` — the list the pane renders
+ * — so a row's position is the block's index (handlers pass that index to the
+ * mutators, never a heading):
+ *
+ * - `blank` → no blocks.
+ * - `flat`  → one block headed `''`. It must stay untitled: the serializer
+ *   writes a `## ` heading for any single block that has one, so the set's
+ *   title used to leak in here and every pane edit silently turned a
+ *   one-block file into a titled sub-set.
+ * - `sets`  → one block per `## ` sub-set.
  *
  * @param parsed - Result of `parseArtifactFile`/`parseFromContent` for an `artifactType: Variables` file.
  * @returns Equivalent `ArtifactFormModel`, ready for the T14 mutators.
@@ -173,33 +185,29 @@ export function at<T>(arr: readonly T[], i: number | undefined): T | undefined {
  * toFormModel(parsed).blocks[0].vars
  */
 export function toFormModel(parsed: ParsedArtifactFile): ArtifactFormModel {
-    const blocks = parsed.blocks.length > 0
-        ? parsed.blocks.map(b => ({
-            heading: b.heading,
-            description: b.description,
-            language: b.fenceLang ?? '',
-            code: b.code,
-            vars: b.vars,
-        }))
-        : [{
-            heading: parsed.frontmatter.title || parsed.fileName,
-            description: '',
-            language: parsed.frontmatter.language ?? '',
-            code: parsed.code,
-            vars: parsed.vars,
-        }];
+    const block = (heading: string, vars: ParsedVar[], description = ''): ArtifactFormBlock =>
+        ({ heading, description, language: '', code: '', vars });
+    const shape = getVarsFileShape(parsed);
+    let blocks: ArtifactFormBlock[] = [];
+    if (shape === 'flat') {
+        blocks = [block('', parsed.vars)];
+    } else if (shape === 'sets') {
+        blocks = parsed.blocks.map(b => block(b.heading, b.vars, b.description));
+    }
 
     return {
         artifactType: 'Variables',
         title: parsed.frontmatter.title ?? parsed.fileName,
         description: parsed.frontmatter.description ?? '',
         tags: parsed.frontmatter.tags ?? [],
+        // Carried so a pane edit cannot drop the file's `env:` line.
+        env: parsed.frontmatter.env,
         blocks,
     };
 }
 
 /**
- * The three user-interaction primitives every command handler needs,
+ * The user-interaction primitives every command handler needs,
  * injected rather than called on `vscode.window` directly so a test can
  * drive a handler's full logic (no-op, cancel, escape, confirm/decline)
  * without a live human at the keyboard. `defaultIO` is what
@@ -213,6 +221,8 @@ export interface CommandIO {
     confirm: (message: string) => Promise<boolean>;
     /** Shows an error toast. Fire-and-forget, matching `vscode.window.showErrorMessage`'s own contract. */
     showError: (message: string) => void;
+    /** Single-choice pick; `undefined` on Cancel or Escape — same as `vscode.window.showQuickPick`. */
+    showQuickPick: <T extends vscode.QuickPickItem>(items: T[], options: vscode.QuickPickOptions) => Thenable<T | undefined>;
 }
 
 /**
@@ -232,6 +242,7 @@ export const defaultIO: CommandIO = {
         return choice === deleteLabel;
     },
     showError: message => { void vscode.window.showErrorMessage(message); },
+    showQuickPick: (items, options) => vscode.window.showQuickPick(items, options),
 };
 
 /**
@@ -261,7 +272,7 @@ export interface ResolvedTarget {
     parsed: ParsedArtifactFile;
     /** `toFormModel(parsed)` — ready for a T14 mutator. */
     model: ArtifactFormModel;
-    /** `extractSubSets(parsed)` — same order the tree rendered, so node-id indices apply directly. */
+    /** `extractSubSets(parsed, { includeEmpty: true })` — same list the tree rendered, so node-id indices apply directly. */
     subSets: VarSubSet[];
     /** Sub-set ordinal from the node's id, when the node is a `subset` or `var`. */
     subIdx?: number;
@@ -301,9 +312,11 @@ export async function resolveTarget(
     vaultRoot: vscode.Uri | undefined,
     io: CommandIO = defaultIO,
 ): Promise<ResolvedTarget | undefined> {
-    // A one-sub-set file shows no sub-set level, so its file node stands in for
-    // sub-set 0 — one rule here serves every sub-set command.
-    const lone = expectedKind === 'subset' && node?.kind === 'file' && node.single === true;
+    // A one-block file shows no sub-set level, so its file node stands in for
+    // block 0 — one rule here serves every sub-set command. A blank file stands
+    // in for the block its first variable will create (see `handleAddVar`).
+    const lone = expectedKind === 'subset' && node?.kind === 'file'
+        && (node.shape === 'flat' || node.shape === 'blank');
     if (node?.kind !== expectedKind && !lone) {
         io.showError(vscode.l10n.t('MD Artifacts: no variable-tree item selected.'));
         return undefined;
@@ -328,7 +341,7 @@ export async function resolveTarget(
         filePath,
         parsed,
         model: toFormModel(parsed),
-        subSets: extractSubSets(parsed),
+        subSets: extractSubSets(parsed, { includeEmpty: true }),
         subIdx: lone ? 0 : subsetIndex(node),
         varIdx: varIndex(node),
     };

@@ -64,6 +64,7 @@ function makeDeps(vaultRoot: vscode.Uri | undefined): { deps: ApplyDeps; info: s
         io: {
             showInputBox: () => Promise.resolve(undefined),
             confirm: () => Promise.resolve(true),
+            showQuickPick: () => Promise.resolve(undefined),
             showError: message => { errors.push(message); },
         },
         notifyInfo: message => { info.push(message); },
@@ -178,6 +179,7 @@ suite('resolveTarget — D-7 containment guard (hostile fixture)', () => {
         const io: CommandIO = {
             showInputBox: () => Promise.resolve(undefined),
             confirm: () => Promise.resolve(true),
+            showQuickPick: () => Promise.resolve(undefined),
             showError: (message: string) => { errors.push(message); },
         };
         const result = await resolveTarget(subsetNode(outsidePath, 0), 'subset', vaultRoot, io);

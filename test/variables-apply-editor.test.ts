@@ -51,7 +51,7 @@ suite('handleApplyToEditor', () => {
         fs.mkdirSync(path.join(dir, 'Variables'));
         const file = path.join(dir, 'Variables', 'users.md');
         fs.writeFileSync(file, renderVariablesFile(model), 'utf8');
-        return { root: vscode.Uri.file(dir), node: { id: file, parentId: null, kind: 'file', label: 'Users', single: true } };
+        return { root: vscode.Uri.file(dir), node: { id: file, parentId: null, kind: 'file', label: 'Users', shape: 'flat' } };
     }
 
     async function editorWith(text: string): Promise<vscode.TextEditor> {
@@ -62,7 +62,7 @@ suite('handleApplyToEditor', () => {
     function deps(root: vscode.Uri, editor: vscode.TextEditor | undefined, info: string[]): ApplyDeps {
         return {
             vaultRoot: root,
-            io: { showInputBox: () => Promise.resolve(undefined), confirm: () => Promise.resolve(true), showError: () => { /* none */ } },
+            io: { showInputBox: () => Promise.resolve(undefined), confirm: () => Promise.resolve(true), showError: () => { /* none */ }, showQuickPick: () => Promise.resolve(undefined), },
             notifyInfo: m => { info.push(m); },
             activeEditor: () => editor,
         };

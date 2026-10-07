@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
+import { buildReorderButtons } from '../shared/reorderControls.js';
 import { labelForVar } from '../artifactPicker/preview.helpers.js';
 import { FREE_LANGUAGE_OPTIONS } from './form.helpers.js';
 import type { ArtifactFormBlock, ArtifactFormModel } from '../../../types/artifact-form.types.js';
@@ -208,9 +209,6 @@ export function buildBlockCard(
     codeBlockHtml:(code: string, lang: string) => string,
 ): string {
     const isFirst      = blockIndex === 0;
-    const isLast       = blockIndex === total - 1;
-    const upDisabled   = isFirst ? ' disabled' : '';
-    const downDisabled = isLast  ? ' disabled' : '';
     const headingVal   = escHtml(block.heading);
     const descVal      = escHtml(block.description);
     const langSelector = buildLanguageSelector(blockIndex, block.language, mode, lockedLang);
@@ -223,8 +221,7 @@ export function buildBlockCard(
   <div class="card-header">
     <input type="text" id="block-${blockIndex}-heading" class="block-heading-input" value="${headingVal}" data-block="${blockIndex}" placeholder="${escHtml(vscode.l10n.t('Block heading'))}">
     ${langSelector}
-    <button class="reorder-btn" data-action="up" data-block="${blockIndex}"${upDisabled}>↑</button>
-    <button class="reorder-btn" data-action="down" data-block="${blockIndex}"${downDisabled}>↓</button>
+    ${buildReorderButtons('block-card', blockIndex, total, ' data-block="' + blockIndex + '"')}
     <button class="remove-block-btn" data-block="${blockIndex}">×</button>
     <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
     <button class="expand-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Toggle block'))}">⌄</button>

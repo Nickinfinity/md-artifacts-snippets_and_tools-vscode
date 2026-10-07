@@ -33,7 +33,11 @@ function bodyOnly(html: string): string {
  * rows stayed byte-identical, because the add/remove row affordance is gated to
  * edit mode precisely so this pin kept its meaning.
  *
- * That is the only circumstance for regenerating it. A failure here is a
+ * Reset a SECOND time, deliberately: the name cell gained the fixed `VK-`
+ * label (`renderVarNameCell`) — the input now holds only the part after the
+ * prefix, which the client restores on Save. The diff is that one `<td>` only.
+ *
+ * Those are the only circumstances for regenerating it. A failure here is a
  * regression until someone has read the diff and can name the intended change.
  */
 suite('varset form render — create-mode golden (regression pin, not genuine red)', () => {
@@ -137,12 +141,12 @@ suite('varset form render — 🔒 posted shape (grouped, even for one sub-set)'
           <div id="vsfError" hidden></div>
           <button id="vsfCancel"></button>
           <button id="vsfSave"></button>
-          <table class="vars-table"><tbody>
+          <div class="subset-group"><table class="vars-table"><tbody>
             <tr class="var-row">
               <td><input data-role="name" data-index="0" value="VK-host"></td>
               <td><input data-role="value" data-index="0" value="localhost"></td>
             </tr>
-          </tbody></table>
+          </tbody></table></div>
         `;
         const dom = makeWebviewDom({ seedHtml, script: scriptBody });
         dom.fire(dom.el('#vsfSave'), 'click');

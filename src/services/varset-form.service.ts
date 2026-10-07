@@ -180,3 +180,28 @@ export function validateSubSetHeadings(headings: string[]): VarSetFormValidation
     }
     return { ok: true };
 }
+
+/** A description line that would open a fence or start a new `## ` sub-set when re-parsed. */
+const STRUCTURE_BREAKING_LINE_RE = /^\s*(?:```|~~~|##\s)/m;
+
+/**
+ * Validates sub-set descriptions — the prose written between a `## ` heading
+ * and its ` ```vks ` fence.
+ *
+ * Free text otherwise (inline `` `code` `` is fine, and the source vault uses
+ * it): only a line that would re-parse as a fence or as the next sub-set's
+ * heading is refused, since either would split or swallow the sub-set.
+ *
+ * @param descriptions - One description per sub-set (`''` for none).
+ * @returns `{ ok: true }` or the first failure reason.
+ *
+ * @example
+ * validateSubSetDescriptions(['Users keyed by `status`.']); // { ok: true }
+ * validateSubSetDescriptions(['```vks']);                   // { ok: false, … }
+ */
+export function validateSubSetDescriptions(descriptions: string[]): VarSetFormValidation {
+    const bad = descriptions.find(d => STRUCTURE_BREAKING_LINE_RE.test(d));
+    return bad === undefined
+        ? { ok: true }
+        : { ok: false, reason: 'A sub-set description cannot contain a line starting with ``` or "## ".' };
+}

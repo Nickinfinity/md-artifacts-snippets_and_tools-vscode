@@ -10,12 +10,14 @@ import {
     addVar, renameVar, setVarValue, deleteVar,
     addSubSet, renameSubSet, deleteSubSet,
 } from '../services/variables-crud.service.js';
+import { subSetLabel } from '../services/varset.service.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import type { VariableNode, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
 import {
     buildVariableCommandIds, resolveTarget, commitWrite, buildConfirmMessage, errMessage, at,
-    OPEN_FILE_COMMAND_ID, type CommandIO, defaultIO,
+    OPEN_FILE_COMMAND_ID, type CommandIO, type ResolvedTarget, defaultIO,
 } from './variables.command.helpers.js';
+import { promptVarName } from './var-name-prompt.helpers.js';
 
 /**
  * The nine `md-artifacts.variables.*` tree commands (T16, VSX-219).
@@ -114,7 +116,11 @@ export async function handleNewFile(
 // ── New sub-set (target: file) ─────────────────────────────────────────────
 
 /**
- * Adds a new, empty sub-set to the clicked file.
+ * Adds a new, empty sub-set to the clicked file — the inline `+` on a
+ * sub-sets file, right-click on a one-block file (whose untitled block is
+ * then named by `addSubSet`), and Add… → Sub-set on a blank one. When the set holds no
+ * variables yet, the name box starts with the set's own title; a name already
+ * used by a sub-set is flagged while typing.
  *
  * @param node      - Clicked `file` tree node.
  * @param provider  - Tree provider to refresh on success.
@@ -134,7 +140,13 @@ export async function handleNewSubSet(
     const target = await resolveTarget(node, 'file', vaultRoot, io);
     if (!target) { return; }
 
-    const heading = await io.showInputBox({ prompt: vscode.l10n.t('New sub-set heading') });
+    const taken = new Set(target.model.blocks.map(b => b.heading));
+    const noVars = target.subSets.every(s => s.vars.length === 0);
+    const heading = await io.showInputBox({
+        prompt: vscode.l10n.t('New sub-set heading'),
+        value: noVars ? target.parsed.frontmatter.title || target.parsed.fileName : '',
+        validateInput: text => text !== '' && taken.has(text) ? vscode.l10n.t('Sub-set "{0}" already exists.', text) : undefined,
+    });
     if (heading === undefined) { return; }
 
     try {
@@ -167,19 +179,48 @@ export async function handleAddVar(
 ): Promise<void> {
     const target = await resolveTarget(node, 'subset', vaultRoot, io);
     if (!target) { return; }
-    const subSet = at(target.subSets, target.subIdx);
-    if (!subSet) {
+    // A blank file has no block yet: its first variable makes it a one-block
+    // file, so the model gets one untitled block to receive it.
+    if (target.model.blocks.length === 0) {
+        const untitled = { heading: '', description: '', language: '', code: '', vars: [] };
+        await addVarAt({ ...target, model: { ...target.model, blocks: [untitled] } }, 0, provider, io);
+        return;
+    }
+    if (!at(target.subSets, target.subIdx)) {
         io.showError(vscode.l10n.t('MD Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
-    const name = await io.showInputBox({ prompt: vscode.l10n.t('Variable name'), value: 'VK-' });
+    await addVarAt(target, target.subIdx ?? -1, provider, io);
+}
+
+/**
+ * Prompts for a variable (name, then value) and adds it to block `index` of
+ * the target's model. Shared by Add variable and the blank file's Add… →
+ * Variable, which passes a model it has just given an untitled block.
+ *
+ * @param target   - Resolved file, whose `model` is the one mutated.
+ * @param index    - Block index in `target.model` — the clicked row's position.
+ * @param provider - Tree provider to refresh on success.
+ * @param io       - Interaction bag.
+ * @returns Resolves once written, cancelled, or refused (toast shown).
+ *
+ * @example
+ * await addVarAt(target, 0, provider, io);
+ */
+export async function addVarAt(
+    target: ResolvedTarget,
+    index: number,
+    provider: VariablesViewProvider,
+    io: CommandIO,
+): Promise<void> {
+    const name = await promptVarName(io, vscode.l10n.t('Variable name'));
     if (name === undefined) { return; }
     const value = await io.showInputBox({ prompt: vscode.l10n.t('Default value for {0}', name) });
     if (value === undefined) { return; }
 
     try {
-        const newModel = addVar(target.model, subSet.heading, name, value);
+        const newModel = addVar(target.model, index, name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
@@ -220,7 +261,7 @@ export async function handleEditValue(
     if (value === undefined || value === current.defaultValue) { return; }
 
     try {
-        const newModel = setVarValue(target.model, subSet.heading, current.name, value);
+        const newModel = setVarValue(target.model, target.subIdx ?? -1, current.name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
@@ -257,11 +298,11 @@ export async function handleRenameVar(
         return;
     }
 
-    const newName = await io.showInputBox({ prompt: vscode.l10n.t('New variable name'), value: current.name });
+    const newName = await promptVarName(io, vscode.l10n.t('New variable name'), current.name);
     if (newName === undefined || newName === current.name) { return; }
 
     try {
-        const newModel = renameVar(target.model, subSet.heading, current.name, newName);
+        const newModel = renameVar(target.model, target.subIdx ?? -1, current.name, newName);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
@@ -301,7 +342,7 @@ export async function handleRenameSubSet(
     if (newHeading === undefined || newHeading === subSet.heading) { return; }
 
     try {
-        const newModel = renameSubSet(target.model, subSet.heading, newHeading);
+        const newModel = renameSubSet(target.model, target.subIdx ?? -1, newHeading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
@@ -338,11 +379,11 @@ export async function handleDeleteVar(
         return;
     }
 
-    const message = buildConfirmMessage({ kind: 'var', name: current.name, parent: subSet.heading });
+    const message = buildConfirmMessage({ kind: 'var', name: current.name, parent: subSetLabel(subSet) });
     if (!await io.confirm(message)) { return; }
 
     try {
-        const newModel = deleteVar(target.model, subSet.heading, current.name);
+        const newModel = deleteVar(target.model, target.subIdx ?? -1, current.name);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
@@ -352,12 +393,11 @@ export async function handleDeleteVar(
 // ── Delete sub-set (target: subset, destructive) ────────────────────────────
 
 /**
- * Deletes the clicked sub-set after modal confirmation. Refuses (via the
- * mutator's own thrown error, caught here) to delete a file's last sub-set —
- * delete the file instead. Cancel, Escape, decline, or the refusal all
- * perform zero writes.
+ * Deletes the clicked sub-set after modal confirmation — including a file's
+ * last one (reached through the `fileSingle` row), which leaves the file with
+ * no variables. Cancel, Escape, or decline perform zero writes.
  *
- * @param node      - Clicked `subset` tree node.
+ * @param node      - Clicked `subset` (or `fileSingle`) tree node.
  * @param provider  - Tree provider to refresh on success.
  * @param io        - Interaction bag; defaults to the real `vscode.window`-backed one.
  * @param vaultRoot - Vault root; defaults to `getVaultRootUri()`.
@@ -381,12 +421,12 @@ export async function handleDeleteSubSet(
     }
 
     const message = buildConfirmMessage({
-        kind: 'subset', name: subSet.heading, varCount: subSet.vars.length, parent: target.parsed.relativePath,
+        kind: 'subset', name: subSetLabel(subSet), varCount: subSet.vars.length, parent: target.parsed.relativePath,
     });
     if (!await io.confirm(message)) { return; }
 
     try {
-        const newModel = deleteSubSet(target.model, subSet.heading);
+        const newModel = deleteSubSet(target.model, target.subIdx ?? -1);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
         io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));

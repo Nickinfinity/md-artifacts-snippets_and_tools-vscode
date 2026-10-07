@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CODE_BLOCK_CLIENT_JS } from '../artifactPicker/codeBlock.js';
 import { TAGS_FIELD_CLIENT_JS } from '../shared/tagsField.js';
+import { REORDER_CLIENT_JS } from '../shared/reorderControls.js';
 import { jsStr } from '../artifactPicker/webviewSnippets.js';
 import { escHtml } from '../../../utils/html.js';
 
@@ -165,31 +166,15 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     });
   }
 
-  // ── Reorder button state ─────────────────────────────────────────────────
-  function refreshReorderButtons() {
-    const cards = allCards();
-    const total = cards.length;
-    cards.forEach(function(card, i) {
-      const up   = card.querySelector('[data-action="up"]');
-      const down = card.querySelector('[data-action="down"]');
-      if (up)   { if (i === 0)          { up.setAttribute('disabled', ''); }   else { up.removeAttribute('disabled'); } }
-      if (down) { if (i === total - 1)  { down.setAttribute('disabled', ''); } else { down.removeAttribute('disabled'); } }
-    });
-  }
-
   // ── New block card HTML ──────────────────────────────────────────────────
-  function buildNewCardHtml(blockIndex, total) {
-    const isFirst = blockIndex === 0;
-    const isLast  = blockIndex === total - 1;
-    const upDis   = isFirst ? ' disabled' : '';
-    const downDis = isLast  ? ' disabled' : '';
+  // Reorder buttons get their first/last disabling from reindexCards().
+  function buildNewCardHtml(blockIndex) {
     const langSelHtml = buildNewLangSelectHtml(blockIndex);
     return '<div class="block-card" data-block-index="' + blockIndex + '">' +
       '<div class="card-header">' +
         '<input type="text" id="block-' + blockIndex + '-heading" class="block-heading-input" value="" data-block="' + blockIndex + '" placeholder="' + ${BLOCK_HEADING_JS} + '">' +
         langSelHtml +
-        '<button class="reorder-btn" data-action="up" data-block="' + blockIndex + '"' + upDis + '>↑</button>' +
-        '<button class="reorder-btn" data-action="down" data-block="' + blockIndex + '"' + downDis + '>↓</button>' +
+        reorderButtonsHtml('block-card', ' data-block="' + blockIndex + '"') +
         '<button class="remove-block-btn" data-block="' + blockIndex + '">\xd7</button>' +
         '<button class="expand-editor-btn" data-block="' + blockIndex + '" aria-label="' + ${EXPAND_BLOCK_JS} + '">⤢</button>' +
         '<button class="expand-btn" data-block="' + blockIndex + '" aria-label="' + ${TOGGLE_BLOCK_JS} + '">⎾</button>' +
@@ -235,7 +220,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       const desc = card.querySelector('.form-textarea');
       if (desc) { desc.id = 'block-' + i + '-desc'; }
     });
-    refreshReorderButtons();
+    reorderRefreshAll(blocksArea);
   }
 
   // ── Transition: single → multi-block ────────────────────────────────────
@@ -252,6 +237,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
   // ── Tag management ───────────────────────────────────────────────────────
   // Shared with the var-set form — THE one tag implementation (shared/tagsField.ts).
   ${TAGS_FIELD_CLIENT_JS}
+  ${REORDER_CLIENT_JS}
 
   // ── Name validation ──────────────────────────────────────────────────────
   const titleInput = document.getElementById('title');
@@ -513,8 +499,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         const cards = allCards();
         const newIndex = cards.length;
         if (newIndex === 1) { activateMultiBlock(); }
-        const total    = newIndex + 1;
-        const newHtml  = buildNewCardHtml(newIndex, total);
+        const newHtml  = buildNewCardHtml(newIndex);
         const tmp      = document.createElement('div');
         tmp.innerHTML  = newHtml;
         const newCard  = tmp.firstElementChild;
@@ -531,7 +516,11 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       });
     }
 
-    // Remove block + reorder (delegated on blocksArea)
+    // Reorder: the shared control moves the card; re-index so every
+    // data-block (remove, expand, lang) follows its card.
+    reorderWire(blocksArea, function () { reindexCards(); markDirty(); });
+
+    // Remove block (delegated on blocksArea)
     if (blocksArea) {
       blocksArea.addEventListener('click', function(ev) {
         const target = ev.target;
@@ -539,26 +528,6 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         if (target.classList.contains('remove-block-btn')) {
           const blockIndex = parseInt(target.dataset.block || '0', 10);
           vscode.postMessage({ command: 'removeBlock', blockIndex: blockIndex });
-        }
-        if (target.classList.contains('reorder-btn')) {
-          const action     = target.dataset.action;
-          const blockIndex = parseInt(target.dataset.block || '0', 10);
-          const cards      = allCards();
-          if (action === 'up' && blockIndex > 0) {
-            const a = cards[blockIndex - 1];
-            const b = cards[blockIndex];
-            if (a && b && a.parentNode) { a.parentNode.insertBefore(b, a); }
-            reindexCards();
-            markDirty();
-          }
-          if (action === 'down' && blockIndex < cards.length - 1) {
-            const a = cards[blockIndex];
-            const b = cards[blockIndex + 1];
-            if (a && b && b.nextSibling) { b.parentNode.insertBefore(a, b.nextSibling); }
-            else if (a && b) { b.parentNode.appendChild(a); }
-            reindexCards();
-            markDirty();
-          }
         }
         if (target.classList.contains('expand-btn')) {
           const blockIndex = parseInt(target.dataset.block || '0', 10);

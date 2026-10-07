@@ -34,13 +34,14 @@ const quietIo = (errors: string[] = []): CommandIO => ({
     showInputBox: () => Promise.resolve(undefined),
     confirm: () => Promise.resolve(true),
     showError: (m: string) => { errors.push(m); },
+    showQuickPick: () => Promise.resolve(undefined),
 });
 
 suite('variables tree — one-sub-set set shows its vars directly', () => {
     test('no sub-set node; vars hang off the file; ids keep ::subset:0', () => {
         const nodes = buildVariableNodes([single]);
         assert.deepStrictEqual(nodes.map(n => n.kind), ['file', 'var', 'var']);
-        assert.strictEqual(nodes[0].single, true);
+        assert.strictEqual(nodes[0].shape, 'flat');
         assert.ok(nodes.slice(1).every(n => n.parentId === single.filePath));
         assert.strictEqual(nodes[1].id, `${single.filePath}::subset:0::var:0`);
     });
@@ -48,7 +49,7 @@ suite('variables tree — one-sub-set set shows its vars directly', () => {
     test('a multi-sub-set set keeps its sub-set level', () => {
         const nodes = buildVariableNodes([multi]);
         assert.deepStrictEqual(nodes.map(n => n.kind), ['file', 'subset', 'var', 'subset', 'var']);
-        assert.strictEqual(nodes[0].single, false);
+        assert.strictEqual(nodes[0].shape, 'sets');
     });
 });
 
@@ -67,7 +68,7 @@ suite('variables tree — resolveTarget accepts a one-sub-set file as sub-set 0'
 
     test('single file node + expected subset → resolves with subIdx 0', async () => {
         const { root, file } = vaultWith(model);
-        const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', single: true };
+        const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', shape: 'flat' };
         const target = await resolveTarget(node, 'subset', root, quietIo());
         assert.strictEqual(target?.subIdx, 0);
     });
@@ -75,7 +76,7 @@ suite('variables tree — resolveTarget accepts a one-sub-set file as sub-set 0'
     test('a multi-sub-set file node is still refused where a sub-set is expected', async () => {
         const { root, file } = vaultWith(model);
         const errors: string[] = [];
-        const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', single: false };
+        const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', shape: 'sets' };
         assert.strictEqual(await resolveTarget(node, 'subset', root, quietIo(errors)), undefined);
         assert.strictEqual(errors.length, 1);
     });
@@ -118,8 +119,8 @@ suite('varset edit form — one-sub-set quick edit', () => {
         const seedHtml = `
           <input id="vsfTitle" value="L"><textarea id="vsfDescription"></textarea>
           <div id="vsfError" hidden></div><button id="vsfCancel"></button><button id="vsfSave"></button>
-          <div id="vsfSubSets"><input data-role="heading" data-subset="0" value="" hidden>
-            <table class="vars-table"><tbody></tbody></table></div>
+          <div id="vsfSubSets"><div class="subset-group"><input data-role="heading" data-subset="0" value="" hidden>
+            <table class="vars-table"><tbody></tbody></table></div></div>
           <button class="add-subset"></button>`;
         const dom = makeWebviewDom({ seedHtml, script: buildVarSetFormClientJs('edit', '[]') });
         dom.fire(dom.el('.add-subset'), 'click');

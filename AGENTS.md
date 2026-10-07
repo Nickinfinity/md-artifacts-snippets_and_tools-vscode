@@ -41,7 +41,7 @@ pnpm install           # Install deps (no node_modules by default — run after 
 npm run compile        # One-off TypeScript build (outputs to dist/)
 npm run watch          # Watch mode for development (preferred during active development)
 npm run lint           # ESLint check (runs against src/)
-npm run test           # Compile + lint + run all tests (1362 passing)
+npm run test           # Compile + lint + run all tests (1507 passing)
 rm -rf dist && npm test # REQUIRED after any file delete or rename — see below
 npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale; use this to verify
 ```
@@ -94,7 +94,12 @@ src/
 │   │   └── editor.capture.ts · terminal.capture.ts · explorer.capture.ts
 │   ├── create-prefill.helpers.ts     # THE prefill builders (pure)
 │   ├── create-from-surface.command.ts   # Derived create-command registration (mirrors insert.command.ts)
-│   └── variables.command.ts (+ .command.helpers · .confirm.helpers)  # Variables CRUD commands + confirmations
+│   ├── variables.command.ts (+ .command.helpers · .confirm.helpers)  # Variables CRUD commands + confirmations
+│   ├── variables-add-blank.command.ts  # Blank set's "Add…" (Variable or Sub-set)
+│   ├── variables-meta.command.ts     # Edit Description… / Edit Tags… (pane)
+│   ├── variables-info.command.ts     # View Info — the Variables adapter for the info popup
+│   ├── var-name-prompt.helpers.ts    # Pane prompts with the fixed VK- prefix
+│   └── variables-apply.command.ts · variables-search.command.ts
 ├── services/                         # Domain logic. Panels/commands stay thin wiring.
 │   ├── artifact-type-config.service.ts   # THE ARTIFACTS reader — getEntry, getAllTypes, getFormConfig…
 │   ├── config.service.ts                 # THE settings reader — CONFIG_SECTION, getVaultPath(RootUri)
@@ -136,6 +141,10 @@ src/
 │   │   │                             # (+ *.helpers.ts siblings)
 │   │   ├── artifactForm/             # panel(.helpers) · form.html · form.blocks ·
 │   │   │                             # form.clientJs · form.helpers · blockExpand · shared
+│   │   ├── shared/                   # Cross-editor UI pieces (markup + one client-script string each):
+│   │   │                             # tagsField.ts · reorderControls.ts — see "Reusable UI building blocks"
+│   │   ├── varsetForm/               # Variable Set editor: render · subsets (sub-set groups + edit script) · panel
+│   │   ├── infoPanel/                # View Info popup — infoPanel.ts (open/reuse) · infoPanel.render.ts (pure, no script)
 │   │   └── settings.panel.ts · varsetPicker.panel.ts · destFolderPicker.panel.ts
 │   ├── base.css                      # Global reset + bare h1/hr/button — EVERY panel links this
 │   ├── main-view.css                 # Narrow-pane layout overrides for the sidebar preview
@@ -145,6 +154,7 @@ src/
 │   ├── constants.ts                  # ARTIFACTS · LANG_ALIAS · LANG_FENCE · LANG_EXT
 │   ├── parsed-artifact.types.ts      # ArtifactType union, ParsedArtifactFile, ParsedBlock, ParsedVar
 │   ├── multi-index.types.ts          # IndexStep · IndexPlan · DestCandidate · CarryOver · BatchOutcome
+│   ├── info.types.ts                 # InfoModel — what a View Info popup shows (artifact-agnostic)
 │   └── artifact.types.ts · artifact-form.types.ts (CaptureResult · CaptureFn) · varset.types.ts · webview-messages.types.ts
 ├── utils/
 │   ├── helpers.ts                    # getNonce() — CSPRNG-backed
@@ -152,7 +162,7 @@ src/
 │   └── path-containment.ts           # THE containment rule — isPathWithin(root, candidate)
 ├── features/ · providers/            # (empty) reserved
 media/md-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
-test/                                 # 1362 tests. fixtures/ + snapshots/
+test/                                 # 1507 tests. fixtures/ + snapshots/
 ├── snapshots/varset/*.md             # Byte-exact var-set emission goldens — NEVER edit
 ├── snapshots/form-html/*.html        # Form-panel HTML snapshots
 └── drift guards: language-consistency · frontmatter-keys · constants · webview-snippets ·
@@ -223,6 +233,12 @@ regression this list exists to prevent; each is held by a named guard test.
 | i18n asset packaging | `.vscodeignore` (no exclusion of `package.nls*` / `l10n/`) + `package.json`'s `"l10n": "./l10n"` | `test/packaging-assets.test.ts` — content-scanned, not column-0 anchored |
 | nls / l10n key naming | the English source string **is** the key — no key ids | `test/l10n-bundle.test.ts` |
 | Insert target (editor vs terminal) | `services/preview-target.service.ts` | `test/preview-target.service.test.ts` |
+| Variables file shape (blank / flat / sets) — which `+` a pane row shows, whether a sub-set level exists | `varset.service.ts` — `getVarsFileShape`; flat→sets naming in `variables-crud.service.ts` — `addSubSet` + `uniqueDefaultName` | `test/variables-file-shapes.test.ts` · `package-variables-menus.test.ts` (one inline `+` per row) |
+| Variables-pane actions per row (inline icons + right-click categories view · create · edit · apply · delete) | `types/constants.ts` — `VARIABLES_ROW_ACTIONS`, `VARIABLES_MENU_CATEGORIES`, `VARIABLES_INLINE_WHEN` | `package-variables-menus.test.ts` — rebuilds `package.json`'s Variables menus from the table and requires an exact match |
+| ↑/↓ reorder control (any editor list) | `ui/panels/shared/reorderControls.ts` — `buildReorderButtons`, `REORDER_CLIENT_JS` | `reorder-controls.test.ts` — no other `src/` file may spell the buttons; each bundle carries the script once |
+| Editable tags field (any editor) | `ui/panels/shared/tagsField.ts` — `buildTagsField`, `TAGS_FIELD_CLIENT_JS` | covered via both forms' tests |
+| View Info popup (any artifact) | `types/info.types.ts` — `InfoModel`; `ui/panels/infoPanel/` — `openInfoPanel`, `renderInfoHtml` | `variables-info.test.ts` — escaping, no-script CSP |
+| `VK-` prefix on variable names (fixed, not typed) | form: `varsetForm.render.ts` — `renderVarNameCell` + client `vkName`; pane: `commands/var-name-prompt.helpers.ts` — `withVkPrefix` (twins — the webview cannot import) | `varset-form-subset-controls.test.ts` · `variables-command.test.ts` |
 
 **Context menus are driven by `constants.ts`, always.** An artifact's
 `contexts` field is the single source for *where* its command shows (editor /
@@ -948,6 +964,131 @@ parts unit-tested in `test/varset-*.test.ts`) · `panels/varsetPicker.panel.ts`
 `types/varset.types.ts`.
 
 Messages are in the single protocol table above.
+
+---
+
+## Variables UI — the pane and the editor
+
+Two surfaces edit the same `Variables/*.md` files: the **Variables pane** (a
+tree in the activity bar) and the **Variable Set editor** (`varsetForm/`, a
+webview form opened by the pencil icon / "Edit Variable Set"). Both write
+through `serializeArtifact`; neither has its own emitter.
+
+### File shapes — everything derives from these
+
+`getVarsFileShape(parsed)` (`varset.service.ts`) is the one classifier:
+
+| Shape | On disk | Pane shows | Row `contextValue` |
+|---|---|---|---|
+| `blank` | frontmatter only | the file row, no children | `fileBlank` |
+| `flat` | one **untitled** ` ```vks ` fence | file → variables (no sub-set level) | `fileFlat` |
+| `sets` | one or more `## Title` + fence — **even one** | file → sub-sets → variables | `fileSets` |
+
+Read from structure, never from a count: a single *titled* sub-set is `sets`.
+A flat file with zero variables writes no fence, so it reads back as `blank` —
+deliberately the same thing.
+
+**Moving between shapes** (one rule each, shared by pane and editor):
+- blank → flat: first variable goes into an untitled block (`handleAddVar` gives
+  a blank model one).
+- blank → sets / flat → sets: `addSubSet` (`variables-crud.service.ts`) is
+  **the** place a flat file gains sub-sets — it names the untitled block
+  `uniqueDefaultName` (`"Default"`, `"Default 2"`, …; English, written to disk).
+  The editor pre-fills the same name when Add sub-set reveals the field.
+- sets → flat: editor only — delete down to one sub-set and clear its name.
+- sets → blank: delete every sub-set (pane or editor); the file stays, header only.
+
+### The pane
+
+- **Rows by position.** Commands address a sub-set by the clicked row's
+  **index** (`SubSetRef = string | number` in the mutators), never by heading:
+  an untitled block has no heading and hand-written files may repeat one.
+  `toFormModel` and `extractSubSets(parsed, { includeEmpty: true })` are
+  block-for-block aligned so a row index is a model index. Empty sub-sets are
+  shown (a just-created one must appear); the Apply picker still filters them.
+- **One inline `+` per row**, chosen by shape: blank → **Add…** (quick-pick:
+  Variable or Sub-set), flat → Add variable, sets → Add sub-set, sub-set row →
+  Add variable.
+- **Right-click is categorised** into separated sections, in this order:
+  **View** (View Info) · **Create** · **Edit** · **Apply** · **Delete**. What each
+  row offers lives in `VARIABLES_ROW_ACTIONS` (`types/constants.ts`) — the
+  table, not `package.json`, is the source; regenerate the menus from it and
+  `package-variables-menus.test.ts` holds the two equal. To change a menu, edit
+  the table, then mirror it.
+- **Shown compactly, searchable.** File rows show tags (`#tag`) beside the name
+  and description + tags on hover; sub-set rows show their description. Search
+  matches titles, names, values, descriptions and tags.
+- **Edit from the pane:** Edit Description… (set or sub-set — a multi-line one is
+  refused and pointed at the editor, never flattened), Edit Tags… (commas or
+  spaces, leading `#` ok), Rename, Edit Value. Name prompts ask only for the
+  part after `VK-`.
+- **View Info** opens the shared info popup (see building blocks below).
+
+### The editor (Variable Set form)
+
+- Per sub-set: name (✎ swaps the `<h3>` for an input), description textarea,
+  ↑/↓, 🗑 (codicons `edit`/`trash`, matching the pane). Every sub-set can be
+  deleted, the last included. Per variable row: fixed `VK-` label + the rest of
+  the name, value, ↑/↓, 🗑.
+- **Everything is staged in the DOM until Save**; Cancel discards. The client
+  posts `pairs`, `headings` and `descriptions` grouped per `.subset-group` in
+  **document order** — so a move on screen *is* the reorder in the file.
+  Posted headings/descriptions are authoritative (after a delete the original
+  file is no longer index-aligned); only a payload without them falls back to
+  the opened file by index.
+- Validation on Save: names `validateSubSetHeadings` (unique, non-empty with 2+,
+  no newline/backtick), descriptions `validateSubSetDescriptions` (no line
+  starting with ```` ``` ```` or `## `; inline code is fine), pairs `validateVarPairs`.
+
+### What a save must preserve (each one was a real data-loss bug here)
+
+Frontmatter `description`, `tags`, `env`; each sub-set's description; an
+untitled block staying untitled (the set title used to leak in as `## Title`).
+Opening `test/fixtures/vars-edit/with-descriptions.md` in the editor and
+saving unchanged must reproduce it **byte for byte** (`variables-metadata.test.ts`).
+
+**Known gap:** a hand-written file with an untitled fence *before* its `## `
+sub-sets loses that fence's variables on save. The parser cannot tell such a
+file from a normal multi-block one (`parsed.vars` holds the *first* fence's
+vars either way); fixing it needs `parser.service.ts` to report a leading
+untitled fence.
+
+---
+
+## Reusable UI building blocks (DRY)
+
+Webview scripts cannot `import`, so a shared UI piece is **two halves in one
+file**: a server-side markup builder and one exported client-script **string**,
+interpolated once per bundle (the `WEBVIEW_ESC_LBL_JS` pattern). Never paste a
+copy into a second script; extend the shared file.
+
+| Piece | Server half | Client half | Users today |
+|---|---|---|---|
+| Tags field | `buildTagsField(tags, labelClass)` | `TAGS_FIELD_CLIENT_JS` (expects `let tags` + `markDirty`) | artifact form, var-set form |
+| ↑/↓ reorder | `buildReorderButtons(itemClass, index, total, attrs)` | `REORDER_CLIENT_JS` — `reorderWire(container, onMoved)`, `reorderRefreshAll(root)`, `reorderButtonsHtml(item, attrs)` for script-built rows | artifact form block cards; var-set sub-sets and rows |
+| View Info popup | build an `InfoModel` (`types/info.types.ts`) | none — static page, CSP forbids script | Variables pane (`variables-info.command.ts`) |
+
+**Reorder rules:** an item is any element with a class; its buttons carry
+`data-reorder="<class>"`, so nested lists (rows inside sub-sets) never move the
+wrong thing. Moves stay among same-class siblings. The control only moves DOM —
+the form must collect values in document order (both do).
+
+**Adding View Info to another artifact** (e.g. snippets): write one adapter
+`build<Type>Info(…) → InfoModel` (labels via `vscode.l10n.t` there — types stay
+`vscode`-free) and call `openInfoPanel(extensionUri, model)`. No new panel,
+renderer, stylesheet or message protocol.
+
+**Adding per-row actions to another tree:** follow `VARIABLES_ROW_ACTIONS` —
+a table in `types/constants.ts` keyed by `contextValue`, categories as menu
+groups `<n>_<category>@<i>`, `package.json` as a generated mirror, and a guard
+test that rebuilds the mirror from the table. Same idea as `ARTIFACTS` →
+insert menus.
+
+**Other shared pieces worth knowing:** `base.css`'s `button[hidden]` rule (a
+bare `button { display }` otherwise beats the UA's `[hidden]`), `confirmModal`,
+`escHtml` / `jsStr`, and the test harness (`test/webview-dom-harness.ts`, which
+now supports `insertBefore`, `removeAttribute`, `hasAttribute` and textarea
+values) for clicking real client scripts in tests.
 
 ---
 

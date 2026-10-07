@@ -145,18 +145,21 @@ export interface VarsEditPayload {
     tags: string[];
     /** File-level `env:` frontmatter, carried verbatim so a Save cannot drop it. */
     env?: string;
-    /** One entry per sub-set, in rendered order; `heading` is `''` when the source had none. */
-    subSets: { heading: string; pairs: [string, string][] }[];
+    /**
+     * One entry per sub-set, in rendered order; `heading` is `''` when the
+     * source had none. `description` is the prose between a `## ` heading and
+     * its fence — carried so a Save cannot drop it (absent ≡ `''`).
+     */
+    subSets: { heading: string; description?: string; pairs: [string, string][] }[];
 }
 
 /**
  * What the edit-mode webview actually posts back — **not** {@link VarsEditPayload}.
  *
- * Headings stay out of the round trip by design: they render as `<h3>` siblings
- * *outside* each `.vars-table`, so the client script recovers pairs but never
- * headings, and a heading therefore can never be rewritten by the webview. `env`
- * is absent for the same reason — it is never rendered. The panel re-attaches
- * both from the payload it was opened with.
+ * Headings ride the wire (one per sub-set) because the form can rename and
+ * delete sub-sets — only the webview knows which name now belongs to which
+ * rows. `env` is absent: it is never rendered, so the panel re-attaches it
+ * from the payload it was opened with.
  *
  * `pairs` is grouped one entry per rendered sub-set, index-aligned to
  * `VarsEditPayload.subSets`. Edit mode **always** posts this grouped shape, even
@@ -180,9 +183,15 @@ export interface VarsEditWirePayload {
     /** Rows grouped per sub-set, index-aligned to the rendered `.vars-table` order. */
     pairs: [string, string][][];
     /**
-     * Typed headings, index-aligned to `pairs`; `''` where the sub-set keeps the
-     * heading the file already has. Only a new sub-set, or the lone sub-set of a
-     * heading-less file, carries one — an existing heading is never overwritten.
+     * Every sub-set's current heading, index-aligned to `pairs` — `''` for an
+     * unnamed one. Authoritative when present; absent only from older clients,
+     * in which case the panel keeps the file's headings by index.
      */
     headings?: string[];
+    /**
+     * Every sub-set's description, index-aligned to `pairs`. Authoritative when
+     * present; absent only from older clients, in which case the panel keeps
+     * the file's descriptions by index.
+     */
+    descriptions?: string[];
 }

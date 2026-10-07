@@ -31,6 +31,14 @@ button:hover {
   background-color: var(--vscode-button-hoverBackground);
 }
 
+/* The bare `button { display: inline-flex }` above beats the UA's
+   `[hidden] { display: none }`, so a `hidden` button stayed on screen.
+   0-1-1 wins over the 0-0-1 rule; id-level rules elsewhere keep their own
+   `[hidden]` overrides (picker.css, code-block.css, main-pane.css). */
+button[hidden] {
+  display: none;
+}
+
 /* Expand-to-editor button.
    Lives here, not in `form.css`, because both the create/edit form and the
    preview pane render this control and only `base.css` is loaded by both —

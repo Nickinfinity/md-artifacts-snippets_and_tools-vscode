@@ -302,9 +302,9 @@ suite('variables-crud.service', () => {
             assert.strictEqual(result.blocks[0].heading, 'a');
         });
 
-        test('rejects deleting the last remaining sub-set', () => {
-            const model = mkModel([mkBlock('only', [])]);
-            assert.throws(() => deleteSubSet(model, 'only'));
+        test('deletes the last remaining sub-set, leaving none', () => {
+            const model = mkModel([mkBlock('only', [['VK-x', '1']])]);
+            assert.deepStrictEqual(deleteSubSet(model, 'only').blocks, []);
         });
 
         test('throws when the heading is not found', () => {
@@ -321,10 +321,10 @@ suite('variables-crud.service', () => {
             assert.strictEqual(model.blocks, originalBlocksArray);
         });
 
-        test('rejection path (last sub-set) leaves the model untouched', () => {
+        test('rejection path (unknown heading) leaves the model untouched', () => {
             const model = mkModel([mkBlock('only', [['VK-x', '1']])]);
             const before = snapshot(model);
-            assert.throws(() => deleteSubSet(model, 'only'));
+            assert.throws(() => deleteSubSet(model, 'missing'));
             assert.deepStrictEqual(model, before);
         });
     });

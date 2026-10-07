@@ -10,6 +10,9 @@ import { MainViewProvider, setMainViewProvider } from './ui/views/mainView.provi
 import { VariablesViewProvider } from './ui/views/variablesView.provider.js';
 import { registerVariablesCommands } from './commands/variables.command.js';
 import { registerVariablesSearchCommands } from './commands/variables-search.command.js';
+import { registerAddToBlankCommand } from './commands/variables-add-blank.command.js';
+import { registerVariablesMetaCommands } from './commands/variables-meta.command.js';
+import { registerVariablesInfoCommand } from './commands/variables-info.command.js';
 import { handleApplyToPreview, handleApplyToEditor, handleSaveCurrentValues, liveApplyDeps } from './commands/variables-apply.command.js';
 import { onPreviewTargetChanged } from './services/preview-target.service.js';
 import { APPLY_TO_PREVIEW_COMMAND_ID, APPLY_TO_EDITOR_COMMAND_ID, SAVE_CURRENT_VALUES_COMMAND_ID } from './commands/variables.command.helpers.js';
@@ -77,6 +80,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// refresh callback they fire always has a provider to reach.
 	registerVariablesCommands(context, variablesProvider);
 	registerVariablesSearchCommands(context, variablesProvider, variablesView);
+	registerAddToBlankCommand(context, variablesProvider);
+	registerVariablesMetaCommands(context, variablesProvider);
+	registerVariablesInfoCommand(context);
 
 	// The two Variables-pane commands that act on a live preview (W1/T1.3).
 	// Ids come from the `VARIABLE_COMMAND_SUFFIXES` derivation, never hand-typed

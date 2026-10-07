@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { getNonce } from '../../../utils/helpers.js';
 import { renderVarSetFormHtml, parseVarSetFormPayload, parseVarsEditPayload } from './varsetForm.render.js';
-import { validateVarPairs, validateSubSetHeadings } from '../../../services/varset-form.service.js';
+import { validateVarPairs, validateSubSetHeadings, validateSubSetDescriptions } from '../../../services/varset-form.service.js';
 import type { VarSetFormPayload, VarsEditPayload } from '../../../types/varset.types.js';
 
 const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
@@ -106,12 +106,14 @@ export async function handleVarSetFormMessage(
  * names and values reach the ` ```vks ` fence verbatim and this payload is
  * webview text the user just typed — strictly more hostile than create's.
  *
- * Headings and `env` are re-attached from `base`, never read off the wire, so
- * the webview cannot rewrite either.
+ * Headings come off the wire when posted — the form can rename and delete
+ * sub-sets, so the webview's list is the only one aligned to its rows — and
+ * are checked by `validateSubSetHeadings` before any write. `env` is always
+ * re-attached from `base`; it is never rendered, so the webview cannot touch it.
  *
  * @param msg  - The raw `save` message from the webview.
  * @param cb   - Callback bag; `writeEdit` is guaranteed present by the open-time guard.
- * @param base - The payload the panel was opened with.
+ * @param base - The payload the panel was opened with (`env`, legacy headings).
  * @returns Resolves once the edit has been written or refused.
  *
  * @example
@@ -136,16 +138,27 @@ async function handleEditSave(
         }
     }
 
-    // `env` never rides the wire, and neither does an existing heading — both are
-    // re-attached from the payload the panel was opened with, index-aligned to the
-    // rendered sub-set order. A typed heading is used only where the base has none
-    // (an added sub-set, or a heading-less file's lone one), so the webview can
-    // name a sub-set but never rename one.
-    const headings = wire.pairs.map((_, i) =>
-        base.subSets[i]?.heading || (wire.headings?.[i] ?? '').trim());
+    // Posted headings are authoritative: after a delete the base is no longer
+    // index-aligned to the rows, so falling back to it per slot would hand one
+    // sub-set another's name. Only a payload with no headings at all (an older
+    // client) takes the base's, by index — nothing could have moved then.
+    const headings = wire.headings
+        ? wire.headings.map(h => h.trim())
+        : wire.pairs.map((_, i) => base.subSets[i]?.heading ?? '');
     const headingCheck = validateSubSetHeadings(headings);
     if (!headingCheck.ok) {
         cb.post({ command: 'saveFailed', reason: headingCheck.reason });
+        return;
+    }
+
+    // Same rule as headings: posted descriptions win; only an older client
+    // that posts none keeps the file's, by index.
+    const descriptions = wire.descriptions
+        ? wire.descriptions.map(d => d.trim())
+        : wire.pairs.map((_, i) => base.subSets[i]?.description ?? '');
+    const descriptionCheck = validateSubSetDescriptions(descriptions);
+    if (!descriptionCheck.ok) {
+        cb.post({ command: 'saveFailed', reason: descriptionCheck.reason });
         return;
     }
 
@@ -154,7 +167,7 @@ async function handleEditSave(
         description: wire.description,
         tags:        wire.tags,
         env:         base.env,
-        subSets:     wire.pairs.map((pairs, i) => ({ heading: headings[i], pairs })),
+        subSets:     wire.pairs.map((pairs, i) => ({ heading: headings[i], description: descriptions[i], pairs })),
     };
 
     await cb.writeEdit?.(payload);
@@ -235,7 +248,9 @@ export function openVarSetFormPanel(
         },
     );
 
-    const cssUris = ['base.css', 'form.css'].map(f =>
+    // codicon.css is vendored in src/ui (see CLAUDE.md "One runtime dependency").
+    const sheets = opts.mode === 'edit' ? ['base.css', 'codicon.css', 'form.css'] : ['base.css', 'form.css'];
+    const cssUris = sheets.map(f =>
         panel.webview.asWebviewUri(vscode.Uri.joinPath(uiRoot, f)).toString());
 
     const payload: VarSetFormPayload | VarsEditPayload = opts.mode === 'edit' && opts.payload

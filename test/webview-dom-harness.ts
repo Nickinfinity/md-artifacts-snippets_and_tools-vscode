@@ -129,6 +129,19 @@ export class ElementStub {
 
     getAttribute(name: string): string | null { return name in this.attrs ? this.attrs[name] : null; }
     setAttribute(name: string, value: string): void { this.attrs[name] = value; }
+    removeAttribute(name: string): void { delete this.attrs[name]; }
+    hasAttribute(name: string): boolean { return name in this.attrs; }
+    /** Real-DOM-matching: moves `node` (detaching it first) to just before `ref`, or to the end. */
+    insertBefore(node: ElementStub, ref: ElementStub | null): ElementStub {
+        if (node.parentElement) {
+            const from = node.parentElement.children;
+            from.splice(from.indexOf(node), 1);
+        }
+        const at = ref ? this.children.indexOf(ref) : -1;
+        if (at === -1) { this.children.push(node); } else { this.children.splice(at, 0, node); }
+        node.parentElement = this;
+        return node;
+    }
 
     get classList(): { contains(c: string): boolean; add(c: string): void; remove(c: string): void } {
         const self = this;
@@ -213,7 +226,10 @@ function parseAttrs(raw: string): Record<string, string> {
 /** Appends a text run to the currently-open element's own text, if any is open. */
 function appendText(stack: ElementStub[], text: string): void {
     if (!text || stack.length === 0) { return; }
-    stack.at(-1)!.ownText += text;
+    const el = stack.at(-1)!;
+    el.ownText += text;
+    // Real DOM: a <textarea>'s initial value is its text content.
+    if (el.tagName === 'textarea') { el.value += text; }
 }
 
 /** Pops `stack` when a closing tag matches the currently-open element. */
