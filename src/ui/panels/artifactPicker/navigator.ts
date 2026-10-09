@@ -11,11 +11,12 @@ import { getMainViewProvider, type MainViewProvider } from '../../views/mainView
 import { ensureView } from '../../views/mainView.preview.js';
 import type { InvocationSurface } from './preview.helpers.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
-import { forcesSingleBlock } from '../../../services/artifact-type-config.service.js';
+import { forcesSingleBlock, opensForEdit } from '../../../services/artifact-type-config.service.js';
 import { isIndexArtifact } from '../../../services/multi-index.service.js';
 import { resolveDestination } from '../../../services/template-destination.service.js';
 import { MultiIndexRunner } from './multiIndex.js';
 import { chooseStepDestination } from './multiIndex.dest.js';
+import { openVarsEditForm } from '../../../commands/open-vars-edit.helpers.js';
 
 /**
  * Opens a QuickPick navigator for the given vault artifact directory.
@@ -74,7 +75,7 @@ export async function openArtifactPicker(
     const vaultRoot = getVaultRootUri();
 
     if (!vaultRoot) {
-        vscode.window.showErrorMessage('Obsidian Artifacts: No vault configured. Open Settings to select your vault.');
+        vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: No vault configured. Open Settings to select your vault.'));
         return;
     }
 
@@ -84,7 +85,7 @@ export async function openArtifactPicker(
         const stat = await vscode.workspace.fs.stat(rootUri);
         if ((stat.type & vscode.FileType.Directory) === 0) { throw new Error('not a directory'); }
     } catch {
-        vscode.window.showErrorMessage(`Obsidian Artifacts: Directory "${artifactDir}" not found in your vault.`);
+        vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Directory "{0}" not found in your vault.', artifactDir));
         return;
     }
 
@@ -129,7 +130,7 @@ class ArtifactNavigator {
         this.extensionUri = extensionUri;
 
         this.qp = vscode.window.createQuickPick<ArtifactItem>();
-        this.qp.placeholder        = 'Type to filter — Enter to select and edit variables';
+        this.qp.placeholder        = vscode.l10n.t('Type to filter — Enter to select and edit variables');
         this.qp.ignoreFocusOut     = true;
         this.qp.matchOnDescription = true;
         this.qp.matchOnDetail      = true;
@@ -196,7 +197,7 @@ class ArtifactNavigator {
         const items: ArtifactItem[] = [];
 
         if (this.dirStack.length > 0) {
-            items.push({ label: '$(arrow-left)  ..', description: 'Go back', isBack: true });
+            items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true });
         }
 
         try {
@@ -243,7 +244,7 @@ class ArtifactNavigator {
         this.qp.title = artifact.frontmatter.title || artifact.fileName;
 
         const items: ArtifactItem[] = [];
-        items.push({ label: '$(arrow-left)  ..', description: 'Go back', isBack: true });
+        items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true });
 
         for (const block of artifact.blocks) {
             const firstSentence = block.description
@@ -303,6 +304,14 @@ class ArtifactNavigator {
         const key = item.uri.toString();
         if (key === this.lastPreviewedUri) { return; }
         this.lastPreviewedUri = key;
+
+        if (opensForEdit(artifact.frontmatter.artifactType)) {
+            // Hover fires on every keypress (120ms debounce); opening the edit
+            // form here would spawn a tab per arrow key. An opensForEdit type
+            // can no longer be inserted, so there is nothing to preview.
+            this.preview.showEmpty();
+            return;
+        }
 
         if (this.isMultiBlockNav(artifact)) {
             this.preview.showMultiBlockPreview(artifact);
@@ -391,11 +400,16 @@ class ArtifactNavigator {
 
         const artifact = await this.getOrParse(item.uri);
         if (!artifact) {
-            vscode.window.showErrorMessage('Obsidian Artifacts: Could not read file.');
+            vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Could not read file.'));
             return;
         }
 
         if (isIndexArtifact(artifact.frontmatter)) { await this.runIndex(artifact); return; }
+
+        if (opensForEdit(artifact.frontmatter.artifactType)) {
+            this.openEditForm(artifact);
+            return;
+        }
 
         if (this.isMultiBlockNav(artifact)) {
             this.loadBlocks(artifact);
@@ -406,17 +420,37 @@ class ArtifactNavigator {
     }
 
     /**
+     * Routes an `opensForEdit` type (`Variables`) to the var-set edit form
+     * instead of the insert preview (T7.3).
+     *
+     * Guards the vault root before opening — mirrors `varSetController.ts`'s
+     * `handleSaveAsVarSet` guard verbatim. A throw inside `writeEdit` would
+     * surface as an unhandled rejection in the webview message loop, not as
+     * an error the user sees, so the root is checked up front instead.
+     *
+     * @param artifact - The parsed `artifactType: Variables` file to edit.
+     * @returns void
+     *
+     * @example
+     * this.openEditForm(parsedVariablesFile);
+     */
+    private openEditForm(artifact: ParsedArtifactFile): void {
+        this.qp.hide();
+        void openVarsEditForm(artifact, this.extensionUri);
+    }
+
+    /**
      * Runs a template index (F7): resolves the destination (D2), hides the QuickPick before the run starts (F6), hands off to `MultiIndexRunner`.
      * @param artifact - Parsed index file.
      * @returns Resolves once the run (or an early guard) finishes.
      * @example await this.runIndex(indexArtifact);
      */
     private async runIndex(artifact: ParsedArtifactFile): Promise<void> {
-        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage('Obsidian Artifacts: Open a workspace folder to run a template index.'); return; }
+        if (!vscode.workspace.workspaceFolders?.length) { vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Open a workspace folder to run a template index.')); return; }
         const destDir = await resolveDestination(this.destUri);
         if (!destDir) { return; }
         const workspaceRoot = vscode.workspace.getWorkspaceFolder(destDir)?.uri;
-        if (!workspaceRoot) { vscode.window.showErrorMessage('Obsidian Artifacts: Destination is not inside an open workspace folder.'); return; }
+        if (!workspaceRoot) { vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Destination is not inside an open workspace folder.')); return; }
         this.keepPopupOnHide = true; this.qp.hide();
         const clickedRelPath = destDir.fsPath === workspaceRoot.fsPath ? '' : path.relative(workspaceRoot.fsPath, destDir.fsPath).replaceAll(path.sep, '/');
         const runner = new MultiIndexRunner({

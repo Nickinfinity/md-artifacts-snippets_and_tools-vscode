@@ -148,10 +148,11 @@ export function reorderBlocks(blocks: ArtifactFormBlock[], fromIdx: number, toId
  * if (await confirmDeleteFile(uri)) { await deleteArtifactFile(uri); }
  */
 export async function confirmDeleteFile(uri: vscode.Uri): Promise<boolean> {
+    const DELETE_ACTION = vscode.l10n.t('Delete');
     return confirmModal({
-        message: `Delete "${path.basename(uri.fsPath)}"?`,
-        detail:  'The file is moved to the trash and can be restored from there.',
-        action:  'Delete',
+        message: vscode.l10n.t('Delete "{0}"?', path.basename(uri.fsPath)),
+        detail:  vscode.l10n.t('The file is moved to the trash and can be restored from there.'),
+        action:  DELETE_ACTION,
     });
 }
 
@@ -165,10 +166,11 @@ export async function confirmDeleteFile(uri: vscode.Uri): Promise<boolean> {
  * if (await confirmDiscardDraft('snippet')) { panel.dispose(); }
  */
 export async function confirmDiscardDraft(singular: string): Promise<boolean> {
+    const DISCARD_ACTION = vscode.l10n.t('Discard');
     return confirmModal({
-        message: `Discard this ${singular}?`,
-        detail:  'It has not been saved, so nothing is written to the vault.',
-        action:  'Discard',
+        message: vscode.l10n.t('Discard this {0}?', singular),
+        detail:  vscode.l10n.t('It has not been saved, so nothing is written to the vault.'),
+        action:  DISCARD_ACTION,
     });
 }
 
@@ -190,7 +192,7 @@ export async function deleteArtifactFile(uri: vscode.Uri): Promise<boolean> {
         await vscode.workspace.fs.delete(uri, { useTrash: true });
         return true;
     } catch (err) {
-        vscode.window.showErrorMessage(`Could not delete artifact: ${(err as Error).message}`);
+        vscode.window.showErrorMessage(vscode.l10n.t('Could not delete artifact: {0}', (err as Error).message));
         return false;
     }
 }

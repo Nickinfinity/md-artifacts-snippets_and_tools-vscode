@@ -18,7 +18,7 @@
      custom property `buildCodeBlockHtml` sets — the fallback here only applies
      if that property is ever missing. `min-height` beats `max-height` in CSS,
      so this wins on a small artifact and the max still caps a long one. */
-  min-height: calc(var(--oa-code-min-lines, 8) * 1.5em);
+  min-height: calc(var(--mda-code-min-lines, 8) * 1.5em);
   border: 1px solid var(--vscode-panel-border);
   padding: 6px 0;
   outline: none;
@@ -72,6 +72,29 @@
   display: flex;
   justify-content: flex-end;
   margin-bottom: 4px;
+}
+
+/*
+ * The rule Overwrite's `hidden` attribute depends on.
+ *
+ * `#overwriteBtn` is rendered with a bare `hidden` attribute and toggled by
+ * `markStaged`/`clearStaged`, but the attribute alone never hid it:
+ * `base.css:15`'s bare `button { display: inline-flex }` is an **author** rule
+ * and beats the UA's `[hidden] { display: none }` regardless of specificity.
+ * So the button was visible the moment a preview opened, before any edit, and
+ * no amount of JS-side correctness could suppress it — the attribute was being
+ * set properly all along.
+ *
+ * `#overwriteBtn[hidden]` is 1-1-0 and wins outright. Same mechanism, and the
+ * same fix, as `main-pane.css`'s `.create-row[hidden]` and
+ * `#idleFilterClear[hidden]`. Guard: `preview-buttons.test.ts` —
+ * "code-block.css hides #overwriteBtn when the hidden attribute is set".
+ *
+ * `.dirty-notice` below needs no counterpart: it is a `<div>`, so nothing
+ * overrides the UA rule for it.
+ */
+#overwriteBtn[hidden] {
+  display: none;
 }
 
 /* Unsaved-edit notice. Uses the editor's own warning/notification tokens so it

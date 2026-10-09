@@ -45,6 +45,35 @@ function renderedHtml(): string {
     );
 }
 
+/** The rendered preview document for a minimal single-block artifact carrying one `<VK-xxx>` var. */
+function renderedHtmlWithVars(): string {
+    const md = [
+        '---',
+        'artifactType: Snippet',
+        'title: Demo',
+        'language: typescript',
+        '---',
+        '',
+        '```typescript',
+        'const host = "<VK-host>";',
+        '```',
+        '',
+        'vars:',
+        'VK-host=localhost',
+        '',
+    ].join('\n');
+    const parsed = parseFromContent(md, '/v/Snippets/demo.md', '/v');
+    assert.ok(parsed, 'fixture failed to parse');
+    return renderPreviewHtml(
+        parsed,
+        renderCodeRowsHtml(parsed.code, 'typescript'),
+        'test-nonce',
+        'https://css',
+        'https://csp',
+        {},
+    );
+}
+
 
 suite('preview client script ↔ rendered buttons', () => {
 
@@ -89,7 +118,7 @@ suite('preview client script ↔ rendered buttons', () => {
         // as a custom property. If the sheet ever hard-codes a line count again,
         // the constant becomes decorative and changing it silently does nothing.
         assert.ok(
-            renderedHtml().includes(`--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}`),
+            renderedHtml().includes(`--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}`),
             'the rendered code area does not set the custom property from the constant',
         );
         const sheet = fs.readFileSync(
@@ -97,7 +126,7 @@ suite('preview client script ↔ rendered buttons', () => {
             'utf8',
         );
         assert.ok(
-            sheet.includes('var(--oa-code-min-lines'),
+            sheet.includes('var(--mda-code-min-lines'),
             'code-block.css does not read the custom property',
         );
         assert.strictEqual(
@@ -105,6 +134,52 @@ suite('preview client script ↔ rendered buttons', () => {
             null,
             'code-block.css hard-codes a line count instead of reading the property',
         );
+    });
+
+    /**
+     * `#overwriteBtn` ships with a `hidden` attribute, but that attribute alone
+     * does NOT hide it: `base.css:15`'s bare `button { display: inline-flex }`
+     * is an **author** rule and beats the UA's `[hidden] { display: none }`
+     * regardless of specificity. Without an explicit override the button is
+     * visible the moment a preview opens, before any edit — which is exactly
+     * what was reported, and why every JS-side fix to `markStaged` changed
+     * nothing: the attribute was always being set correctly.
+     *
+     * Same mechanism `main-pane.css`'s `.create-row[hidden]` and
+     * `#idleFilterClear[hidden]` rules exist for. `.dirty-notice` needs no such
+     * rule — it is a `<div>`, so the UA rule applies to it untouched.
+     */
+    test('code-block.css hides #overwriteBtn when the hidden attribute is set', () => {
+        const sheet = fs.readFileSync(
+            path.join(__dirname, '..', '..', 'src', 'ui', 'code-block.css'),
+            'utf8',
+        );
+        const rule = /#overwriteBtn\[hidden\]\s*\{([^}]*)\}/.exec(sheet);
+        assert.ok(
+            rule,
+            'no #overwriteBtn[hidden] rule — base.css\'s bare button{display:inline-flex} '
+            + 'beats the UA [hidden] rule, so Overwrite is visible before any edit',
+        );
+        assert.ok(
+            /display:\s*none/.exec(rule![1]),
+            '#overwriteBtn[hidden] exists but does not set display:none',
+        );
+    });
+});
+
+suite('preview markup no longer carries the var-set buttons (T1.1)', () => {
+
+    test('the Apply and Save-as var-set buttons are gone from the preview', () => {
+        const html = renderedHtmlWithVars();
+        assert.ok(!html.includes('applyVarSetBtn'), 'the Apply button is still in the preview markup');
+        assert.ok(!html.includes('saveAsVarSetBtn'), 'the Save-as button is still in the preview markup');
+    });
+
+    test('the variable inputs and resize handle survive the button removal', () => {
+        const html = renderedHtmlWithVars();
+        assert.ok(html.includes('id="varInputs"'), 'the variable inputs must stay - insert reads them');
+        assert.ok(html.includes('id="varsResizeHandle"'), 'the resize handle must stay (D-2)');
+        assert.ok(html.includes('data-var="VK-host"'), 'per-variable inputs must still render');
     });
 });
 

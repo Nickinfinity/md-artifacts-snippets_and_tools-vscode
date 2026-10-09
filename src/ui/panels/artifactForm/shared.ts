@@ -11,4 +11,4 @@ import * as vscode from 'vscode';
  * import { out } from './shared.js';
  * out.appendLine('[form] saving artifact');
  */
-export const out = vscode.window.createOutputChannel('Obsidian Artifacts: Form');
+export const out = vscode.window.createOutputChannel('MD Artifacts: Form');

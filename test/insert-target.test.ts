@@ -90,7 +90,7 @@ suite('needsTerminalConfirmation (T3 — terminal-send confirmation)', () => {
  */
 suite('registerInsertCommands — .terminal registration (T3)', () => {
     test('every both-context artifact has its .terminal command registered', async function () {
-        const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'obsidian-notes-and-snippets');
+        const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode');
         await ext?.activate();
 
         const registered   = await vscode.commands.getCommands(true);

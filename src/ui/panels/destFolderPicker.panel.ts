@@ -62,9 +62,17 @@ export function filterDirEntries(
 
 // ── QuickPick labels ──────────────────────────────────────────────────────────
 
-const LABEL_USE    = '$(check) Use this folder';
-const LABEL_NEW    = '$(new-folder) ＋ New folder here';
-const LABEL_BACK   = '$(arrow-left)  ..';
+// Builders, not module-scope consts: `vscode.l10n.t` must run after the
+// bundle is loaded, not at require time. Neither is read back by equality —
+// `item.isUse`/`item.isNew` flags carry the identity — so a builder loses
+// nothing a hoisted const had.
+function labelUse(): string {
+    return `$(check) ${vscode.l10n.t('Use this folder')}`;
+}
+function labelNew(): string {
+    return `$(new-folder) ＋ ${vscode.l10n.t('New folder here')}`;
+}
+const LABEL_BACK = '$(arrow-left)  ..';
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
@@ -123,15 +131,15 @@ class DestFolderNavigator {
     async run(): Promise<vscode.Uri | undefined> {
         return new Promise<vscode.Uri | undefined>(resolve => {
             const qp = vscode.window.createQuickPick<FolderItem>();
-            qp.placeholder    = 'Choose or create a destination folder';
+            qp.placeholder    = vscode.l10n.t('Choose or create a destination folder');
             qp.ignoreFocusOut = true;
 
             const render = async () => {
                 qp.busy = true;
-                qp.title = `Destination / ${buildBreadcrumb(this.rootUri, this.currentDir)}`;
+                qp.title = vscode.l10n.t('Destination / {0}', buildBreadcrumb(this.rootUri, this.currentDir));
                 const items: FolderItem[] = [
-                    { label: LABEL_USE, isUse: true },
-                    { label: LABEL_NEW, isNew: true },
+                    { label: labelUse(), isUse: true },
+                    { label: labelNew(), isNew: true },
                 ];
                 if (this.dirStack.length > 0) {
                     items.push({ label: LABEL_BACK, isBack: true });
@@ -161,7 +169,7 @@ class DestFolderNavigator {
 
                 if (item.isNew) {
                     const name = await vscode.window.showInputBox({
-                        prompt: 'New folder name',
+                        prompt: vscode.l10n.t('New folder name'),
                         ignoreFocusOut: true,
                         validateInput: (v) => {
                             const r = validateFolderName(v);

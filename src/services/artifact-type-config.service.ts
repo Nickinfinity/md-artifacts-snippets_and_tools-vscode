@@ -189,6 +189,33 @@ export function writesWholeFile(type: ArtifactType): boolean {
 }
 
 /**
+ * Answers whether a type can *only* ever insert into the terminal.
+ *
+ * The narrow question the preview renderer needs: may Insert be hidden when no
+ * editor tab is open? A `contexts: ['terminal']` row (only `Command` today)
+ * always routes to the terminal — `resolveInsertTarget`'s first rule — so
+ * gating its button on an editor would make it uninsertable.
+ *
+ * Deliberately *not* `resolveInsertTarget`: that resolver needs an
+ * `InvocationSurface` the renderer does not have, and a both-context type
+ * (`AIPrompt`) can still land in an editor, so it must stay gated. Reads
+ * `contexts` through `getEntry`, never a second `ARTIFACTS` traversal.
+ *
+ * @param type - Canonical `ArtifactType` literal.
+ * @returns `true` when `contexts` is exactly `['terminal']`; `false` otherwise.
+ * @throws When the type is unknown (via `getEntry`).
+ *
+ * @example
+ * isTerminalOnly('Command');  // → true
+ * isTerminalOnly('AIPrompt'); // → false — declares both, can land in an editor
+ * isTerminalOnly('Snippet');  // → false
+ */
+export function isTerminalOnly(type: ArtifactType): boolean {
+    const { contexts } = getEntry(type);
+    return contexts.length === 1 && contexts[0] === 'terminal';
+}
+
+/**
  * Names the `ArtifactFormModel` key that supplies a type's output filename,
  * or `undefined` for the types that do not write a whole file.
  *
@@ -211,6 +238,51 @@ export function writesWholeFile(type: ArtifactType): boolean {
  */
 export function getFilenameField(type: ArtifactType): 'target' | 'extension' | undefined {
     return getEntry(type).outputNameKey;
+}
+
+/**
+ * Reports whether picking this artifact type opens it in an **editable** view
+ * instead of the insert preview (D-11).
+ *
+ * `Variables` is the only such type today: its files are variable-set
+ * definitions the user edits, not payloads inserted at a cursor.
+ *
+ * **Derived from `ARTIFACTS.opensForEdit`, never a type-literal check** — the
+ * same rule `writesWholeFile` follows, for the same reason. A hardcoded
+ * `type === 'Variables'` is the enumeration that drifts the moment a second
+ * editable type appears.
+ *
+ * @param type - Canonical `ArtifactType` literal.
+ * @returns `true` when the type opens for edit; `false` when it inserts.
+ * @throws When the type is unknown (via `getEntry`).
+ *
+ * @example
+ * opensForEdit('Variables'); // → true
+ * opensForEdit('Snippet');   // → false
+ */
+export function opensForEdit(type: ArtifactType): boolean {
+    return getEntry(type).opensForEdit === true;
+}
+
+/**
+ * Returns the types that surface in the main pane's **Open** (browse) list —
+ * every type except those that open for edit.
+ *
+ * The counterpart to `getCreateFormTypes()` for the browse half of the pane,
+ * and the gate `resolveBrowseCommandId` checks: a row can never be clickable
+ * in that list without also being a valid browse target, because both derive
+ * from this one call.
+ *
+ * Built from `getAllTypes()` minus `opensForEdit`, so a new editable type is a
+ * `constants.ts` flag and nothing else — never a second list to maintain here.
+ *
+ * @returns Array of browsable `ArtifactType` literals, in `ARTIFACTS` order.
+ *
+ * @example
+ * getBrowseTypes(); // → ['Snippet', 'AIAgentsConfig', 'Command', 'Template', 'AIPrompt']
+ */
+export function getBrowseTypes(): ArtifactType[] {
+    return getAllTypes().filter(type => !opensForEdit(type));
 }
 
 /**

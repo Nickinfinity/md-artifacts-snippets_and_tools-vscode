@@ -10,6 +10,8 @@ import {
     getCreateFormTypes,
     writesWholeFile,
     forcesSingleBlock,
+    opensForEdit,
+    getBrowseTypes,
 } from '../src/services/artifact-type-config.service.js';
 import { ARTIFACTS } from '../src/types/constants.js';
 import type { ArtifactType } from '../src/types/parsed-artifact.types.js';
@@ -181,6 +183,65 @@ suite('artifact-type-config.service', () => {
             for (const entry of ARTIFACTS) {
                 assert.strictEqual(writesWholeFile(entry.type), entry.writesFile === true,
                     `writesWholeFile('${entry.type}') disagrees with its ARTIFACTS.writesFile flag`);
+            }
+        });
+    });
+
+    // ── opensForEdit / getBrowseTypes ────────────────────────────────────────
+
+    suite('opensForEdit and getBrowseTypes (D-11)', () => {
+        // One flag drives both halves of D-11: the main pane's Open list omits
+        // the type and the picker routes it to the pane's edit mode. If these
+        // two could disagree, the row list and the routing would drift apart —
+        // which is the whole reason the flag exists rather than two lists.
+
+        test('Variables opens for edit', () => {
+            assert.strictEqual(opensForEdit('Variables'), true);
+        });
+
+        test('insert types do not open for edit', () => {
+            assert.strictEqual(opensForEdit('Snippet'), false);
+            assert.strictEqual(opensForEdit('Command'), false);
+            assert.strictEqual(opensForEdit('Template'), false);
+        });
+
+        /**
+         * THE red proof for this hunk, and it has to be spelled concretely.
+         *
+         * `assert.deepStrictEqual(getBrowseTypes(), getAllTypes().filter(t => !opensForEdit(t)))`
+         * is **tautological** — both sides derive from the same flag, so it
+         * passes against any implementation, including one that returns
+         * everything when the flag is missing. And deleting `opensForEdit: true`
+         * from the `Variables` row makes the every-type loop below pass
+         * *trivially* (nothing flagged, nothing excluded, both sides agree).
+         *
+         * Only a concrete exclusion goes red on that deletion, so that is what
+         * these two assert.
+         */
+        test('getBrowseTypes excludes Variables, concretely', () => {
+            assert.ok(!getBrowseTypes().includes('Variables'),
+                'Variables is in the browse list — the Open list would offer it, against D-11');
+            assert.strictEqual(getBrowseTypes().length, getAllTypes().length - 1,
+                'exactly one type should be excluded from browse today');
+        });
+
+        /**
+         * Drift guard, mirroring `writesWholeFile`'s every-type loop: the answer
+         * must be **derived** from `ARTIFACTS.opensForEdit`, never a hardcoded
+         * `type === 'Variables'`. This is the second assertion, not the red —
+         * see the note above for why.
+         */
+        test('answers exactly what ARTIFACTS.opensForEdit declares, for every type', () => {
+            for (const entry of ARTIFACTS) {
+                assert.strictEqual(opensForEdit(entry.type), entry.opensForEdit === true,
+                    `opensForEdit('${entry.type}') disagrees with its ARTIFACTS.opensForEdit flag`);
+            }
+        });
+
+        test('every browse type is a real type, and none opens for edit', () => {
+            for (const type of getBrowseTypes()) {
+                assert.ok(getAllTypes().includes(type), `${type} is not a declared artifact type`);
+                assert.strictEqual(opensForEdit(type), false, `${type} opens for edit but is in the browse list`);
             }
         });
     });

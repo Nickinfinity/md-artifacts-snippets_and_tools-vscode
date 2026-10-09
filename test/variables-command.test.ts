@@ -15,11 +15,11 @@ import { parseFromContent, parseArtifactFile } from '../src/services/parser.serv
 import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import { addVar as crudAddVar, setVarValue as crudSetVarValue } from '../src/services/variables-crud.service.js';
 import { extractSubSets } from '../src/services/varset.service.js';
-import { VariablesViewProvider, type VariableNode } from '../src/ui/views/variablesView.provider.js';
+import { VariablesViewProvider, buildVariableNodes, type VariableNode } from '../src/ui/views/variablesView.provider.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 /**
- * T16 — the nine `obsidian-artifacts.variables.*` tree commands (VSX-219).
+ * T16 — the nine `md-artifacts.variables.*` tree commands (VSX-219).
  *
  * The module does NOT exist yet — every test here fails on import until
  * `src/commands/variables.command.ts` is implemented (the plan's own "Test
@@ -78,7 +78,7 @@ function varNode(filePath: string, subIdx: number, idx: number): VariableNode {
 }
 
 /** Canned `CommandIO` — queued `showInputBox` answers, a fixed confirm result, captured errors. */
-function makeIO(opts: { inputs?: (string | undefined)[]; confirmResult?: boolean } = {}): { io: CommandIO; errors: string[]; confirmCalls: string[] } {
+function makeIO(opts: { inputs?: (string | undefined)[]; confirmResult?: boolean; pick?: number } = {}): { io: CommandIO; errors: string[]; confirmCalls: string[] } {
     const inputs = [...(opts.inputs ?? [])];
     const errors: string[] = [];
     const confirmCalls: string[] = [];
@@ -86,6 +86,7 @@ function makeIO(opts: { inputs?: (string | undefined)[]; confirmResult?: boolean
         showInputBox: () => Promise.resolve(inputs.shift()),
         confirm: message => { confirmCalls.push(message); return Promise.resolve(opts.confirmResult ?? true); },
         showError: message => { errors.push(message); },
+        showQuickPick: (items) => Promise.resolve(opts.pick === undefined ? undefined : items[opts.pick]),
     };
     return { io, errors, confirmCalls };
 }
@@ -109,8 +110,12 @@ suite('buildVariableCommandIds (T16)', () => {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as {
             contributes: { commands: { command: string }[] };
         };
-        const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('obsidian-artifacts.variables.'));
-        assert.strictEqual(expected.length, 9, `expected 9 declared ids, found ${expected.length}`);
+        const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('md-artifacts.variables.'));
+        // Derivation-sourced, not a second hardcoded count: W1 (H1.1) took this
+        // from 9 to 11 and a literal here would have to be edited by every wave
+        // that adds a command — the `deepStrictEqual` below is what pins the set.
+        assert.strictEqual(expected.length, buildVariableCommandIds().length,
+            `manifest declares ${expected.length} variables.* ids, derivation yields ${buildVariableCommandIds().length}`);
         assert.deepStrictEqual([...buildVariableCommandIds()].sort(), [...expected].sort());
     });
 });
@@ -150,13 +155,16 @@ suite('toFormModel — deep-freeze contract (ledger #83/#85)', () => {
         assert.strictEqual(updated.blocks[1], model.blocks[1], 'Prod block must be shared by reference, not mutated');
     });
 
-    test('single-block: heading matches extractSubSets\' synthesis, and a frozen model survives a mutator call', () => {
+    test('one-block: the block stays untitled, a pane edit writes no heading, and a frozen model survives', () => {
         const md = renderVariablesFile(singleBlockModel());
         const parsed = parseFromContent(md, '/vault/Variables/dev.md', '/vault/Variables');
         const model = toFormModel(parsed);
-        const subSets = extractSubSets(parsed);
 
-        assert.strictEqual(model.blocks[0].heading, subSets[0]?.heading);
+        // The set's title used to be put here, and the serializer then wrote it
+        // as `## Local Dev` — every pane edit turned a one-block file into a sub-set.
+        assert.strictEqual(model.blocks[0].heading, '');
+        const written = renderVariablesFile(crudSetVarValue(model, 0, 'VK-host', 'x'));
+        assert.ok(!written.includes('## '), `one-block file gained a heading:\n${written}`);
 
         Object.freeze(model);
         Object.freeze(model.blocks);
@@ -214,6 +222,54 @@ suite('handleNewFile', () => {
 // ── handleNewSubSet ───────────────────────────────────────────────────────
 
 suite('handleNewSubSet', () => {
+    /** Records each prompt's options while answering from the queue. */
+    function recordPrompts(io: CommandIO): vscode.InputBoxOptions[] {
+        const seen: vscode.InputBoxOptions[] = [];
+        const show = io.showInputBox;
+        io.showInputBox = opts => { seen.push(opts); return show(opts); };
+        return seen;
+    }
+
+    test('a set with no variables pre-fills the name with the set title, and it is created and shown', async () => {
+        const vaultRoot = makeVault();
+        const filePath = path.join(vaultRoot.fsPath, 'Variables', 'empty.md');
+        fs.writeFileSync(filePath, '---\nartifactType: Variables\ntitle: Local Dev\n---\n', 'utf8');
+        const { io, errors } = makeIO({ inputs: ['Local Dev'] });
+        const seen = recordPrompts(io);
+
+        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
+
+        assert.strictEqual(seen[0]?.value, 'Local Dev');
+        assert.deepStrictEqual(errors, [], 'the title collided with a sub-set that does not exist');
+        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
+        assert.deepStrictEqual(parsed?.blocks.map(b => b.heading), ['Local Dev']);
+        // The pane shows it straight away, as a sub-set row — an empty sub-set is
+        // no longer filtered out, and a titled one is never folded into the file row.
+        const nodes = buildVariableNodes([parsed!]);
+        assert.strictEqual(nodes[0]?.shape, 'sets');
+        assert.deepStrictEqual(nodes.map(n => [n.kind, n.label]), [['file', 'Local Dev'], ['subset', 'Local Dev']]);
+    });
+
+    test('a set that already has variables starts with an empty name', async () => {
+        const vaultRoot = makeVault();
+        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
+        const { io } = makeIO({ inputs: [undefined] });
+        const seen = recordPrompts(io);
+        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
+        assert.strictEqual(seen[0]?.value, '');
+    });
+
+    test('a name already used by a sub-set is flagged while typing', async () => {
+        const vaultRoot = makeVault();
+        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
+        const { io } = makeIO({ inputs: [undefined] });
+        const seen = recordPrompts(io);
+        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
+        const check = seen[0]?.validateInput;
+        assert.ok(check?.('Dev'), 'duplicate name not flagged');
+        assert.strictEqual(check?.('Staging'), undefined);
+    });
+
     // Round-trip, not a byte check: an empty sub-set used to vanish on
     // re-parse (`serializeArtifact` omitted the `vks` fence for `vars: []`,
     // and `parseBlocks` requires a fence after every heading) — fixed at the
@@ -280,6 +336,21 @@ suite('handleAddVar', () => {
         const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
         assert.deepStrictEqual(parsed?.blocks[0]?.vars.map(v => v.name), ['VK-host', 'VK-region']);
         assert.strictEqual(refreshCount(), 1);
+    });
+
+    test('a name typed without VK- gets the prefix; the box starts empty', async () => {
+        const vaultRoot = makeVault();
+        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
+        const { io } = makeIO({ inputs: ['region', 'us-east'] });
+        const seen: (string | undefined)[] = [];
+        const show = io.showInputBox;
+        io.showInputBox = opts => { seen.push(opts.value); return show(opts); };
+
+        await handleAddVar(subsetNode(filePath, 0), new VariablesViewProvider(), io, vaultRoot);
+
+        assert.strictEqual(seen[0], '', 'name box should not pre-fill an editable VK-');
+        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
+        assert.deepStrictEqual(parsed?.blocks[0]?.vars.map(v => v.name), ['VK-host', 'VK-region']);
     });
 
     test('Cancel on the name prompt performs zero writes', async () => {
@@ -373,6 +444,21 @@ suite('handleRenameVar', () => {
         const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
         assert.deepStrictEqual(parsed?.blocks[0]?.vars[0], { name: 'VK-hostname', defaultValue: 'localhost' });
         assert.strictEqual(refreshCount(), 1);
+    });
+
+    test('the box holds the name without VK-, and a typed name gets it back', async () => {
+        const vaultRoot = makeVault();
+        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
+        const { io } = makeIO({ inputs: ['hostname'] });
+        const seen: (string | undefined)[] = [];
+        const show = io.showInputBox;
+        io.showInputBox = opts => { seen.push(opts.value); return show(opts); };
+
+        await handleRenameVar(varNode(filePath, 0, 0), new VariablesViewProvider(), io, vaultRoot);
+
+        assert.strictEqual(seen[0], 'host');
+        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
+        assert.strictEqual(parsed?.blocks[0]?.vars[0]?.name, 'VK-hostname');
     });
 
     test('an unchanged name is a no-op — zero writes', async () => {
@@ -563,19 +649,24 @@ suite('handleDeleteSubSet', () => {
         assert.strictEqual(refreshCount(), 1);
     });
 
-    test('refuses to delete a file\'s last remaining sub-set — zero writes', async () => {
+    test('deletes a file\'s last remaining sub-set — the file stays, with no variables', async () => {
         const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const before = readBytes(filePath);
+        // One TITLED sub-set: listed as a sub-set row, so Delete sub-set reaches it.
+        const filePath = writeFixture(vaultRoot, 'dev', {
+            ...singleBlockModel(), blocks: [{ ...singleBlockModel().blocks[0], heading: 'Dev' }],
+        });
         const provider = new VariablesViewProvider();
         const refreshCount = spyRefresh(provider);
         const { io, errors } = makeIO({ confirmResult: true });
 
         await handleDeleteSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
 
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.ok(errors.length > 0);
+        assert.deepStrictEqual(errors, []);
+        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
+        assert.strictEqual(parsed?.frontmatter.title, 'Local Dev', 'file or its frontmatter was lost');
+        assert.deepStrictEqual(parsed?.vars, []);
+        assert.deepStrictEqual(parsed?.blocks, []);
+        assert.strictEqual(refreshCount(), 1);
     });
 
     test('declining the confirmation (Cancel) performs zero writes', async () => {

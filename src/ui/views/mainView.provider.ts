@@ -15,14 +15,22 @@ import type { DisposableLike, UriLike, WebviewHostTarget } from '../panels/artif
 type MainViewMode = 'idle' | 'preview';
 
 /**
- * Stylesheets for `idle` mode — exactly what the create list needs.
+ * Stylesheets for `idle` mode — the pane's own set, and no more.
  *
  * Deliberately **not** merged with {@link PREVIEW_STYLE_FILES}: `picker.css`
  * styles `.btn`/`.actions`/`.input-row`, which the create rows also use, so
  * loading the preview set here would restyle a pane that already renders
- * correctly. Two modes, two sheet lists, no shared-superset compromise.
+ * correctly. Two modes, two sheet lists, no shared-superset compromise — that
+ * argument is about *which* sheets, not how many, and it still holds after W3
+ * added a third.
+ *
+ * `main-pane.css` (W3/T3.2) carries the filter input, the New/Open toggle and
+ * the `.create-row[hidden]` rule the filter depends on. **Until it appears in
+ * this array every rule in that sheet is dead** and no test can tell — its
+ * guard reads the file off disk as a string, so "styled" and "never loaded"
+ * look identical to the suite. This list is the only thing that loads it.
  */
-const IDLE_STYLE_FILES = ['base.css', 'codicon.css'];
+const IDLE_STYLE_FILES = ['base.css', 'codicon.css', 'main-pane.css'];
 
 /**
  * Stylesheets for `preview` mode — the popup's five, plus the narrow-pane sheet.
@@ -77,7 +85,7 @@ function isCreateTypeMessage(message: unknown): message is { command: 'createTyp
  * @returns The command id to execute, or `undefined` if this is not an idle-row message.
  *
  * @example
- * resolveIdleCommandId({ command: 'openSettings' }) // → 'obsidian-artifacts.settings'
+ * resolveIdleCommandId({ command: 'openSettings' }) // → 'md-artifacts.settings'
  */
 function resolveIdleCommandId(message: unknown): string | undefined {
     if (typeof message !== 'object' || message === null) {
@@ -118,7 +126,7 @@ function resolveIdleCommandId(message: unknown): string | undefined {
  */
 export class MainViewProvider implements vscode.WebviewViewProvider {
     /** The view id declared in `package.json`'s `contributes.views` — the one static mirror. */
-    static readonly viewType = 'obsidian-artifacts.mainView';
+    static readonly viewType = 'md-artifacts.mainView';
 
     private view?: vscode.WebviewView;
     private mode: MainViewMode = 'idle';
@@ -314,7 +322,7 @@ export class MainViewProvider implements vscode.WebviewViewProvider {
 
     /**
      * Handles a `createType` message by executing the derived base create
-     * command for that type — the same `obsidian-artifacts.create.<dir>`
+     * command for that type — the same `md-artifacts.create.<dir>`
      * id `insert.command.ts`'s `artifactCommandId` mirrors for insert.
      *
      * `resolveCreateCommandId` gates on `getCreateFormTypes()` membership, so

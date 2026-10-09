@@ -1,6 +1,9 @@
-# obsidian-notes-and-snippets README
+# MD Artifacts: AI Snippets & Tools
 
-This is the README for your extension "obsidian-notes-and-snippets". After writing up a brief description, we recommend including the following sections.
+A VS Code extension for Obsidian-compatible Markdown artifacts — snippets, templates,
+commands, AI prompts and variables. It uses an **Obsidian vault** as its storage:
+artifacts are plain `.md` notes you can read and edit in Obsidian, and insert or
+create from VS Code.
 
 ## Features
 

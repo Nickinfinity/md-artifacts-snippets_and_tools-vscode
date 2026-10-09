@@ -1,7 +1,9 @@
 import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { escHtml } from '../src/utils/html.js';
 import { labelForVar } from '../src/ui/panels/artifactPicker/preview.helpers.js';
-import { WEBVIEW_ESC_LBL_JS } from '../src/ui/panels/artifactPicker/webviewSnippets.js';
+import { WEBVIEW_ESC_LBL_JS, jsStr } from '../src/ui/panels/artifactPicker/webviewSnippets.js';
 import { CODE_BLOCK_CLIENT_JS } from '../src/ui/panels/artifactPicker/codeBlock.js';
 import { PREVIEW_CLIENT_JS } from '../src/ui/panels/artifactPicker/preview.clientJs.js';
 import { FORM_CLIENT_JS } from '../src/ui/panels/artifactForm/form.clientJs.js';
@@ -205,5 +207,99 @@ suite('FORM_CLIENT_JS renderVarsSection — variable name/default are escaped', 
         const { esc } = loadWebviewEscLbl();
         const name = `VK-weird"name'`;
         assert.strictEqual(decodeEntities(esc(name)), name);
+    });
+});
+
+// ── H6.0 — `jsStr` is THE script-context escaping authority ───────────────────
+
+/**
+ * Strips block and line comments so the scan sees code only.
+ *
+ * Same shape as `test/create-path-dry.test.ts:55`. Load-bearing here: this
+ * file's own JSDoc spells the escape while explaining the rule, so a guard
+ * without it is permanently red against its own documentation.
+ *
+ * @param source - Raw TypeScript source text.
+ * @returns The source with comments blanked out.
+ *
+ * @example
+ * stripComments("const a = 1; // <\\/script>"); // → "const a = 1; "
+ */
+function stripCommentsTs(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/[^\n]*/g, '');
+}
+
+/**
+ * Recursively lists every `.ts` file under a directory.
+ *
+ * @param dir - Directory to walk.
+ * @returns Absolute paths of every `.ts` file found.
+ *
+ * @example
+ * collectSrcTsFiles('/repo/src'); // → ['/repo/src/extension.ts', …]
+ */
+function collectSrcTsFiles(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) { return collectSrcTsFiles(full); }
+        return entry.name.endsWith('.ts') ? [full] : [];
+    });
+}
+
+suite('jsStr — the one script-context escaper (H6.0)', () => {
+    const SRC = path.resolve(__dirname, '../../src');
+    const OWNER = path.join(SRC, 'ui/panels/artifactPicker/webviewSnippets.ts');
+
+    test('neutralises a closing script tag', () => {
+        assert.strictEqual(jsStr('</script><script>alert(1)'), '"<\\/script><script>alert(1)"');
+    });
+
+    test('no closing-tag sequence survives into the script body', () => {
+        assert.ok(!jsStr('</script>').includes('</'),
+            'a closing script tag survived into the script body');
+    });
+
+    test('no comment opener survives into the script body', () => {
+        assert.ok(!jsStr('<!--').includes('<!--'),
+            'a comment opener survived into the script body');
+    });
+
+    test('the escaped literal still evaluates back to the original', () => {
+        for (const s of ['</script>', '<!--', 'Off', 'from: ', `a"b'c`]) {
+            // eslint-disable-next-line no-eval
+            assert.strictEqual(eval(jsStr(s)), s, `round-trip failed for ${JSON.stringify(s)}`);
+        }
+    });
+
+    test('exactly one jsStr implementation exists in src/', () => {
+        const owners = collectSrcTsFiles(SRC).filter(f =>
+            /(?:export\s+)?function\s+jsStr\s*\(/.test(stripCommentsTs(fs.readFileSync(f, 'utf8'))));
+        assert.deepStrictEqual(owners, [OWNER],
+            `jsStr must be declared exactly once, in webviewSnippets.ts; found ${owners.length}`);
+    });
+
+    test('no other src/ file performs the script-context escape itself', () => {
+        // Two traps, both paid for during H6.0:
+        //
+        // 1. The bare sequence `<` + backslash + `/` is NOT the thing to hunt:
+        //    `parser.service.ts` carries it twice as ordinary regex syntax
+        //    (`VK_TOKEN_RE` :98, `VK_PAIR_RE` :110) matching a `</VK-xxx>`
+        //    closing tag. The needle below is the *replacement value* that
+        //    produces the escape - `<`, backslash, backslash, `/` - which those
+        //    regexes do not contain.
+        // 2. This scan reads RAW source, not `stripCommentsTs` output. That
+        //    stripper is not a lexer: a regex literal containing `/*` (exactly
+        //    what an escaper line looks like) is swallowed as a comment, and the
+        //    guard silently stops seeing the thing it exists to find. Verified
+        //    by mutation - with stripping the probe went undetected; raw, it is
+        //    caught. No `src/` file spells this needle in prose, so raw is safe.
+        const escaper = '<' + '\\\\' + '/';
+        const spellers = collectSrcTsFiles(SRC)
+            .filter(f => f !== OWNER)
+            .filter(f => fs.readFileSync(f, 'utf8').includes(escaper));
+        assert.deepStrictEqual(spellers, [],
+            'script-context escaping belongs to jsStr alone - import it, never re-spell it');
     });
 });

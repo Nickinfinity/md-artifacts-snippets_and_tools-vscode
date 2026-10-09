@@ -23,7 +23,7 @@ export const MAX_VARS_HEIGHT_FRACTION = 0.5;
  * bounds to the default rather than folding it to the nearest bound.
  *
  * Despite the "clamp" name (matching the config field it validates,
- * `obsidianArtifacts.mainPane.variablesHeightFraction`), this does **not**
+ * `mdArtifacts.mainPane.variablesHeightFraction`), this does **not**
  * clamp to the nearest edge — an out-of-range number is rejected to
  * {@link DEFAULT_VARS_HEIGHT_FRACTION} wholesale, on the theory that a
  * value someone bothered to push out of bounds (or corrupt/mistyped state)

@@ -9,6 +9,14 @@ import { registerCreateSurfaceCommands } from './commands/create-from-surface.co
 import { MainViewProvider, setMainViewProvider } from './ui/views/mainView.provider.js';
 import { VariablesViewProvider } from './ui/views/variablesView.provider.js';
 import { registerVariablesCommands } from './commands/variables.command.js';
+import { registerVariablesSearchCommands } from './commands/variables-search.command.js';
+import { registerAddToBlankCommand } from './commands/variables-add-blank.command.js';
+import { registerVariablesMetaCommands } from './commands/variables-meta.command.js';
+import { registerVariablesInfoCommand } from './commands/variables-info.command.js';
+import { handleApplyToPreview, handleApplyToEditor, handleSaveCurrentValues, liveApplyDeps } from './commands/variables-apply.command.js';
+import { onPreviewTargetChanged } from './services/preview-target.service.js';
+import { APPLY_TO_PREVIEW_COMMAND_ID, APPLY_TO_EDITOR_COMMAND_ID, SAVE_CURRENT_VALUES_COMMAND_ID } from './commands/variables.command.helpers.js';
+import type { VariableNode } from './ui/views/variablesView.provider.js';
 import { sweepOrphans } from './services/scratch-file.service.js';
 import { SCRATCH_SUBDIR as FORM_BLOCK_SUBDIR } from './ui/panels/artifactForm/blockExpand.js';
 import { BLOCK_EDIT_SUBDIR } from './ui/panels/artifactPicker/blockEditor.js';
@@ -50,21 +58,55 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	const variablesProvider = new VariablesViewProvider();
+	// createTreeView (not registerTreeDataProvider) because search writes the
+	// view's header description.
+	const variablesView = vscode.window.createTreeView(VariablesViewProvider.viewType, {
+		treeDataProvider: variablesProvider,
+	});
 
 	// The Variables tree. Read-only this wave; T16 (Wave 6) adds the CRUD
 	// commands that call `refresh()`. Registered here for the same reason the
 	// main pane is: a contributed view with no provider renders as a permanently
 	// empty pane and reports nothing anywhere (ledger #52).
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider(
-			VariablesViewProvider.viewType,
-			variablesProvider,
-		),
+		variablesView,
+		// The provider itself, because it subscribes to the process-wide
+		// VarSetScanner singleton — without this the listener outlives the
+		// provider for the life of the host (H0.1).
+		variablesProvider,
 	);
 
 	// Variables CRUD commands. Registered after the tree provider above, so the
 	// refresh callback they fire always has a provider to reach.
 	registerVariablesCommands(context, variablesProvider);
+	registerVariablesSearchCommands(context, variablesProvider, variablesView);
+	registerAddToBlankCommand(context, variablesProvider);
+	registerVariablesMetaCommands(context, variablesProvider);
+	registerVariablesInfoCommand(context);
+
+	// The two Variables-pane commands that act on a live preview (W1/T1.3).
+	// Ids come from the `VARIABLE_COMMAND_SUFFIXES` derivation, never hand-typed
+	// — `package-variables-menus.test.ts` pins the manifest to the same source.
+	// `liveApplyDeps()` is called per invocation so `vaultRoot` reflects the
+	// current configuration rather than whatever it was at activation.
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			APPLY_TO_PREVIEW_COMMAND_ID,
+			(node?: VariableNode) => handleApplyToPreview(node, liveApplyDeps()),
+		),
+		vscode.commands.registerCommand(
+			APPLY_TO_EDITOR_COMMAND_ID,
+			(node?: VariableNode) => handleApplyToEditor(node, liveApplyDeps()),
+		),
+		// The Variables pane shows Apply-to-preview only while a preview is open.
+		new vscode.Disposable(onPreviewTargetChanged(active => {
+			void vscode.commands.executeCommand('setContext', 'md-artifacts.previewActive', active);
+		})),
+		vscode.commands.registerCommand(
+			SAVE_CURRENT_VALUES_COMMAND_ID,
+			() => handleSaveCurrentValues(liveApplyDeps()),
+		),
+	);
 
 	// Clean up scratch files orphaned by a previous crash / hard-close, through
 	// the one scratch-file authority. Both subdirs are now owned by the service
@@ -82,10 +124,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const vaultPath = getVaultPath();
 
 	if (!vaultPath) {
-		vscode.commands.executeCommand('obsidian-artifacts.settings');
+		vscode.commands.executeCommand('md-artifacts.settings');
 	}
 
-	// React to any obsidianArtifacts.* setting change (Settings Sync, manual edits, etc.)
+	// React to any mdArtifacts.* setting change (Settings Sync, manual edits, etc.)
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (!e.affectsConfiguration(CONFIG_SECTION)) { return; }

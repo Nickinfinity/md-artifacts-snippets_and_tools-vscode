@@ -6,9 +6,10 @@ import * as path from 'node:path';
  * Guards T22's narrow-pane sheet (VSX-223).
  *
  * The file-existence check is the actual gate: it fails until
- * `src/ui/main-view.css` exists, and it is what makes
- * `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'` print 10
- * matched lines instead of 9 (see CLAUDE.md's packaging check — the
+ * `src/ui/main-view.css` exists, and it is one of the sheets that makes
+ * `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'` print 11
+ * matched lines (W3 added `main-pane.css`, taking it from 10 — measured with
+ * the tool, not derived; see CLAUDE.md's packaging check — the
  * `(css|ttf)` form is canonical: a sheet-only grep can't see a missing
  * `codicon.ttf`, which ships a pane of tofu boxes with no error).
  *
@@ -74,8 +75,8 @@ suite('main-view.css — narrow-pane sheet (T22, VSX-223)', () => {
         test('#varsSection is height-bounded to a T2-overridable custom property and scrolls', () => {
             const body = ruleBody(readSheet(), /#varsSection\s*\{([^}]*)\}/);
             assert.ok(
-                /max-height:\s*var\(--oa-vars-height,\s*[^)]+\)/.exec(body),
-                'expected #varsSection max-height to read var(--oa-vars-height, <default>)',
+                /max-height:\s*var\(--mda-vars-height,\s*[^)]+\)/.exec(body),
+                'expected #varsSection max-height to read var(--mda-vars-height, <default>)',
             );
             assert.ok(/overflow-y:\s*auto/.exec(body), 'expected #varsSection to scroll on its own');
         });

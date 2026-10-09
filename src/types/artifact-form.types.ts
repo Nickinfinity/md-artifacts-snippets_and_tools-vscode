@@ -71,6 +71,15 @@ export interface ArtifactFormModel {
      */
     target?: string;
     /**
+     * File-level `env:` frontmatter, carried through an edit round trip untouched.
+     *
+     * The form renders **no input** for it — it exists so a Save cannot silently
+     * drop a key the file already carried. Before this field existed, `env` was
+     * parsed and key-ordered but had no model member to emit from, so every
+     * `env:` in the vault was lost on any re-serialize.
+     */
+    env?: string;
+    /**
      * AI provider — **`type: agent` only**. Emitted as frontmatter `provider:`
      * when non-empty (single-line enforced). Absent/empty for every other type.
      */

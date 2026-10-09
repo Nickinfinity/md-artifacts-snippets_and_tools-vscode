@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import { STRING_FRONTMATTER_KEYS, parseFromContent } from '../src/services/parser.service.js';
-import { FRONTMATTER_KEY_ORDER } from '../src/services/artifact-serializer.service.js';
+import { FRONTMATTER_KEY_ORDER, serializeArtifact } from '../src/services/artifact-serializer.service.js';
+import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 /**
  * Drift guard for R3 — the two frontmatter key lists that must agree.
@@ -112,5 +113,96 @@ suite('index frontmatter keys — read-side only', () => {
                 `"${key}" is read-side only (plan D11) — emitting these needs ArtifactFormModel plumbing first`
             );
         }
+    });
+});
+
+/**
+ * H7.0b — the keys the lists above certified and the emitter never wrote.
+ *
+ * The two suites at the top of this file compare **two lists to each other**.
+ * `env` and `target` are in both, so those suites stayed green for as long as
+ * `serializeFrontmatter` had no emit line for either — a guard that cannot fail
+ * is decoration. These assert the **content** of a real round trip instead:
+ * serialize a model carrying the key, re-parse the bytes, read the key back.
+ *
+ * Both were dropped on every re-serialize before this hunk, on `main`, for every
+ * artifact in the vault — a pre-existing data-loss defect, not W7 scope.
+ */
+suite('frontmatter round trip — env and target survive serialize → parse', () => {
+
+    const VARIABLES_DIR = '/vault/Variables';
+    const AGENTS_DIR    = '/vault/AIAgentsConf';
+
+    test('env survives a full serialize → parse round trip', () => {
+        const model: ArtifactFormModel = {
+            artifactType: 'Variables',
+            title:        'Bundles',
+            description:  '',
+            tags:         [],
+            env:          'production',
+            blocks:       [{ heading: '', description: '', language: 'vks', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
+        };
+
+        const reparsed = parseFromContent(serializeArtifact(model), `${VARIABLES_DIR}/bundles.md`, VARIABLES_DIR);
+
+        assert.strictEqual(
+            reparsed.frontmatter.env,
+            'production',
+            'env was emitted into the frontmatter and read back — if this is undefined, serializeFrontmatter has no env line again'
+        );
+    });
+
+    test('target survives a full serialize → parse round trip', () => {
+        const model: ArtifactFormModel = {
+            artifactType: 'AIAgentsConfig',
+            title:        'Claude config',
+            description:  '',
+            tags:         [],
+            target:       'CLAUDE.md',
+            blocks:       [{ heading: '', description: '', language: 'markdown', code: 'be helpful', vars: [] }],
+        };
+
+        const reparsed = parseFromContent(serializeArtifact(model), `${AGENTS_DIR}/claude.md`, AGENTS_DIR);
+
+        assert.strictEqual(
+            reparsed.frontmatter.target,
+            'CLAUDE.md',
+            'target is a user-typed field that names the written file verbatim — losing it silently retargets the output'
+        );
+    });
+
+    test('a Variables file with exactly one heading keeps it', () => {
+        // `serializeArtifact` branches on `blocks.length > 1`, so a single-heading
+        // file took the flat single-block path and the `## ` heading was deleted.
+        // `extractSubSets` branches on `blocks.length > 0`, so this IS a sub-set
+        // shape and the heading is content, not decoration.
+        const model: ArtifactFormModel = {
+            artifactType: 'Variables',
+            title:        'Solo',
+            description:  '',
+            tags:         [],
+            blocks:       [{ heading: 'Dev', description: '', language: 'vks', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
+        };
+
+        const reparsed = parseFromContent(serializeArtifact(model), `${VARIABLES_DIR}/solo.md`, VARIABLES_DIR);
+
+        assert.strictEqual(reparsed.blocks.length, 1, 'the one-heading shape must re-parse as one block, not a flat file');
+        assert.strictEqual(reparsed.blocks[0].heading, 'Dev', 'the sub-set heading was silently deleted on serialize');
+    });
+
+    test('a heading-less Variables file does NOT gain a heading', () => {
+        // The mirror of the case above, and the reason the fix is narrow: the
+        // commonest Variables file has no heading and must keep none.
+        const model: ArtifactFormModel = {
+            artifactType: 'Variables',
+            title:        'Flat',
+            description:  '',
+            tags:         [],
+            blocks:       [{ heading: '', description: '', language: 'vks', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
+        };
+
+        const serialized = serializeArtifact(model);
+
+        assert.ok(!serialized.includes('## '), `a heading-less file gained a heading:\n${serialized}`);
     });
 });

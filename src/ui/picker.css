@@ -205,6 +205,24 @@
   color: var(--vscode-button-foreground);
 }
 
+/*
+ * The rule Insert's `hidden` attribute depends on.
+ *
+ * `#insertBtn` is a `<button>`, and `base.css:15`'s bare
+ * `button { display: inline-flex }` is an **author** rule that beats the UA's
+ * `[hidden] { display: none }` regardless of specificity — so setting the
+ * attribute alone leaves the button on screen. `#insertBtn[hidden]` is 1-1-0
+ * and wins outright.
+ *
+ * Same mechanism, and the same fix, as `code-block.css`'s
+ * `#overwriteBtn[hidden]` and `main-pane.css`'s `.create-row[hidden]`.
+ * Guard: `preview-insert-availability.test.ts` — "picker.css hides #insertBtn
+ * when the hidden attribute is set".
+ */
+#insertBtn[hidden] {
+  display: none;
+}
+
 .btn-insert:hover {
   background: var(--vscode-button-hoverBackground);
 }

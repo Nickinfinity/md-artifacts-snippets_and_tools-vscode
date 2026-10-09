@@ -2,20 +2,21 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getEntry } from '../services/artifact-type-config.service.js';
 import { parseArtifactFile } from '../services/parser.service.js';
-import { extractSubSets } from '../services/varset.service.js';
+import { extractSubSets, getVarsFileShape } from '../services/varset.service.js';
 import { writeVariablesFile } from '../services/variables-writer.service.js';
 import type { WriteResult } from '../services/artifact-writer.service.js';
 import type { VarSubSet } from '../types/varset.types.js';
-import type { ParsedArtifactFile } from '../types/parsed-artifact.types.js';
-import type { ArtifactFormModel } from '../types/artifact-form.types.js';
+import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
+import type { ArtifactFormModel, ArtifactFormBlock } from '../types/artifact-form.types.js';
 import type { VariableNode, VariableNodeKind, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
+import { isPathWithin } from '../utils/path-containment.js';
 import { confirmTextFor } from './variables.confirm.helpers.js';
 
 /**
- * Pure/light-vscode helpers for `variables.command.ts` (T16, VSX-219).
+ * Pure/light-vscode helpers for `variables.command.ts` (T16, VSX-219) and
+ * `variables-apply.command.ts` (T1.3, VSX-246).
  *
- * Split out under `CLAUDE.md`'s file-size rule: nine command handlers plus
- * their shared plumbing does not fit the ~400-line ceiling in one file. This
+ * Split out under `CLAUDE.md`'s file-size rule: nine-plus command handlers
  * module owns node-id parsing, the `ParsedArtifactFile` → `ArtifactFormModel`
  * conversion (deliberately **here**, not in a service — see the type's own
  * doc comment), and the resolve/write/confirm plumbing every handler shares.
@@ -23,27 +24,72 @@ import { confirmTextFor } from './variables.confirm.helpers.js';
  */
 
 /**
- * Suffixes appended to `obsidian-artifacts.variables.` for the nine
- * contributed commands, already present in `package.json` (orchestrator-only
- * — read, never edited here). One declaration; `buildVariableCommandIds`
- * derives from it so the id list is never hand-copied a second time.
+ * Suffixes appended to `md-artifacts.variables.` for the contributed
+ * commands. The first nine are already present in `package.json`
+ * (orchestrator-only — read, never edited here); `applyToPreview` and
+ * `saveCurrentValues` (T1.3, VSX-246) are new and land in `package.json`
+ * separately (H1.1). One declaration; `buildVariableCommandIds` derives from
+ * it so the id list is never hand-copied a second time.
  */
 const VARIABLE_COMMAND_SUFFIXES = [
     'newFile', 'newSubSet', 'addVar', 'editValue',
     'renameVar', 'renameSubSet', 'deleteVar', 'deleteSubSet', 'deleteFile',
+    'applyToPreview', 'applyToEditor', 'saveCurrentValues', 'openFile', 'search', 'clearSearch',
+    'addToBlank', 'editDescription', 'editTags', 'viewInfo',
 ] as const;
 
 /**
- * Derives the nine `obsidian-artifacts.variables.*` command ids.
+ * Derives one fully-qualified `md-artifacts.variables.*` command id
+ * from its suffix — the one place `'md-artifacts.variables.'` is
+ * spelled as a prefix, so `buildVariableCommandIds` and any single-id
+ * constant agree by construction.
  *
- * @returns The nine fully-qualified command ids, in `VARIABLE_COMMAND_SUFFIXES` order.
+ * @param suffix - One of `VARIABLE_COMMAND_SUFFIXES`.
+ * @returns The fully-qualified command id.
  *
  * @example
- * buildVariableCommandIds() // → ['obsidian-artifacts.variables.newFile', ...]
+ * variableCommandId('applyToPreview') // → 'md-artifacts.variables.applyToPreview'
+ */
+function variableCommandId(suffix: typeof VARIABLE_COMMAND_SUFFIXES[number]): string {
+    return `md-artifacts.variables.${suffix}`;
+}
+
+/**
+ * Derives the `md-artifacts.variables.*` command ids.
+ *
+ * @returns The fully-qualified command ids, in `VARIABLE_COMMAND_SUFFIXES` order.
+ *
+ * @example
+ * buildVariableCommandIds() // → ['md-artifacts.variables.newFile', ...]
  */
 export function buildVariableCommandIds(): string[] {
-    return VARIABLE_COMMAND_SUFFIXES.map(s => `obsidian-artifacts.variables.${s}`);
+    return VARIABLE_COMMAND_SUFFIXES.map(variableCommandId);
 }
+
+/** Command id for "Open Variable Set" — the pane's route into the edit form. */
+export const OPEN_FILE_COMMAND_ID = variableCommandId('openFile');
+/** Command id for "Apply Variable Set to Preview" (T1.3). */
+export const APPLY_TO_PREVIEW_COMMAND_ID = variableCommandId('applyToPreview');
+/** Command id for "Save Preview Values as Variable Set" (T1.3). */
+export const SAVE_CURRENT_VALUES_COMMAND_ID = variableCommandId('saveCurrentValues');
+/** Command id for "Fill Variables in Editor" — fills `<VK-xxx>` tokens in the active editor. */
+export const APPLY_TO_EDITOR_COMMAND_ID = variableCommandId('applyToEditor');
+/** Command id for "Search Variable Sets" — live filter over the Variables tree. */
+export const SEARCH_COMMAND_ID = variableCommandId('search');
+/** Command id for "Clear Search" — shown only while a filter is active. */
+export const CLEAR_SEARCH_COMMAND_ID = variableCommandId('clearSearch');
+
+/** "Add…" on a blank file row — asks Variable (one block, no sub-sets) or Sub-set. */
+export const ADD_TO_BLANK_COMMAND_ID = variableCommandId('addToBlank');
+
+/** "Edit Description…" — a file's frontmatter description, or a sub-set's prose. */
+export const EDIT_DESCRIPTION_COMMAND_ID = variableCommandId('editDescription');
+
+/** "Edit Tags…" — a file's frontmatter tags, as a comma-separated list. */
+export const EDIT_TAGS_COMMAND_ID = variableCommandId('editTags');
+
+/** "View Info" — the read-only summary popup for a set, sub-set or variable. */
+export const VIEW_INFO_COMMAND_ID = variableCommandId('viewInfo');
 
 /**
  * Extracts the absolute file path a `VariableNode` belongs to.
@@ -120,18 +166,17 @@ export function at<T>(arr: readonly T[], i: number | undefined): T | undefined {
  * side speaks `ParsedArtifactFile`, write side speaks `ArtifactFormModel`,
  * and the command layer is the sole crossing point).
  *
- * Each block's `heading` is built to match what `extractSubSets` would
- * produce for the same file: a real `## `-headed block keeps its own
- * heading; a single-block file (no `## ` headings at all) gets one synthetic
- * block headed `frontmatter.title || fileName`, mirroring
- * `extractSubSets`'s single-block branch exactly. That equality is load-
- * bearing — `findSubSetIndex` (`variables-crud.service.ts`) matches sub-sets
- * by heading string, and `resolveTarget` below identifies the clicked
- * sub-set via `extractSubSets(parsed)[subIdx].heading` — so the two heading
- * values must agree, or a lookup silently misses. Harmless to the file
- * itself either way: `serializeArtifact` never emits a `## ` heading for a
- * single-block model (`blocks.length === 1`), so this synthetic heading is
- * never written to disk.
+ * Built per {@link getVarsFileShape}, block-for-block aligned with
+ * `extractSubSets(parsed, { includeEmpty: true })` — the list the pane renders
+ * — so a row's position is the block's index (handlers pass that index to the
+ * mutators, never a heading):
+ *
+ * - `blank` → no blocks.
+ * - `flat`  → one block headed `''`. It must stay untitled: the serializer
+ *   writes a `## ` heading for any single block that has one, so the set's
+ *   title used to leak in here and every pane edit silently turned a
+ *   one-block file into a titled sub-set.
+ * - `sets`  → one block per `## ` sub-set.
  *
  * @param parsed - Result of `parseArtifactFile`/`parseFromContent` for an `artifactType: Variables` file.
  * @returns Equivalent `ArtifactFormModel`, ready for the T14 mutators.
@@ -140,33 +185,29 @@ export function at<T>(arr: readonly T[], i: number | undefined): T | undefined {
  * toFormModel(parsed).blocks[0].vars
  */
 export function toFormModel(parsed: ParsedArtifactFile): ArtifactFormModel {
-    const blocks = parsed.blocks.length > 0
-        ? parsed.blocks.map(b => ({
-            heading: b.heading,
-            description: b.description,
-            language: b.fenceLang ?? '',
-            code: b.code,
-            vars: b.vars,
-        }))
-        : [{
-            heading: parsed.frontmatter.title || parsed.fileName,
-            description: '',
-            language: parsed.frontmatter.language ?? '',
-            code: parsed.code,
-            vars: parsed.vars,
-        }];
+    const block = (heading: string, vars: ParsedVar[], description = ''): ArtifactFormBlock =>
+        ({ heading, description, language: '', code: '', vars });
+    const shape = getVarsFileShape(parsed);
+    let blocks: ArtifactFormBlock[] = [];
+    if (shape === 'flat') {
+        blocks = [block('', parsed.vars)];
+    } else if (shape === 'sets') {
+        blocks = parsed.blocks.map(b => block(b.heading, b.vars, b.description));
+    }
 
     return {
         artifactType: 'Variables',
         title: parsed.frontmatter.title ?? parsed.fileName,
         description: parsed.frontmatter.description ?? '',
         tags: parsed.frontmatter.tags ?? [],
+        // Carried so a pane edit cannot drop the file's `env:` line.
+        env: parsed.frontmatter.env,
         blocks,
     };
 }
 
 /**
- * The three user-interaction primitives every command handler needs,
+ * The user-interaction primitives every command handler needs,
  * injected rather than called on `vscode.window` directly so a test can
  * drive a handler's full logic (no-op, cancel, escape, confirm/decline)
  * without a live human at the keyboard. `defaultIO` is what
@@ -180,6 +221,8 @@ export interface CommandIO {
     confirm: (message: string) => Promise<boolean>;
     /** Shows an error toast. Fire-and-forget, matching `vscode.window.showErrorMessage`'s own contract. */
     showError: (message: string) => void;
+    /** Single-choice pick; `undefined` on Cancel or Escape — same as `vscode.window.showQuickPick`. */
+    showQuickPick: <T extends vscode.QuickPickItem>(items: T[], options: vscode.QuickPickOptions) => Thenable<T | undefined>;
 }
 
 /**
@@ -194,10 +237,12 @@ export interface CommandIO {
 export const defaultIO: CommandIO = {
     showInputBox: options => vscode.window.showInputBox(options),
     confirm: async message => {
-        const choice = await vscode.window.showWarningMessage(message, { modal: true }, 'Delete');
-        return choice === 'Delete';
+        const deleteLabel = vscode.l10n.t('Delete');
+        const choice = await vscode.window.showWarningMessage(message, { modal: true }, deleteLabel);
+        return choice === deleteLabel;
     },
     showError: message => { void vscode.window.showErrorMessage(message); },
+    showQuickPick: (items, options) => vscode.window.showQuickPick(items, options),
 };
 
 /**
@@ -211,10 +256,10 @@ export const defaultIO: CommandIO = {
  *
  * @example
  * buildConfirmMessage({ kind: 'var', name: 'VK-host', varCount: 0, parent: 'Dev' })
- * // → 'Obsidian Artifacts: Delete variable VK-host? This cannot be undone.'
+ * // → 'MD Artifacts: Delete variable VK-host? This cannot be undone.'
  */
 export function buildConfirmMessage(input: Parameters<typeof confirmTextFor>[0]): string {
-    return `Obsidian Artifacts: ${confirmTextFor(input)}`;
+    return vscode.l10n.t('MD Artifacts: {0}', confirmTextFor(input));
 }
 
 /** Everything a command handler needs to act on the node the user clicked. */
@@ -227,7 +272,7 @@ export interface ResolvedTarget {
     parsed: ParsedArtifactFile;
     /** `toFormModel(parsed)` — ready for a T14 mutator. */
     model: ArtifactFormModel;
-    /** `extractSubSets(parsed)` — same order the tree rendered, so node-id indices apply directly. */
+    /** `extractSubSets(parsed, { includeEmpty: true })` — same list the tree rendered, so node-id indices apply directly. */
     subSets: VarSubSet[];
     /** Sub-set ordinal from the node's id, when the node is a `subset` or `var`. */
     subIdx?: number;
@@ -267,19 +312,28 @@ export async function resolveTarget(
     vaultRoot: vscode.Uri | undefined,
     io: CommandIO = defaultIO,
 ): Promise<ResolvedTarget | undefined> {
-    if (node?.kind !== expectedKind) {
-        io.showError('Obsidian Artifacts: no variable-tree item selected.');
+    // A one-block file shows no sub-set level, so its file node stands in for
+    // block 0 — one rule here serves every sub-set command. A blank file stands
+    // in for the block its first variable will create (see `handleAddVar`).
+    const lone = expectedKind === 'subset' && node?.kind === 'file'
+        && (node.shape === 'flat' || node.shape === 'blank');
+    if (node?.kind !== expectedKind && !lone) {
+        io.showError(vscode.l10n.t('MD Artifacts: no variable-tree item selected.'));
         return undefined;
     }
     if (!vaultRoot) {
-        io.showError('Obsidian Artifacts: no vault configured.');
+        io.showError(vscode.l10n.t('MD Artifacts: no vault configured.'));
         return undefined;
     }
     const filePath = fileNodePath(node);
     const rootDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir).fsPath;
+    if (!isPathWithin(rootDir, filePath)) {
+        io.showError(vscode.l10n.t('MD Artifacts: "{0}" is outside the Variables directory.', filePath));
+        return undefined;
+    }
     const parsed = parseArtifactFile(filePath, rootDir);
     if (!parsed) {
-        io.showError(`Obsidian Artifacts: could not read "${filePath}".`);
+        io.showError(vscode.l10n.t('MD Artifacts: could not read "{0}".', filePath));
         return undefined;
     }
     return {
@@ -287,8 +341,8 @@ export async function resolveTarget(
         filePath,
         parsed,
         model: toFormModel(parsed),
-        subSets: extractSubSets(parsed),
-        subIdx: subsetIndex(node),
+        subSets: extractSubSets(parsed, { includeEmpty: true }),
+        subIdx: lone ? 0 : subsetIndex(node),
         varIdx: varIndex(node),
     };
 }
@@ -341,8 +395,8 @@ export async function commitWrite(
         provider.refresh();
         return;
     }
-    const message = result.kind === 'error' ? result.message : `"${filePath}" already exists.`;
-    io.showError(`Obsidian Artifacts: ${message}`);
+    const message = result.kind === 'error' ? result.message : vscode.l10n.t('"{0}" already exists.', filePath);
+    io.showError(vscode.l10n.t('MD Artifacts: {0}', message));
 }
 
 /**

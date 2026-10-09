@@ -1,0 +1,133 @@
+/*
+ * Idle pane — filter input + New/Open toggle (Wave 3, T3.2).
+ *
+ * Additive only: `.create-row`, `.create-row-label`, `.pane-section-label`,
+ * `.pane-footer` and `.pane-spacer` are declared exclusively in
+ * `renderIdleHtml`'s inline `<style nonce>` block (`mainView.render.ts`) and
+ * must stay there for this wave — a rule here for any of those five would be
+ * silently dead: `styleLinkTags` emits this sheet's `<link>` before that
+ * block, so at equal (single-class) specificity the inline rule always wins
+ * regardless of load order. `.create-list` is styled nowhere at all; leave it
+ * alone too. `body.popup-body` is unstyled only in `base.css`/`codicon.css`
+ * (idle mode's two sheets) — it has real rules in three other sheets, just
+ * none idle mode loads, so nothing here needs to touch it either.
+ */
+
+/*
+ * Positioning context for the overlaid clear button. The margin moves here
+ * from `#idleFilter` so the wrapper owns the gap below the field — leaving it
+ * on the input would put the spacing inside the positioning box and push the
+ * button's centreline 10px above the input's.
+ */
+.idle-filter-wrap {
+  position: relative;
+  display: block;
+  margin-bottom: 10px;
+}
+
+/*
+ * `<input type="search">` would give a clear affordance for free, but its
+ * `::-webkit-search-cancel-button` cannot take a VS Code theme token and is
+ * hidden by default in this Chromium, so it would render either invisibly or
+ * off-theme. A real button is the smallest thing that actually works here.
+ */
+#idleFilterClear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  border: none;
+  border-radius: 0;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+#idleFilterClear:hover {
+  background: var(--vscode-toolbar-hoverBackground, transparent);
+  opacity: 1;
+}
+
+/*
+ * Same 0-2-0 override the `.create-row[hidden]` rule below exists for, and for
+ * the same reason: `base.css`'s bare `button { display: inline-flex }` is an
+ * author rule that beats the UA's `[hidden] { display: none }`. Without this
+ * the button is visible on an empty filter, which is exactly when it should
+ * not be.
+ */
+#idleFilterClear[hidden] {
+  display: none;
+}
+
+#idleFilter {
+  width: 100%;
+  /* Room for the overlaid clear button, so a long filter string never runs
+     underneath it. */
+  padding: 5px 30px 5px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-family: var(--vscode-font-family);
+  outline: none;
+}
+
+#idleFilter:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.idle-toggle {
+  display: flex;
+  margin-bottom: 10px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/*
+ * Explicit reset: `base.css`'s bare `button { display: inline-flex; … }`
+ * gives every button the full VS Code button skin (filled background,
+ * padding, radius) — without undoing it here the two-state toggle renders as
+ * two filled buttons, not a segmented control. `#idleFilter` is an `<input>`
+ * and is untouched by that rule, so it needs no reset of its own.
+ */
+.idle-toggle-btn {
+  flex: 1 1 0;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: none;
+  border-radius: 0;
+  padding: 5px 10px;
+  font-size: 0.85rem;
+  justify-content: center;
+}
+
+.idle-toggle-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground, transparent);
+}
+
+.idle-toggle-btn.is-active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+/*
+ * The rule the filter depends on. `[hidden]` normally relies on the UA's
+ * `[hidden]{display:none}`, but `base.css:15`'s bare `button{display:
+ * inline-flex}` is an *author* rule and beats the UA rule regardless of
+ * specificity — so `hidden` is broken on `.create-row` even before this
+ * sheet's own `flex` rules enter the picture. `.create-row[hidden]` at 0-2-0
+ * beats both. Without this, the filter hides nothing and F5 step 2 fails.
+ * Do not delete this thinking it's redundant with the inline `display:flex`
+ * — it is the fix for a `base.css` rule, not for the inline block.
+ */
+.create-row[hidden] {
+  display: none;
+}

@@ -5,6 +5,7 @@ import { WebviewHost, type WebviewHostTarget } from '../src/ui/panels/artifactPi
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 import { PreviewPanelController } from '../src/ui/panels/artifactPicker/preview.js';
 import type { MainViewPreviewState } from '../src/ui/views/mainView.preview.js';
+import { getPreviewTarget } from '../src/services/preview-target.service.js';
 
 /** A minimal single-block artifact whose code renders visible `.code-line-row`s. */
 function fakeArtifact(): ParsedArtifactFile {
@@ -340,5 +341,81 @@ suite('ORCH-7 integration — main pane joins (ledger #116)', () => {
         assert.strictEqual(ensureViewCalls, 2,
             'the second render skipped ensureView — after a hide-dispose that leaves the pane dead');
         assert.strictEqual(rendered.length, 2);
+    });
+
+    // ── Gate 1c: the Variables-pane target is claimed and released in step ──
+
+    /**
+     * Builds a controller whose pane is live unless `ensureView` throws.
+     *
+     * @param ensureView - Stand-in for the pane reveal; throw to drive the failure path.
+     * @returns A controller wired to inert fakes.
+     */
+    function targetController(ensureView: () => Promise<void> = async () => { /* pane live */ }) {
+        return new PreviewPanelController({
+            extensionUri: vscode.Uri.file('/ext'),
+            rootFs: '/v',
+            targetEditor: undefined,
+            setCache: () => { /* no cache here */ },
+            onDispose: () => { /* no navigator here */ },
+            host: new WebviewHost(),
+            ensureView,
+            endPreview: () => { /* not exercised */ },
+            showPreviewState: () => { /* rendering covered elsewhere */ },
+            onWebviewMessage: () => new vscode.Disposable(() => { /* no inbound traffic */ }),
+            closePicker: () => { /* not exercised */ },
+            storageUri: vscode.Uri.file('/storage'),
+            invocationSurface: 'editor',
+        });
+    }
+
+    test('dispose() releases the Variables-pane target (H1.4)', async () => {
+        // Ledger #23. A WebviewView is disposed by a mere sidebar *hide*, so a
+        // preview that dies without releasing leaves the Variables pane holding
+        // a target whose applyVarSet posts into a webview that is gone. The
+        // release rides `dispose()` — the path every preview-end funnels
+        // through — never a teardown hook that a hide never reaches.
+        const controller = targetController();
+
+        await controller.showPreview(fakeArtifact());
+        assert.notStrictEqual(getPreviewTarget(), undefined, 'showPreview did not claim the target');
+
+        controller.dispose();
+        assert.strictEqual(getPreviewTarget(), undefined,
+            'dispose() left the target claimed — the Variables pane still holds a dead preview');
+    });
+
+    test('a failed ensureHost claims nothing (H1.4)', async () => {
+        // `this.open` is set *inside* `ensureHost`, so when it fails
+        // `dispose()`'s `if (!this.open) return` never runs the release. A claim
+        // placed before that check would therefore leak for the life of the host.
+        const controller = targetController(async () => { throw new Error('pane reveal failed'); });
+
+        await controller.showPreview(fakeArtifact());
+
+        assert.strictEqual(getPreviewTarget(), undefined,
+            'a preview whose pane never opened claimed the target anyway — nothing will ever release it');
+    });
+
+    test('a multi-block preview does not inherit the single-block claim (H1.4)', async () => {
+        // Sequenced deliberately: asserting `undefined` after a bare
+        // `showMultiBlockPreview` would pass with zero implementation, because
+        // nothing ever claimed. The real hazard is a *stale* target surviving
+        // the switch — `showPreview` tears down at its top but never disposes —
+        // so the single-block claim has to happen first for this to mean
+        // anything. A multi-block pane renders no variable inputs, so a set
+        // applied into it has nothing to land on.
+        const controller = targetController();
+
+        await controller.showPreview(fakeArtifact());
+        assert.notStrictEqual(getPreviewTarget(), undefined,
+            'showPreview did not claim — the rest of this test would be vacuous');
+
+        controller.dispose();
+        assert.strictEqual(getPreviewTarget(), undefined, 'dispose() did not release before the switch');
+
+        await controller.showMultiBlockPreview(fakeArtifact());
+        assert.strictEqual(getPreviewTarget(), undefined,
+            'a multi-block preview claimed the Variables-pane target — it renders no variable inputs');
     });
 });

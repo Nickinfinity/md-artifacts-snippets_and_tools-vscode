@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { ARTIFACTS } from '../src/types/constants.js';
 import type { Artifact, ArtifactContext } from '../src/types/artifact.types.js';
 import { artifactCommandId, artifactTerminalCommandId } from '../src/commands/insert.command.js';
+import { resolveNls } from './nls.helpers.js';
 
 /**
  * Drift guard: `package.json` menu contributions ↔ `ARTIFACTS`.
@@ -57,7 +58,7 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 	 * @param commandId - The command ID to look for.
 	 * @returns Whether any entry in that menu references the command.
 	 * @example
-	 * menuHasCommand('explorer/context', 'obsidian-artifacts.insert.templates') // → true
+	 * menuHasCommand('explorer/context', 'md-artifacts.insert.templates') // → true
 	 */
 	function menuHasCommand(menuKey: string, commandId: string): boolean {
 		const entries = pkg.contributes.menus[menuKey] ?? [];
@@ -87,7 +88,7 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 	 * @param a       - The `ARTIFACTS` entry under test.
 	 * @param surface - The concrete menu surface being checked.
 	 * @returns The expected command id for that surface.
-	 * @example commandIdFor(aiPromptEntry, 'terminal') // → 'obsidian-artifacts.insert.aiprompts.terminal'
+	 * @example commandIdFor(aiPromptEntry, 'terminal') // → 'md-artifacts.insert.aiprompts.terminal'
 	 */
 	function commandIdFor(a: Artifact, surface: ArtifactContext): string {
 		return surface === 'terminal' && isBothContextArtifact(a)
@@ -100,8 +101,9 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			const id = artifactCommandId(a.dir);
 			const cmd = pkg.contributes.commands.find(c => c.command === id);
 			assert.ok(cmd, `package.json contributes.commands is missing ${id}`);
+			const resolved = resolveNls(cmd.title ?? '');
 			assert.ok(
-				typeof cmd.title === 'string' && cmd.title.length > 0,
+				typeof resolved === 'string' && resolved.length > 0,
 				`${id} has no menu title (VS Code labels the entry from this)`,
 			);
 		}
@@ -124,8 +126,8 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			for (const surface of surfacesFor(a.contexts)) {
 				const id = commandIdFor(a, surface);
 				assert.ok(
-					menuHasCommand(`obsidian-artifacts.submenu.${surface}`, id),
-					`${id} missing from obsidian-artifacts.submenu.${surface}`,
+					menuHasCommand(`md-artifacts.submenu.${surface}`, id),
+					`${id} missing from md-artifacts.submenu.${surface}`,
 				);
 			}
 		}
@@ -144,7 +146,7 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			const terminalCmd = pkg.contributes.commands.find(c => c.command === terminalId);
 			assert.ok(terminalCmd, `package.json contributes.commands is missing ${terminalId}`);
 			assert.strictEqual(
-				terminalCmd?.title, baseCmd?.title,
+				resolveNls(terminalCmd?.title ?? ''), resolveNls(baseCmd?.title ?? ''),
 				`${terminalId} title should mirror ${baseId} (same label, different menu id)`,
 			);
 		}
@@ -158,8 +160,8 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			assert.ok(menuHasCommand('terminal/context', terminalId), `terminal/context missing ${terminalId}`);
 			assert.ok(!menuHasCommand('terminal/context', baseId), `terminal/context must not reference the base id ${baseId}`);
 
-			assert.ok(menuHasCommand('obsidian-artifacts.submenu.terminal', terminalId), `submenu.terminal missing ${terminalId}`);
-			assert.ok(!menuHasCommand('obsidian-artifacts.submenu.terminal', baseId), `submenu.terminal must not reference the base id ${baseId}`);
+			assert.ok(menuHasCommand('md-artifacts.submenu.terminal', terminalId), `submenu.terminal missing ${terminalId}`);
+			assert.ok(!menuHasCommand('md-artifacts.submenu.terminal', baseId), `submenu.terminal must not reference the base id ${baseId}`);
 		}
 	});
 

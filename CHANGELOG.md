@@ -1,6 +1,6 @@
 # Change Log
 
-All notable changes to the "obsidian-notes-and-snippets" extension will be documented in this file.
+All notable changes to the "md-artifacts-snippets-and-tools-vscode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 

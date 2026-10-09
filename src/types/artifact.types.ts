@@ -85,6 +85,22 @@ export interface Artifact {
 	 * instead of scaffolding extension-less files.
 	 */
 	outputNameKey?: 'target' | 'extension';
+	/**
+	 * Whether picking this type opens it in an **editable** view rather than the
+	 * insert preview (D-11).
+	 *
+	 * Declared here beside `writesFile` for the same reason that one is: the
+	 * write-vs-insert and edit-vs-insert sets both stay derived from this table.
+	 * One flag drives **both** halves of the behaviour — the main pane's browse
+	 * list omits the type (`getBrowseTypes`) and the picker routes it to the
+	 * pane's edit mode (`opensForEdit`) — so the row list and the routing can
+	 * never disagree about which types are editable.
+	 *
+	 * Read through `opensForEdit` / `getBrowseTypes`, never as a type-literal
+	 * check: a hardcoded `type === 'Variables'` is the enumeration class that
+	 * silently drifts when a second editable type appears.
+	 */
+	opensForEdit?: boolean;
 	/** Per-type form behaviour — required when `createForm === true`. */
 	form?: ArtifactTypeFormConfig;
 }

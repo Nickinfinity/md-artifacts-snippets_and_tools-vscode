@@ -1,5 +1,5 @@
 import * as assert from 'node:assert';
-import { buildCreateItems, renderIdleHtml, resolveCreateCommandId } from '../src/ui/views/mainView.render.js';
+import { buildCreateItems, renderIdleHtml, resolveCreateCommandId, IDLE_CLIENT_JS } from '../src/ui/views/mainView.render.js';
 import { getCreateFormTypes } from '../src/services/artifact-type-config.service.js';
 
 /**
@@ -15,10 +15,11 @@ import { getCreateFormTypes } from '../src/services/artifact-type-config.service
  */
 suite('mainView — idle mode', () => {
 
+    // D-9: bare labels, no `Create ` prefix — the New/Open toggle carries the verb.
     test('buildCreateItems() labels match the live registry, in order', () => {
         assert.deepStrictEqual(
             buildCreateItems().map(i => i.label),
-            ['Create Snippets', 'Create AI Agents Config', 'Create Commands', 'Create Templates', 'Create AI Prompts'],
+            ['Snippets', 'AI Agents Config', 'Commands', 'Templates', 'AI Prompts'],
         );
     });
 
@@ -38,7 +39,7 @@ suite('mainView — idle mode', () => {
     });
 
     test('resolveCreateCommandId resolves a create-form type to its base create id', () => {
-        assert.strictEqual(resolveCreateCommandId('Snippet'), 'obsidian-artifacts.create.snippets');
+        assert.strictEqual(resolveCreateCommandId('Snippet'), 'md-artifacts.create.snippets');
     });
 
     test('resolveCreateCommandId rejects a non-create-form type (e.g. Variables)', () => {
@@ -47,5 +48,40 @@ suite('mainView — idle mode', () => {
 
     test('resolveCreateCommandId rejects an arbitrary string that is not any ArtifactType', () => {
         assert.strictEqual(resolveCreateCommandId('NotARealType'), undefined);
+    });
+
+    test('the New rows are derived from getCreateFormTypes() — one data-action="createType" per row', () => {
+        const html = renderIdleHtml(buildCreateItems(), 'base.css', "'self'", 'test-nonce');
+        assert.strictEqual(
+            [...html.matchAll(/data-action="createType"/g)].length,
+            getCreateFormTypes().length,
+        );
+    });
+
+    test('renders a filter input', () => {
+        const html = renderIdleHtml(buildCreateItems(), 'base.css', "'self'", 'test-nonce');
+        assert.ok(html.includes('id="idleFilter"'), 'no filter input rendered');
+    });
+
+    test('renders the New/Open toggle', () => {
+        const html = renderIdleHtml(buildCreateItems(), 'base.css', "'self'", 'test-nonce');
+        assert.ok(
+            html.includes('data-mode="new"') && html.includes('data-mode="open"'),
+            'the New/Open toggle is not in the markup',
+        );
+    });
+
+    // Standing prohibition: IDLE_CLIENT_JS exported but never interpolated ships a dead
+    // pane behind a green suite — neither the markup nor the constant-content test would
+    // catch that alone. Precedent: settings-main-pane.test.ts:53-59.
+    test('renderIdleHtml actually interpolates IDLE_CLIENT_JS', () => {
+        const html = renderIdleHtml(buildCreateItems(), 'base.css', "'self'", 'test-nonce');
+        assert.ok(html.includes(IDLE_CLIENT_JS), 'IDLE_CLIENT_JS is exported but never rendered into the page');
+    });
+
+    // Standing prohibition (security): restored state must never reach the DOM through
+    // innerHTML, or persisted webview state becomes an injection vector into the pane.
+    test('IDLE_CLIENT_JS never uses innerHTML to apply restored state', () => {
+        assert.ok(!IDLE_CLIENT_JS.includes('innerHTML'));
     });
 });

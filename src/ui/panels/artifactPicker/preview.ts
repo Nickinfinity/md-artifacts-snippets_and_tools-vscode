@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import { parseFromContent, resolveVars } from '../../../services/parser.service.js';
 import { renderCodeHtml, renderCodeRowsHtml } from '../../../services/render.service.js';
-import { writesWholeFile } from '../../../services/artifact-type-config.service.js';
+import { writesWholeFile, isTerminalOnly } from '../../../services/artifact-type-config.service.js';
 import { patchFrontmatterField, patchVarDefaults, type BlockRef } from '../../../services/artifact-patcher.service.js';
 import { PreviewModeController, type SectionKey } from '../../../services/preview-mode.service.js';
 import { getNonce } from '../../../utils/helpers.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { out } from './shared.js';
-import { performInsert, persistBlockCode, type InvocationSurface } from './preview.helpers.js';
+import { performInsert, persistBlockCode, sanitiseVarsSnapshot, hasVisibleEditor, type InvocationSurface } from './preview.helpers.js';
 import { confirmModal } from '../../../services/confirm.service.js';
 import type { WebviewHost, HostMessage } from './webviewHost.js';
 import type { MainViewPreviewState } from '../../views/mainView.preview.js';
@@ -21,6 +21,7 @@ import { PaneWidthController, type PaneMetrics } from '../../../services/pane-wi
 import { getPreviewWidthSteps, getVariablesHeightFraction, setVariablesHeightFraction } from '../../../services/config.service.js';
 import { varsHeightCss } from '../../../services/pane-layout.service.js';
 import { EDIT_ARTIFACT_COMMAND_ID } from '../../../commands/editArtifact.command.js';
+import { setPreviewTarget } from '../../../services/preview-target.service.js';
 import type { BatchOutcome } from '../../../types/multi-index.types.js';
 
 // Re-export the adapter so the navigator does not need to import preview.helpers directly.
@@ -96,6 +97,10 @@ export class PreviewPanelController {
     private readonly blockEdit: BlockEditController;
     private readonly varSet:    VarSetController;
     private readonly batch = new BatchGate();  // one-shot per-step gate a MultiIndexRunner arms (T4)
+    /** Releases this preview's claim on the Variables-pane target; see `claimTarget` (H1.4). */
+    private releaseTarget: (() => void) | undefined;
+    /** Latest values the webview reported, so `currentValues()` stays synchronous (H1.4). */
+    private varsSnapshot: Record<string, string> = {};
     /**
      * Widens the pane for the session and narrows it back by the same count.
      *
@@ -127,6 +132,16 @@ export class PreviewPanelController {
      * are two views of one block, and neither is permanent until Overwrite.
      */
     private stagedCode: string | undefined;
+
+    /**
+     * Watches for editor tabs opening/closing while a preview is open, so
+     * Insert can appear the moment there is somewhere to insert into.
+     *
+     * `visibleTextEditors`, not `activeTextEditor`: the latter goes `undefined`
+     * whenever a webview takes focus, which would hide Insert exactly while the
+     * user is working in this pane. Disposed in `dispose()` beside `msgSub`.
+     */
+    private editorsSub: vscode.Disposable | undefined;
 
     constructor(private readonly cb: PreviewCallbacks) {
         this.blockEdit = new BlockEditController({
@@ -188,13 +203,46 @@ export class PreviewPanelController {
         await this.cb.ensureView();
     }
 
+    /**
+     * Keeps the pane's Insert button in step with whether an editor tab exists.
+     *
+     * The initial state is rendered into the HTML; this only handles the tabs
+     * opening or closing *while* the preview is up. Posting through the host
+     * means a hidden pane queues the message rather than dropping it (H1).
+     *
+     * @example
+     * this.watchEditorAvailability(); // after showPreviewState
+     */
+    private watchEditorAvailability(): void {
+        this.editorsSub?.dispose();
+        const type = this.currentArtifact?.frontmatter.artifactType;
+        // Only editor-bound types are gated, and the decision lives here rather
+        // than as a marker attribute in the markup: the extension already knows
+        // the type, so shipping a flag into the webview would be a second copy
+        // of the same rule. A whole-file type writes into the workspace and a
+        // terminal-bound type sends to the terminal — neither needs an editor.
+        if (!type || writesWholeFile(type) || isTerminalOnly(type)) { return; }
+        this.editorsSub = vscode.window.onDidChangeVisibleTextEditors(() => {
+            this.postToWebview({ command: 'setInsertAvailable', value: hasVisibleEditor() });
+        });
+    }
+
     /** Ends the preview session and returns the pane to `idle`. */
     dispose(): void {
         if (!this.open) { return; }
+        // Released here, on the one path every preview-end funnels through —
+        // never from a teardown hook. A sidebar *hide* disposes a WebviewView
+        // (H2), so a preview that died without releasing would leave the
+        // Variables pane holding a target whose applyVarSet posts into a dead
+        // webview (ledger #23).
+        this.releaseTarget?.();
+        this.releaseTarget = undefined;
         this.open = false;
         void this.blockEdit.teardown();
         this.msgSub?.dispose();
         this.msgSub          = undefined;
+        this.editorsSub?.dispose();
+        this.editorsSub      = undefined;
         this.modeController  = undefined;
         this.currentArtifact = undefined;
         this.batch.settle({ kind: 'aborted' });  // no-op unless still armed (D5)
@@ -241,9 +289,21 @@ export class PreviewPanelController {
         this.cb.host.clearQueue();
         if (!await this.ensureHost()) { return; }
 
+        // Claimed here, not inside `ensureHost`: `showMultiBlockPreview`
+        // reaches the same `ensureHost` but renders no variable inputs, so
+        // claiming there would let the Variables pane apply a set into a pane
+        // with nothing to apply it to. And not before the check either — if
+        // `ensureHost` fails, `dispose()`'s `open` guard means the release
+        // never runs and the target leaks.
+        this.claimTarget();
+
         const varSources = this.modeController?.getAllVarSources() ?? {};
-        this.cb.showPreviewState({ kind: 'single', artifact, varSources });
+        this.cb.showPreviewState({
+            kind: 'single', artifact, varSources,
+            insertAvailable: hasVisibleEditor(),
+        });
         this.setupMessageHandler();
+        this.watchEditorAvailability();
         this.postVarsHeight();
         void this.paneWidth.widenForPreview();
         out.appendLine(`[pane] preview → ${artifact.fileName}`);
@@ -366,6 +426,22 @@ export class PreviewPanelController {
         });
     }
 
+    // ── Internal: the Variables-pane seam (W1/H1.4) ───────────────────────────
+
+    /** Registers this preview as the Variables pane's target for the session. */
+    private claimTarget(): void {
+        this.releaseTarget?.();
+        this.releaseTarget = setPreviewTarget({
+            applyVarSet: (subSetName, vars) => {
+                this.varSet.showDiffFor(subSetName, vars, this.varsSnapshot);
+            },
+            currentValues: () => ({ ...this.varsSnapshot }),
+            // Routed through the controller, not reimplemented: it holds the
+            // `getCurrentArtifact()` gate that carries the artifact's tags.
+            saveAsSet: values => this.varSet.handleSaveAsVarSet({ values }),
+        });
+    }
+
     private setupMessageHandler(): void {
         this.msgSub?.dispose();
         this.msgSub = undefined;
@@ -393,11 +469,10 @@ export class PreviewPanelController {
         else if (cmd === 'overwrite')     { await this.handleOverwrite(msg); }
         else if (cmd === 'varsHeightChanged') { await this.handleVarsHeightChanged(msg); }
         else if (cmd === 'cancel')        { this.cancel(); }
-        else if (cmd === 'pickVarSet')    { await this.varSet.handlePickVarSet(msg); }
         else if (cmd === 'confirmApply')  { this.varSet.handleConfirmApply(); }
         else if (cmd === 'cancelApply')   { this.varSet.handleCancelApply(); }
-        else if (cmd === 'saveAsVarSet')  { await this.varSet.handleSaveAsVarSet(msg); }
         else if (cmd === 'clearVarSource'){ this.modeController?.clearVarSource(msg.name as string); }
+        else if (cmd === 'varsSnapshot')  { this.varsSnapshot = sanitiseVarsSnapshot(msg.values); }
     }
 
     /** Cancel: settles the batch gate `skipped` when armed (D5); else disposes as before. */
@@ -490,10 +565,15 @@ export class PreviewPanelController {
         if (typeof code !== 'string') { return; }
 
         const name = artifact.relativePath || artifact.fileName;
+        // `confirmModal` itself does the equality check internally
+        // (`answer === opts.action`), so a local binding here is safe without
+        // a second comparison site — and it must be local, not module-scope,
+        // so `vscode.l10n.t` runs after the bundle is loaded.
+        const OVERWRITE_ACTION = vscode.l10n.t('Overwrite');
         const ok = await confirmModal({
-            message: `Overwrite "${name}" with these changes?`,
-            detail:  'The edited block replaces what is currently in the .md file.',
-            action:  'Overwrite',
+            message: vscode.l10n.t('Overwrite "{0}" with these changes?', name),
+            detail:  vscode.l10n.t('The edited block replaces what is currently in the .md file.'),
+            action:  OVERWRITE_ACTION,
         });
         if (!ok) { return; }
 
@@ -507,7 +587,7 @@ export class PreviewPanelController {
         if (!updated) {
             // `persistBlockCode` also answers undefined when the patch was a
             // no-op, which is the "nothing changed" case rather than a failure.
-            vscode.window.showWarningMessage('Nothing was written — the code is unchanged, or the block could not be located in the file.');
+            vscode.window.showWarningMessage(vscode.l10n.t('Nothing was written — the code is unchanged, or the block could not be located in the file.'));
             return;
         }
 
@@ -550,7 +630,7 @@ export class PreviewPanelController {
 
         // Index guard (F7): a hovered index still renders Create File — only an armed run may write it.
         if (isIndexArtifact(artifact.frontmatter) && !this.batch.isArmed) {
-            void vscode.window.showInformationMessage('This is a template index — press Enter in the picker to run it.'); return;
+            void vscode.window.showInformationMessage(vscode.l10n.t('This is a template index — press Enter in the picker to run it.')); return;
         }
         // Templates/agent configs write a whole file instead of inserting at the
         // cursor; `writesWholeFile` is the single source shared with the label.
@@ -584,7 +664,7 @@ export class PreviewPanelController {
         // Chained, not fire-and-forget: a remote/SSH host can reject the write, and the
         // toast must not claim success when it did (reviewer finding 1).
         void vscode.env.clipboard.writeText(resolveVars(code, resolvedVars))
-            .then(() => vscode.window.showInformationMessage('Obsidian Artifacts: Copied to clipboard.'));
+            .then(() => vscode.window.showInformationMessage(vscode.l10n.t('MD Artifacts: Copied to clipboard.')));
     }
 
     /** Routes to the Create File flow (D12); armed (batch step) pins `destDir`, skips

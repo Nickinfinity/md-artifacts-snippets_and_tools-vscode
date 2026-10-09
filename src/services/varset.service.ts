@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
-import type { ApplyChange, ApplyResult, VarSetMatch, VarSubSet } from '../types/varset.types.js';
+import type { ApplyChange, ApplyResult, VarSetMatch, VarSubSet, VarsEditPayload } from '../types/varset.types.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import { parseFromContent } from './parser.service.js';
 
@@ -18,6 +18,10 @@ import { parseFromContent } from './parser.service.js';
  */
 export class VarSetScanner {
     private cache = new Map<string, ParsedArtifactFile[]>();
+
+    private readonly invalidateEmitter = new vscode.EventEmitter<void>();
+    /** Fired by `invalidate()` — subscribers (the Variables tree) re-render instead of going stale. */
+    readonly onDidInvalidate = this.invalidateEmitter.event;
 
     /**
      * Scans the directory and returns parsed `artifactType: Variables` artifact files.
@@ -40,7 +44,9 @@ export class VarSetScanner {
     }
 
     /**
-     * Clears the internal cache so the next `scan` re-reads from disk.
+     * Clears the internal cache so the next `scan` re-reads from disk, and
+     * fires `onDidInvalidate` so subscribers (e.g. the Variables tree view)
+     * know to re-render rather than going stale until a window reload.
      *
      * @returns void
      *
@@ -49,6 +55,7 @@ export class VarSetScanner {
      */
     invalidate(): void {
         this.cache.clear();
+        this.invalidateEmitter.fire();
     }
 
     /**
@@ -157,22 +164,70 @@ export function scoreVarSet(
 }
 
 /**
+ * Display name for a sub-set wherever it stands alone (the Apply picker, the
+ * `from:` badge): its heading, or — for an untitled block — the set's title.
+ *
+ * @param subSet - A sub-set from {@link extractSubSets}.
+ * @returns A non-empty label whenever the file has a title or a name.
+ *
+ * @example
+ * subSetLabel({ heading: '', vars: [], sourceFile }); // → sourceFile's title
+ */
+export function subSetLabel(subSet: VarSubSet): string {
+    return subSet.heading || subSet.sourceFile.frontmatter.title || subSet.sourceFile.fileName;
+}
+
+/**
+ * The three shapes a Variables file can take — **the** rule every view of a
+ * set (the pane's rows, its menus, its commands) derives from:
+ *
+ * - `blank` — frontmatter only: no `vks` fence, no `## ` sub-sets.
+ * - `flat`  — one untitled `vks` fence: variables, no sub-sets.
+ * - `sets`  — one or more `## Title` sub-sets (even just one).
+ *
+ * Read from the file's structure, never from a count: a single **titled**
+ * sub-set is `sets`, a single **untitled** fence is `flat`. A flat file with
+ * no variables writes no fence at all, so it reads back as `blank` — the two
+ * are deliberately the same thing.
+ */
+export type VarsFileShape = 'blank' | 'flat' | 'sets';
+
+/**
+ * Classifies a parsed Variables file — see {@link VarsFileShape}.
+ *
+ * @param file - Parsed `artifactType: Variables` file.
+ * @returns `'sets'` when it has any `## ` sub-set, `'flat'` when it has only
+ *          untitled variables, otherwise `'blank'`.
+ *
+ * @example
+ * getVarsFileShape(parseFromContent('---\nartifactType: Variables\n---\n', p, dir)); // → 'blank'
+ */
+export function getVarsFileShape(file: ParsedArtifactFile): VarsFileShape {
+    if (file.blocks.length > 0) { return 'sets'; }
+    return file.vars.length > 0 ? 'flat' : 'blank';
+}
+
+/**
  * Pure transform — flattens a parsed variable artifact file into one or more
  * `VarSubSet` entries. Multi-block files yield one sub-set per `## Heading` that
  * has at least one var. Single-block files yield one sub-set wrapping the
  * top-level `vars` and using `frontmatter.title || fileName` as the heading.
- * Sub-sets with no vars are excluded.
+ * Sub-sets with no vars are excluded unless `includeEmpty` is set — applying a
+ * set needs vars, but the Variables pane must show a sub-set the moment it is
+ * created, or "New sub-set" looks like it did nothing.
  *
  * @param artifact - Fully parsed variable file.
+ * @param opts     - `includeEmpty`: keep `## ` sub-sets that hold no vars (pane + its commands).
  * @returns Ordered array of `VarSubSet`; `[]` when no qualifying sub-set exists.
  *
  * @example
- * extractSubSets(parsedFile)
+ * extractSubSets(parsedFile)                         // apply picker — vars only
+ * extractSubSets(parsedFile, { includeEmpty: true }) // Variables pane
  */
-export function extractSubSets(artifact: ParsedArtifactFile): VarSubSet[] {
+export function extractSubSets(artifact: ParsedArtifactFile, opts: { includeEmpty?: boolean } = {}): VarSubSet[] {
     if (artifact.blocks.length > 0) {
         return artifact.blocks
-            .filter(b => b.vars.length > 0)
+            .filter(b => opts.includeEmpty || b.vars.length > 0)
             .map(b => ({ heading: b.heading, vars: b.vars, sourceFile: artifact }));
     }
 
@@ -266,5 +321,78 @@ export function buildVarSetModel(
             code:        '',
             vars:        entries.map(([name, defaultValue]) => ({ name, defaultValue })),
         }],
+    };
+}
+
+/**
+ * Pure transform — the file-to-form-model direction for the Variables edit form.
+ *
+ * Mirrors `extractSubSets`'s branch on `blocks.length > 0` (the file has
+ * **three** on-disk shapes, not two): a `blocks.length > 0` file yields one
+ * `subSets` entry per block, heading intact; a heading-less file
+ * (`blocks.length === 0`) yields exactly one entry wrapping the top-level
+ * `vars`, with `heading: ''` — never a synthesised title/fileName heading,
+ * so a heading-less file cannot gain a real `## ` heading on the next Save.
+ * `env` is file-level frontmatter, carried through untouched so a Save cannot
+ * silently drop it (it is never rendered by the form).
+ *
+ * @param file - Fully parsed `artifactType: Variables` file.
+ * @returns The edit form's payload shape.
+ *
+ * @example
+ * variablesFileToEditPayload(parsedVariablesFile)
+ * // → { title: 'Bundles', description: '', tags: [], env: 'staging',
+ * //     subSets: [{ heading: 'Dev', pairs: [['VK-host', 'localhost']] }] }
+ */
+export function variablesFileToEditPayload(file: ParsedArtifactFile): VarsEditPayload {
+    const fm = file.frontmatter;
+    const pairsOf = (vars: ParsedVar[]) => vars.map(v => [v.name, v.defaultValue] as [string, string]);
+    const subSets = file.blocks.length > 0
+        ? file.blocks.map(b => ({ heading: b.heading, description: b.description, pairs: pairsOf(b.vars) }))
+        : [{
+            heading: '',
+            pairs: file.vars.map(v => [v.name, v.defaultValue] as [string, string]),
+        }];
+
+    return {
+        title: fm.title ?? '',
+        description: fm.description ?? '',
+        tags: fm.tags ?? [],
+        env: fm.env,
+        subSets,
+    };
+}
+
+/**
+ * Pure transform — the form-model-to-file direction for the Variables edit form.
+ *
+ * `original` is how frontmatter the edit form never renders (`env` today)
+ * survives the round trip — the same role `artifactToFormModel`'s callers play
+ * for the create/edit form's own undisplayed keys. A sub-set whose `heading`
+ * is `''` produces a heading-less block, so `serializeArtifact`'s single-block
+ * `Variables` path (never the multi-block path) is what re-emits it.
+ *
+ * @param payload  - The edited payload posted back from the webview.
+ * @param original - The file as parsed before editing, for undisplayed keys.
+ * @returns An `ArtifactFormModel` ready for `serializeArtifact`.
+ *
+ * @example
+ * editPayloadToModel(payload, original) // → { artifactType: 'Variables', ... }
+ */
+export function editPayloadToModel(payload: VarsEditPayload, original: ParsedArtifactFile): ArtifactFormModel {
+    return {
+        artifactType: 'Variables',
+        title: payload.title,
+        description: payload.description,
+        tags: payload.tags,
+        env: payload.env ?? original.frontmatter.env,
+        blocks: payload.subSets.map(s => ({
+            heading: s.heading,
+            // An untitled block has no `## ` line to hang a description under.
+            description: s.heading === '' ? '' : (s.description ?? ''),
+            language: '',
+            code: '',
+            vars: s.pairs.map(([name, defaultValue]) => ({ name, defaultValue })),
+        })),
     };
 }

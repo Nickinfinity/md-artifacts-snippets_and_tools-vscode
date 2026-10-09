@@ -35,10 +35,25 @@ suite('main pane stylesheets (ORCH-7, ledger #109)', () => {
         assert.ok(STYLE_FILES_BY_MODE.preview.includes('picker.css'));
     });
 
-    test('idle mode is unchanged — the create list keeps exactly its two sheets', () => {
-        // Merging the two lists would drag picker.css's .btn/.actions rules over
-        // a pane that already renders correctly.
-        assert.deepStrictEqual([...STYLE_FILES_BY_MODE.idle], ['base.css', 'codicon.css']);
+    test('idle mode carries its own three sheets — and none of preview\'s', () => {
+        // The original argument still holds and is the reason this is pinned:
+        // merging the two lists would drag picker.css's .btn/.actions rules over
+        // a pane that already renders correctly. What changed in W3 is the
+        // count, not that principle — `main-pane.css` is the idle pane's OWN
+        // sheet (filter input, New/Open toggle, and the `.create-row[hidden]`
+        // rule the filter depends on), so it belongs here while picker.css
+        // still does not.
+        //
+        // This is also the only thing that loads that sheet: until it appears
+        // in this array every rule in main-pane.css is dead, and
+        // `main-pane-css.test.ts` cannot tell — it reads the file off disk as a
+        // string, so "styled" and "never loaded" look identical to the suite.
+        assert.deepStrictEqual(
+            [...STYLE_FILES_BY_MODE.idle],
+            ['base.css', 'codicon.css', 'main-pane.css'],
+        );
+        assert.ok(!STYLE_FILES_BY_MODE.idle.includes('picker.css'),
+            'picker.css leaked into idle mode — its .btn/.actions rules restyle the create rows');
     });
 
     test('every referenced sheet exists on disk', () => {

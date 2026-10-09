@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getNonce } from '../../utils/helpers.js';
-import { styleLinkTags } from '../../utils/html.js';
+import { escHtml, styleLinkTags } from '../../utils/html.js';
+import { jsStr } from './artifactPicker/webviewSnippets.js';
 import { validateObsidianVault, detectVaultDirs, createVaultDirectory, deleteVaultDirectory, isDirectoryEmpty } from '../../services/vault.service.js';
 import { refreshVaultContext } from '../../services/context.service.js';
 import { CONFIG_SECTION, getVaultPath, getPreviewWidthSteps, getVariablesHeightFraction } from '../../services/config.service.js';
@@ -19,7 +20,7 @@ import {
  * 2. Choose which vault feature directories to create/maintain
  *
  * Vault path and feature flags are persisted via the VS Code Settings API
- * (`obsidianArtifacts.*`) so they sync across devices via Settings Sync.
+ * (`mdArtifacts.*`) so they sync across devices via Settings Sync.
  *
  * @param {vscode.ExtensionContext} context - Extension context providing the extension URI
  *                                            for loading webview assets
@@ -30,7 +31,7 @@ import {
 export function openSettingsPanel(context: vscode.ExtensionContext) {
 	const panel = vscode.window.createWebviewPanel(
 		'settings',
-		'Obsidian Artifacts: AI Snippets & Tools - Settings',
+		vscode.l10n.t('MD Artifacts: AI Snippets & Tools - Settings'),
 		vscode.ViewColumn.One,
 		{
 			enableScripts: true,
@@ -129,7 +130,7 @@ async function handleResetMainPane(panel: vscode.WebviewPanel): Promise<void> {
 		await config.update(key, undefined, vscode.ConfigurationTarget.Global);
 	}
 	postMainPaneConfig(panel);
-	vscode.window.showInformationMessage('Preview pane settings reset to defaults.');
+	vscode.window.showInformationMessage(vscode.l10n.t('Preview pane settings reset to defaults.'));
 }
 
 /**
@@ -167,7 +168,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 				canSelectFiles: false,
 				canSelectFolders: true,
 				canSelectMany: false,
-				openLabel: 'Select Vault'
+				openLabel: vscode.l10n.t('Select Vault')
 			});
 
 			if (folderUri && folderUri[0]) {
@@ -183,7 +184,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 					.getConfiguration(CONFIG_SECTION)
 					.update('vaultPath', selectedFolderPath, vscode.ConfigurationTarget.Global);
 
-				vscode.window.showInformationMessage(`Obsidian vault path saved: ${selectedFolderPath}`);
+				vscode.window.showInformationMessage(vscode.l10n.t('Obsidian vault path saved: {0}', selectedFolderPath));
 
 				// Refresh context keys so editor/terminal/explorer menus reflect the new vault state
 				refreshVaultContext();
@@ -192,7 +193,7 @@ async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
 				const detectedDirs = detectVaultDirs(selectedFolderPath);
 				panel.webview.postMessage({ command: 'updatePath', path: selectedFolderPath, dirs: detectedDirs });
 			} else {
-				vscode.window.showWarningMessage('No folder selected.');
+				vscode.window.showWarningMessage(vscode.l10n.t('No folder selected.'));
 			}
 }
 
@@ -213,7 +214,7 @@ async function handleDirToggle(panel: vscode.WebviewPanel, message: Record<strin
 
 			// Safety check: ensure a vault has been selected before allowing directory operations
 			if (!vaultPath) {
-				vscode.window.showWarningMessage('Please select a vault first.');
+				vscode.window.showWarningMessage(vscode.l10n.t('Please select a vault first.'));
 				return;
 			}
 
@@ -223,7 +224,7 @@ async function handleDirToggle(panel: vscode.WebviewPanel, message: Record<strin
 			} else {
 				// User disabled the feature: DELETE the directory only if empty (safety guard)
 				if (!isDirectoryEmpty(path.join(vaultPath, dirName))) {
-					vscode.window.showWarningMessage(`Cannot disable "${dirName}" — directory is not empty.`);
+					vscode.window.showWarningMessage(vscode.l10n.t('Cannot disable "{0}" — directory is not empty.', dirName));
 					return;
 				}
 				deleteVaultDirectory(vaultPath, dirName);
@@ -278,6 +279,10 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
 		),
 	);
 
+	// Extracted rather than inlined into the `.replace()` below: nesting a
+	// template literal inside another is an S4624 violation (CLAUDE.md).
+	const vaultStrong = `<strong>${escHtml(vscode.l10n.t('Obsidian vault'))}</strong>`;
+
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -289,45 +294,45 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
   ${styleTags}
   <!-- Section-local styles; nonce-matched, which is why style-src carries the nonce too -->
   <style nonce="${nonce}">${MAIN_PANE_SECTION_CSS}</style>
-  <title>Obsidian Artifacts: AI Snippets & Tools - CONFIG</title>
+  <title>${escHtml(vscode.l10n.t('MD Artifacts: AI Snippets & Tools - CONFIG'))}</title>
 </head>
 <body class="settings-body">
   <div id="webviewContent">
     <!-- Header: extension logo and title -->
     <div class="logo-row">
       <span class="logo-icon">🔮</span>
-      <h1>Obsidian Artifacts: AI Snippets &amp; Tools</h1>
+      <h1>${escHtml(vscode.l10n.t('MD Artifacts: AI Snippets & Tools'))}</h1>
     </div>
-    <p class="tagline">Bring your Obsidian vault into VS Code</p>
+    <p class="tagline">${escHtml(vscode.l10n.t('Bring your Obsidian vault into VS Code'))}</p>
 
     <hr>
 
     <!-- Introduction section explaining what the extension does -->
     <div class="intro">
-      <p>This extension connects VS Code to your <strong>Obsidian vault</strong>, letting you browse notes, insert snippets, and create new entries without leaving the editor.</p>
-      <p>To get started, point the extension to your vault's root folder — the directory that contains your <code>.obsidian/</code> folder. Your selection is saved locally and persists across sessions.</p>
+      <p>${escHtml(vscode.l10n.t('This extension connects VS Code to your {0}, letting you browse notes, insert snippets, and create new entries without leaving the editor.', '{{vault}}')).replace('{{vault}}', vaultStrong)}</p>
+      <p>${escHtml(vscode.l10n.t("To get started, point the extension to your vault's root folder — the directory that contains your {0} folder. Your selection is saved locally and persists across sessions.", '{{obsidianDir}}')).replace('{{obsidianDir}}', '<code>.obsidian/</code>')}</p>
     </div>
 
     <!-- Vault Features section: shown only after vault selection -->
     <!-- Contains checkbox list for directory management -->
     <div id="directoriesSection" class="directories-section">
-      <p class="section-label">Vault Features</p>
-      <p style="font-size: 0.9rem; color: var(--vscode-descriptionForeground); margin-bottom: 12px;">Select which directories to create in your vault. Directories marked as "default" will be auto-created when you first select your vault.</p>
+      <p class="section-label">${escHtml(vscode.l10n.t('Vault Features'))}</p>
+      <p style="font-size: 0.9rem; color: var(--vscode-descriptionForeground); margin-bottom: 12px;">${escHtml(vscode.l10n.t('Select which directories to create in your vault. Directories marked as "default" will be auto-created when you first select your vault.'))}</p>
       <!-- Directory checkboxes will be rendered here by JavaScript -->
       <div id="directoryList" class="directory-list"></div>
     </div>
 
     <!-- Vault Location section: shows selected path and folder picker button -->
     <div class="vault-dir-section">
-      <p class="section-label">Vault Location</p>
+      <p class="section-label">${escHtml(vscode.l10n.t('Vault Location'))}</p>
 
       <div class="vault-card">
         <span class="vault-icon">📁</span>
-        <span id="folderPath">No vault selected</span>
+        <span id="folderPath">${escHtml(vscode.l10n.t('No vault selected'))}</span>
       </div>
 
       <button id="selectFolderButton">
-        <span>Select Vault Folder</span>
+        <span>${escHtml(vscode.l10n.t('Select Vault Folder'))}</span>
       </button>
     </div>
 ${MAIN_PANE_SECTION_HTML}
@@ -424,7 +429,7 @@ ${MAIN_PANE_CLIENT_JS}
         // Hint showing if auto-created (default) or optional
         const hint = document.createElement('span');
         hint.className = 'directory-hint';
-        hint.textContent = dir.default ? '(automatically created)' : '(optional)';
+        hint.textContent = dir.default ? ${jsStr(vscode.l10n.t('(automatically created)'))} : ${jsStr(vscode.l10n.t('(optional)'))};
 
         labelDiv.appendChild(labelText);
         labelDiv.appendChild(hint);

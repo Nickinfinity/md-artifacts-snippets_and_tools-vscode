@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import type { VariableNodeKind } from '../ui/views/variablesView.provider.js';
 
 /**
@@ -54,7 +55,7 @@ const kindsPinnedToVariableNodeKind: ConfirmInputKindsMatchVariableNodeKind = tr
  * pluralVariable(0)  // → 'variables'
  */
 function pluralVariable(count: number): string {
-    return count === 1 ? 'variable' : 'variables';
+    return count === 1 ? vscode.l10n.t('variable') : vscode.l10n.t('variables');
 }
 
 /**
@@ -80,9 +81,25 @@ function assertNever(x: never): never {
  * (delete var, delete sub-set, delete file) routes through it, so the three
  * messages can never drift apart or say the same thing twice.
  *
- * Pure string builder: no `vscode` import, no I/O, decides nothing about
- * *how* the confirmation is shown — the caller wraps the result in
- * `vscode.window.showWarningMessage(text, { modal: true }, 'Delete')`.
+ * Pure string builder: still no I/O, still decides nothing about *how* the
+ * confirmation is shown — the caller wraps the result in
+ * `vscode.window.showWarningMessage(text, { modal: true }, deleteLabel)`
+ * (`variables.command.helpers.ts`'s `defaultIO.confirm`), where `deleteLabel`
+ * is `vscode.l10n.t('Delete')` **hoisted once and compared back by equality**
+ * (`choice === deleteLabel`) — the label is localised too, so the caller
+ * cannot compare the live choice against the English literal `'Delete'`
+ * without silently failing every non-English delete.
+ *
+ * The `vscode` import on line 1 is deliberate, not drift: this file composes
+ * plural-sensitive *user-facing sentences* (`vscode.l10n.t` with `{0}`-style
+ * placeholders), so it is localised in place — unlike the `vscode`-free
+ * *services* that Wave 5's accepted-gap-1 exempts. What decides that is this
+ * file's directory (`src/commands/`, which carries no vscode-free guard), not
+ * this helper's shape. `pluralVariable` is localised for the same reason: it
+ * picks `'variable'`/`'variables'` **inside** these sentences, and Spanish
+ * plural rules do not follow English — wrapping the sentence but leaving the
+ * word literal would strand an English `variable(s)` inside every translated
+ * delete confirmation.
  *
  * @param input - The node kind and the fields that variant requires — see
  * `ConfirmInput`.
@@ -99,15 +116,15 @@ export function confirmTextFor(input: ConfirmInput): string {
     switch (input.kind) {
         case 'file': {
             const { name, varCount } = input;
-            return `Delete ${name} and its ${varCount} ${pluralVariable(varCount)}? This cannot be undone.`;
+            return vscode.l10n.t('Delete {0} and its {1} {2}? This cannot be undone.', name, varCount, pluralVariable(varCount));
         }
         case 'subset': {
             const { name, varCount, parent } = input;
-            return `Delete sub-set ${name} in ${parent} and its ${varCount} ${pluralVariable(varCount)}? This cannot be undone.`;
+            return vscode.l10n.t('Delete sub-set {0} in {1} and its {2} {3}? This cannot be undone.', name, parent, varCount, pluralVariable(varCount));
         }
         case 'var': {
             const { name, parent } = input;
-            return `Delete variable ${name} from sub-set ${parent}? This cannot be undone.`;
+            return vscode.l10n.t('Delete variable {0} from sub-set {1}? This cannot be undone.', name, parent);
         }
         default:
             return assertNever(input);

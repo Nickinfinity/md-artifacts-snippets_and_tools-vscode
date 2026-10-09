@@ -147,6 +147,24 @@ export function resolveInsertTarget(type: ArtifactType, invocationSurface: Invoc
     return 'editor';
 }
 
+/**
+ * Answers whether there is an editor tab open to insert into.
+ *
+ * `visibleTextEditors`, deliberately **not** `activeTextEditor`: the latter is
+ * focus-sensitive and goes `undefined` whenever a webview takes focus, so a
+ * button gated on it would vanish exactly while the user is working in the
+ * preview pane. "A tab is open" is the question Insert actually depends on,
+ * and it is focus-independent.
+ *
+ * @returns `true` when at least one text editor is visible in the workbench.
+ *
+ * @example
+ * hasVisibleEditor(); // → false in an empty workbench, true with any file open
+ */
+export function hasVisibleEditor(): boolean {
+    return vscode.window.visibleTextEditors.length > 0;
+}
+
 /** Bracketed-paste start marker — tells the receiving program "literal text follows". */
 const BRACKETED_PASTE_START = '\x1b[200~';
 /** Bracketed-paste end marker. */
@@ -239,9 +257,10 @@ function terminalConfirmDetail(content: string): string {
     const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
         + (lines.length > CONFIRM_PREVIEW_LINE_COUNT ? '\n…' : '');
 
-    return `${lines.length} lines will be pasted into the terminal as one block, without pressing Enter. `
-        + 'If the receiving shell does not support bracketed paste, each line could run on its own.'
-        + `\n\n${preview}`;
+    return vscode.l10n.t(
+        '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
+        lines.length,
+    ) + `\n\n${preview}`;
 }
 
 /**
@@ -277,14 +296,18 @@ export async function performInsert(
 
     if (target === 'terminal') {
         if (needsTerminalConfirmation(artifact.frontmatter.artifactType, content)) {
+            // Hoisted per call, not module scope, so `vscode.l10n.t` runs after
+            // the bundle is loaded; the read-back (`choice !== SEND_LABEL`)
+            // still compares one binding on both sides.
+            const SEND_LABEL = vscode.l10n.t('Send');
             const choice = await vscode.window.showWarningMessage(
-                'Send multi-line content to the terminal?',
+                vscode.l10n.t('Send multi-line content to the terminal?'),
                 { modal: true, detail: terminalConfirmDetail(content) },
-                'Send',
+                SEND_LABEL,
             );
-            if (choice !== 'Send') { return; }
+            if (choice !== SEND_LABEL) { return; }
         }
-        const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('Obsidian Artifacts');
+        const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('MD Artifacts');
         terminal.sendText(wrapForTerminal(artifact.frontmatter.artifactType, content), false);
         terminal.show(true);
         return;
@@ -293,11 +316,12 @@ export async function performInsert(
         editor.edit(edit => edit.insert(editor.selection.active, content));
         return;
     }
-    // Await rather than fire-and-forget: the toast must not claim a copy that
-    // failed (the clipboard is unavailable on some remote hosts), and this
-    // function is already async for the terminal confirmation.
-    await vscode.env.clipboard.writeText(content);
-    vscode.window.showInformationMessage('Obsidian Artifacts: No active editor — content copied to clipboard.');
+    // No clipboard fallback: Copy is a dedicated button beside Insert and
+    // resolves identically, so a silent copy here was one button doing two
+    // different things depending on state the user cannot see. The preview
+    // hides Insert outright when no editor is open, so this is now only
+    // reachable if the last editor closed between render and click.
+    vscode.window.showWarningMessage(vscode.l10n.t('MD Artifacts: No editor open to insert into. Use Copy instead.'));
 }
 
 /**
@@ -338,4 +362,34 @@ export async function persistBlockCode(opts: {
         out.appendLine(`[persistBlockCode] failed: ${(e as Error).message}`);
         return undefined;
     }
+}
+
+/** Keys that would reach `Object.prototype` if copied onto a plain `{}`. */
+const UNSAFE_SNAPSHOT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Copies a `varsSnapshot` payload into a null-prototype map of string values.
+ *
+ * **The keys are untrusted.** They come from `data-var` attributes rendered
+ * from vault-authored content, and the webview's `collectVars()` builds a
+ * plain `{}`, so `__proto__` / `constructor` / `prototype` would otherwise
+ * reach a host-side object. Rejected outright — never renamed or escaped into
+ * something that merely looks safe — and non-string values are dropped rather
+ * than coerced, so a hostile payload cannot smuggle an object through.
+ *
+ * @param raw - The message's `values` field, of unknown shape.
+ * @returns A null-prototype `Record<string, string>`; empty when `raw` is not an object.
+ *
+ * @example
+ * sanitiseVarsSnapshot({ 'VK-host': 'localhost', __proto__: 'x' }); // { 'VK-host': 'localhost' }
+ */
+export function sanitiseVarsSnapshot(raw: unknown): Record<string, string> {
+    const safe: Record<string, string> = Object.create(null) as Record<string, string>;
+    if (typeof raw !== 'object' || raw === null) { return safe; }
+
+    for (const [key, value] of Object.entries(raw)) {
+        if (UNSAFE_SNAPSHOT_KEYS.has(key)) { continue; }
+        if (typeof value === 'string') { safe[key] = value; }
+    }
+    return safe;
 }

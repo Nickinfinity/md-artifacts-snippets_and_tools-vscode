@@ -7,7 +7,7 @@ import type { ArtifactContext } from '../types/artifact.types.js';
 import type { ArtifactType } from '../types/parsed-artifact.types.js';
 
 /** Prefix shared by all extension context keys — matches the VS Code settings namespace */
-const CTX = 'obsidian-artifacts';
+const CTX = 'md-artifacts';
 
 /** Shorthand: fire a setContext command for a key relative to the extension prefix */
 const setCtx = (key: string, val: unknown): Thenable<unknown> =>
@@ -16,7 +16,7 @@ const setCtx = (key: string, val: unknown): Thenable<unknown> =>
 /**
  * Derives the VS Code context key name for a given artifact directory.
  *
- * Pattern: `obsidian-artifacts.<dir.toLowerCase()>Active`
+ * Pattern: `md-artifacts.<dir.toLowerCase()>Active`
  * Must match the `when` clauses declared in package.json.
  *
  * @param {string} dir - The artifact `dir` field (e.g. `'Snippets'`, `'AIAgentsConf'`)
@@ -33,18 +33,18 @@ export function artifactContextKey(dir: string): string {
  * constants.ts automatically produces the matching context key here.
  *
  * Keys set:
- * - `obsidian-artifacts.vaultConfigured`            — true when a vault path is configured
- * - `obsidian-artifacts.<dir.toLowerCase()>Active`  — true when that artifact dir exists on disk
- * - `obsidian-artifacts.editorHasMultiple`          — true when ≥2 editor artifacts are active
- * - `obsidian-artifacts.terminalHasMultiple`        — true when ≥2 terminal artifacts are active
- * - `obsidian-artifacts.explorerHasMultiple`        — true when ≥2 explorer artifacts are active
- * - `obsidian-artifacts.<surface>CreateHasMultiple` — true when ≥2 *create-capable*
+ * - `md-artifacts.vaultConfigured`            — true when a vault path is configured
+ * - `md-artifacts.<dir.toLowerCase()>Active`  — true when that artifact dir exists on disk
+ * - `md-artifacts.editorHasMultiple`          — true when ≥2 editor artifacts are active
+ * - `md-artifacts.terminalHasMultiple`        — true when ≥2 terminal artifacts are active
+ * - `md-artifacts.explorerHasMultiple`        — true when ≥2 explorer artifacts are active
+ * - `md-artifacts.<surface>CreateHasMultiple` — true when ≥2 *create-capable*
  *   artifacts are active on that surface. A separate family from the insert keys
  *   above: a surface can offer one insert type and two create types, or the
  *   reverse, so one key cannot serve both menus.
  *
  * The `*HasMultiple` keys drive the single-vs-submenu logic in package.json menus:
- * one active artifact → direct labelled entry, two or more → "Obsidian Artifacts" submenu.
+ * one active artifact → direct labelled entry, two or more → "MD Artifacts" submenu.
  *
  * @param {string | null} vaultPath - Absolute path to the vault root, or null if unconfigured
  * @returns {Promise<void>}
@@ -101,7 +101,7 @@ async function setVaultContextKeys(vaultPath: string | null): Promise<void> {
 }
 
 /**
- * Reads `obsidianArtifacts.vaultPath` from VS Code settings and refreshes
+ * Reads `mdArtifacts.vaultPath` from VS Code settings and refreshes
  * all vault-related VS Code context keys.
  *
  * VS Code settings are the single source of truth for the vault path — no
@@ -109,7 +109,7 @@ async function setVaultContextKeys(vaultPath: string | null): Promise<void> {
  *
  * Should be called:
  * 1. On extension activation — restores context from the previous session
- * 2. After any `obsidianArtifacts.*` setting changes (via onDidChangeConfiguration)
+ * 2. After any `mdArtifacts.*` setting changes (via onDidChangeConfiguration)
  * 3. After the config panel writes a new vault path or toggles a directory
  *
  * @returns {Promise<void>}

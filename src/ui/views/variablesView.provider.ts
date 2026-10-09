@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { extractSubSets } from '../../services/varset.service.js';
+import { extractSubSets, getVarsFileShape, type VarsFileShape } from '../../services/varset.service.js';
 import { getVarSetScanner } from '../panels/varsetPicker.panel.js';
 import { getVaultRootUri } from '../../services/config.service.js';
 import { getEntry } from '../../services/artifact-type-config.service.js';
@@ -20,6 +20,34 @@ export const VARIABLE_NODE_KINDS = ['file', 'subset', 'var'] as const;
 
 /** One of the three tree levels — derived from `VARIABLE_NODE_KINDS`, never re-spelled. */
 export type VariableNodeKind = typeof VARIABLE_NODE_KINDS[number];
+
+/**
+ * `contextValue` of a file row, one per {@link VarsFileShape} — the menus key
+ * each row's single `+` off it (blank: Add…, flat: Add variable, sets: Add
+ * sub-set). Index-aligned with no other list; `fileContextValue` maps a shape.
+ */
+export const FILE_CONTEXT_VALUES = ['fileBlank', 'fileFlat', 'fileSets'] as const;
+
+/**
+ * Every `contextValue` a tree row can carry — the three file shapes plus the
+ * `subset` and `var` kinds. A bare `file` is never produced.
+ * `package-variables-menus.test.ts` pins the manifest's `viewItem` clauses to it.
+ */
+export const VARIABLE_CONTEXT_VALUES = [...FILE_CONTEXT_VALUES, 'subset', 'var'] as const;
+
+/**
+ * Maps a file shape to its row's `contextValue`.
+ *
+ * @param shape - The file's {@link VarsFileShape}.
+ * @returns `'fileBlank'`, `'fileFlat'` or `'fileSets'`.
+ *
+ * @example
+ * fileContextValue('flat'); // → 'fileFlat'
+ */
+export function fileContextValue(shape: VarsFileShape): typeof FILE_CONTEXT_VALUES[number] {
+    if (shape === 'blank') { return 'fileBlank'; }
+    return shape === 'flat' ? 'fileFlat' : 'fileSets';
+}
 
 /**
  * Max characters shown for a var's value before it is truncated with `…`.
@@ -76,6 +104,21 @@ export interface VariableNode {
     kind: VariableNodeKind;
     /** Display label — already sanitized to a single line. */
     label: string;
+    /**
+     * `file` nodes only: the file's {@link VarsFileShape}. A `flat` file's vars
+     * hang straight off the file (no sub-set level) and sub-set commands accept
+     * the file node as block 0 — see `resolveTarget`.
+     */
+    shape?: VarsFileShape;
+    /** Lower-cased text the search filter matches against (name + value for a var). */
+    searchText?: string;
+    /**
+     * Grey text beside the label (`TreeItem.description`): a file's tags as
+     * `#tag`, a sub-set's description — single-line, length-bounded.
+     */
+    detail?: string;
+    /** Hover text (`TreeItem.tooltip`): the full description, plus tags for a file. */
+    tooltip?: string;
 }
 
 /**
@@ -119,28 +162,52 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
 
     for (const file of files) {
         const fileId = file.filePath;
+        // Empty sub-sets included — a just-created one must appear (and its index
+        // must match `resolveTarget`'s, which reads the same list).
+        const subSets = extractSubSets(file, { includeEmpty: true });
+        const shape = getVarsFileShape(file);
+        // Only an untitled one-block file skips the sub-set level — a single
+        // *titled* sub-set is still listed, so a title is never hidden.
+        const flat = shape === 'flat';
+        const fileLabel = stripControlChars(file.frontmatter.title || file.fileName);
+        const tagLine = (file.frontmatter.tags ?? []).map(t => `#${stripControlChars(t)}`).join(' ');
+        const fileDesc = stripControlChars(file.frontmatter.description ?? '');
         nodes.push({
             id: fileId,
             parentId: null,
             kind: 'file',
-            label: stripControlChars(file.frontmatter.title || file.fileName),
+            label: fileLabel,
+            shape,
+            // Tags beside the name (compact); description + tags on hover; all searchable.
+            detail: tagLine || undefined,
+            tooltip: [fileDesc, tagLine].filter(Boolean).join('\n') || undefined,
+            searchText: `${fileLabel} ${fileDesc} ${tagLine}`.toLowerCase(),
         });
 
-        extractSubSets(file).forEach((subSet, subIdx) => {
+        subSets.forEach((subSet, subIdx) => {
+            // Ids keep the `::subset:<i>` segment even when the level is not
+            // shown — every var command decodes its sub-set from the id.
             const subsetId = `${fileId}::subset:${subIdx}`;
-            nodes.push({
-                id: subsetId,
-                parentId: fileId,
-                kind: 'subset',
-                label: stripControlChars(subSet.heading),
-            });
+            if (!flat) {
+                const heading = stripControlChars(subSet.heading);
+                // `subSets` is block-aligned for a sub-sets file (empty ones included).
+                const desc = stripControlChars(file.blocks[subIdx]?.description ?? '');
+                nodes.push({
+                    id: subsetId, parentId: fileId, kind: 'subset', label: heading,
+                    detail: desc ? truncateValue(desc) : undefined,
+                    tooltip: desc || undefined,
+                    searchText: `${heading} ${desc}`.toLowerCase(),
+                });
+            }
 
             subSet.vars.forEach((v, varIdx) => {
+                const name = stripControlChars(v.name);
                 nodes.push({
                     id: `${subsetId}::var:${varIdx}`,
-                    parentId: subsetId,
+                    parentId: flat ? fileId : subsetId,
                     kind: 'var',
-                    label: `${stripControlChars(v.name)} = ${truncateValue(v.defaultValue)}`,
+                    label: `${name} = ${truncateValue(v.defaultValue)}`,
+                    searchText: `${name} ${stripControlChars(v.defaultValue)}`.toLowerCase(),
                 });
             });
         });
@@ -150,7 +217,46 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
 }
 
 /**
- * Read-only `TreeDataProvider` for the `obsidian-artifacts.variablesView`
+ * Narrows a node list to a case-insensitive search, keeping tree shape.
+ *
+ * A node survives when it matches, when an ancestor matches (a matching set
+ * or sub-set shows everything inside it), or when a descendant matches (the
+ * path down to a matching var stays visible). An empty query keeps all.
+ *
+ * @param nodes - Output of {@link buildVariableNodes}, parents before children.
+ * @param query - Raw search text; trimmed and lower-cased here.
+ * @returns The surviving nodes, original order.
+ *
+ * @example
+ * filterVariableNodes(nodes, 'host') // the VK-host rows plus their sub-set and file
+ */
+export function filterVariableNodes(nodes: VariableNode[], query: string): VariableNode[] {
+    const q = query.trim().toLowerCase();
+    if (q === '') { return nodes; }
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const keep = new Set<string>();
+    const matchedOrUnder = new Set<string>();
+    // ── Down: a match keeps its whole subtree (parents precede children) ──
+    for (const n of nodes) {
+        const parentHit = n.parentId !== null && matchedOrUnder.has(n.parentId);
+        if (parentHit || (n.searchText ?? n.label.toLowerCase()).includes(q)) {
+            matchedOrUnder.add(n.id);
+            keep.add(n.id);
+        }
+    }
+    // ── Up: every kept node keeps its ancestors ──
+    for (const id of [...keep]) {
+        let parentId = byId.get(id)?.parentId ?? null;
+        while (parentId !== null && !keep.has(parentId)) {
+            keep.add(parentId);
+            parentId = byId.get(parentId)?.parentId ?? null;
+        }
+    }
+    return nodes.filter(n => keep.has(n.id));
+}
+
+/**
+ * Read-only `TreeDataProvider` for the `md-artifacts.variablesView`
  * (contributed in `package.json`, registered in `extension.ts`).
  *
  * Scans the vault's `Variables/` directory through the *shared*
@@ -172,7 +278,7 @@ export function buildVariableNodes(files: ParsedArtifactFile[]): VariableNode[] 
  */
 export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNode> {
     /** The view id declared in `package.json`'s `contributes.views`. */
-    static readonly viewType = 'obsidian-artifacts.variablesView';
+    static readonly viewType = 'md-artifacts.variablesView';
 
     private readonly changeEmitter = new vscode.EventEmitter<VariableNode | undefined | null | void>();
     /** Fired by `refresh()` — mutation commands (T16) trigger a re-render through this. */
@@ -180,16 +286,69 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
 
     private readonly scanner = getVarSetScanner();
     private nodes: VariableNode[] = [];
+    private filter = '';
+
+    /** Current search text (`''` when none). */
+    get filterText(): string { return this.filter; }
 
     /**
-     * Invalidates the scanner cache and re-renders the tree from disk.
+     * Sets the search text and redraws. Re-uses the scanner cache, so typing
+     * does not re-read the vault.
+     *
+     * @param query - Search text; `''` clears.
+     * @returns Nothing.
+     *
+     * @example
+     * provider.setFilter('host');
+     */
+    setFilter(query: string): void {
+        this.filter = query;
+        this.changeEmitter.fire();
+    }
+
+    /**
+     * Re-renders the tree whenever the shared scanner cache is invalidated —
+     * by this provider's own `refresh()`, or by any other caller (creating a
+     * variable set through the preview, for one).
+     *
+     * The listener fires `changeEmitter` **directly** and must never call
+     * `refresh()`: the scanner's emit is synchronous inside `invalidate()`, so
+     * `refresh() → invalidate() → listener → refresh()` would recurse forever.
+     * That is also why `refresh()` below no longer fires the emitter itself.
+     */
+    private readonly scannerSub: vscode.Disposable =
+        this.scanner.onDidInvalidate(() => { this.changeEmitter.fire(); });
+
+    /**
+     * Invalidates the scanner cache, which re-renders the tree from disk.
+     *
+     * The re-render is not spelled here: `invalidate()` fires
+     * `onDidInvalidate`, `scannerSub` hears it and fires `changeEmitter`. Adding
+     * an explicit `changeEmitter.fire()` back would double-fire every refresh.
+     *
+     * @returns void
      *
      * @example
      * provider.refresh();
      */
     refresh(): void {
         this.scanner.invalidate();
-        this.changeEmitter.fire();
+    }
+
+    /**
+     * Releases this provider's subscription to the process-wide scanner.
+     *
+     * One `Disposable`, not an array — there is exactly one subscription. The
+     * scanner is a module singleton, so a provider that never disposes leaks a
+     * listener onto it for the life of the host.
+     *
+     * @returns void
+     *
+     * @example
+     * context.subscriptions.push(provider);
+     */
+    dispose(): void {
+        this.scannerSub.dispose();
     }
 
     /**
@@ -214,7 +373,7 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
             }
             const variablesDirUri = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir);
             const files = await this.scanner.scan(variablesDirUri);
-            this.nodes = buildVariableNodes(files);
+            this.nodes = filterVariableNodes(buildVariableNodes(files), this.filter);
             return this.nodes.filter(n => n.parentId === null);
         }
         return this.nodes.filter(n => n.parentId === element.id);
@@ -233,15 +392,33 @@ export class VariablesViewProvider implements vscode.TreeDataProvider<VariableNo
      * provider.getTreeItem({ id: 'a', parentId: null, kind: 'file', label: 'Local Dev' });
      */
     getTreeItem(node: VariableNode): vscode.TreeItem {
-        const collapsibleState = node.kind === 'var'
-            ? vscode.TreeItemCollapsibleState.None
-            : vscode.TreeItemCollapsibleState.Collapsed;
-        const item = new vscode.TreeItem(node.label, collapsibleState);
-        item.id = node.id;
-        item.contextValue = node.kind;
+        const filtering = this.filter.trim() !== '';
+        let collapsibleState = vscode.TreeItemCollapsibleState.None;
+        if (node.kind !== 'var') {
+            collapsibleState = filtering
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed;
+        }
+        // A sub-set row with no title can only come from a hand-written file
+        // (the form and the pane always name one); shown, never written.
+        const label = node.kind === 'subset' && node.label === '' ? vscode.l10n.t('(no name)') : node.label;
+        const item = new vscode.TreeItem(label, collapsibleState);
+        item.description = node.detail;
+        item.tooltip = node.tooltip;
+        // VS Code remembers expansion per item id and ignores a new state for a
+        // known id, so filtered results get their own ids to open expanded.
+        item.id = filtering ? `${node.id}#search` : node.id;
+        item.contextValue = node.kind === 'file' ? fileContextValue(node.shape ?? 'blank') : node.kind;
         item.iconPath = new vscode.ThemeIcon(
             node.kind === 'file' ? 'file' : node.kind === 'subset' ? 'symbol-namespace' : 'symbol-variable',
         );
+        // No `item.command` on a file node — deliberately. A single click is
+        // RESERVED for a different behaviour (not yet decided), so it must stay
+        // unbound rather than being spent on "open the edit form": the edit form
+        // is reached by the inline pencil (`OPEN_FILE_COMMAND_ID`) and the
+        // context menu. VS Code's TreeItem exposes no double-click hook, so a
+        // double-click route would need a click-timing shim in the provider —
+        // not worth inventing until the single-click behaviour is specified.
         return item;
     }
 }

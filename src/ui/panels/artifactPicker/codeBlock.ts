@@ -1,6 +1,17 @@
+import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
 import { WEBVIEW_ESC_LBL_JS } from './webviewSnippets.js';
 import { CODE_BLOCK_MIN_LINES } from '../../../types/constants.js';
+
+/**
+ * Debounce window (ms) shared by the code area's local re-render and the
+ * preview panel's `varsSnapshot` post — both were the same bare `150`
+ * literal in two places before this constant existed.
+ *
+ * @example
+ * setTimeout(fn, INPUT_DEBOUNCE_MS);
+ */
+export const INPUT_DEBOUNCE_MS = 150;
 
 /**
  * Builds the contenteditable code-block HTML fragment.
@@ -18,13 +29,14 @@ import { CODE_BLOCK_MIN_LINES } from '../../../types/constants.js';
  * buildCodeBlockHtml(renderCodeRowsHtml(code, 'javascript'), 'javascript')
  */
 export function buildCodeBlockHtml(rowsHtml: string, lang: string): string {
+    const expandLabel = escHtml(vscode.l10n.t('Open this block in the editor'));
     return /* html */`
   <div class="code-toolbar">
-    <button class="expand-editor-btn" id="expandCodeBtn" title="Open this block in the editor"
-            aria-label="Open this block in the editor">⤢</button>
+    <button class="expand-editor-btn" id="expandCodeBtn" title="${expandLabel}"
+            aria-label="${expandLabel}">⤢</button>
   </div>
   <div id="codeWrapper" class="code-block-wrapper editable" contenteditable="true" spellcheck="false"
-       style="--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;
+       style="--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;
 }
 
 /**
@@ -141,7 +153,7 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
       const caret = getCaretOffset();
       codeWrapper.innerHTML = renderRows(code);
       setCaretOffset(caret);
-    }, 150);
+    }, ${INPUT_DEBOUNCE_MS});
   }
   codeWrapper.addEventListener('input', scheduleRender);
   codeWrapper.addEventListener('keydown', function (ev) {

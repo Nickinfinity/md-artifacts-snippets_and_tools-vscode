@@ -1,9 +1,10 @@
+import * as vscode from 'vscode';
 import type { ParsedArtifactFile, ParsedVar } from '../../../types/parsed-artifact.types.js';
 import { escHtml, styleLinkTags } from '../../../utils/html.js';
 import { buildCodeBlockHtml } from './codeBlock.js';
 import { PREVIEW_CLIENT_JS } from './preview.clientJs.js';
 import { labelForVar, popupShell } from './preview.helpers.js';
-import { writesWholeFile } from '../../../services/artifact-type-config.service.js';
+import { writesWholeFile, isTerminalOnly } from '../../../services/artifact-type-config.service.js';
 
 // ── Var-merge helper ─────────────────────────────────────────────────────────
 
@@ -43,10 +44,15 @@ export function mergeVarsWithDefaults(raw: Record<string, string>, vars: ParsedV
  * @param cssUri       - Webview URI for the shared stylesheet.
  * @param cspSource    - Webview CSP source token.
  * @param varSources   - `{ varName → setName }` map for `from:` badges (Variable Sets).
+ * @param insertAvailable - Whether an editor tab is open to insert into. Only
+ *   gates types that actually need one: a `writesWholeFile` type writes to the
+ *   workspace ("Create File") and a terminal-bound type sends to the terminal,
+ *   so both keep their button regardless. Defaults to `true` so every existing
+ *   call site renders exactly as before.
  * @returns Complete HTML document string.
  *
  * @example
- * renderPreviewHtml(artifact, codeRowsHtml, nonce, cssUri, cspSource, {})
+ * renderPreviewHtml(artifact, codeRowsHtml, nonce, cssUri, cspSource, {}, false)
  */
 export function renderPreviewHtml(
     a: ParsedArtifactFile,
@@ -55,26 +61,37 @@ export function renderPreviewHtml(
     cssUri: string | string[],
     cspSource: string,
     varSources: Record<string, string> = {},
+    insertAvailable = true,
 ): string {
     const e = escHtml;
     const title    = e(a.frontmatter.title || a.fileName);
     const type     = e(a.frontmatter.artifactType);
     const lang     = a.frontmatter.language ? e(a.frontmatter.language) : '';
     const desc     = a.frontmatter.description ? e(a.frontmatter.description) : '';
-    const env      = a.frontmatter.env ? `<span class="pill">env: ${e(a.frontmatter.env)}</span>` : '';
-    const target   = a.frontmatter.target ? `<span class="pill">target: ${e(a.frontmatter.target)}</span>` : '';
+    const env      = a.frontmatter.env ? `<span class="pill">${e(vscode.l10n.t('env: {0}', a.frontmatter.env))}</span>` : '';
+    const target   = a.frontmatter.target ? `<span class="pill">${e(vscode.l10n.t('target: {0}', a.frontmatter.target))}</span>` : '';
     const tagsHtml = (a.frontmatter.tags ?? []).map(t => `<span class="tag">${e(t)}</span>`).join('');
 
     // Templates and agent configs write a whole file (Create File); every other
     // type inserts at the cursor (Insert). `writesWholeFile` is the ONLY per-type
     // rendering difference and the single source shared with the insert handler —
     // the byte-exact golden for a snippet is the tripwire that it did not leak wider.
-    const primaryLabel = writesWholeFile(a.frontmatter.artifactType) ? 'Create File' : 'Insert';
+    const writesFile   = writesWholeFile(a.frontmatter.artifactType);
+    const primaryLabel = writesFile ? vscode.l10n.t('Create File') : vscode.l10n.t('Insert');
+    // Only editor-bound types are gated. A whole-file type writes into the
+    // workspace and a terminal-bound type sends to the terminal — neither needs
+    // an editor, so hiding their button would make them uninsertable. The
+    // terminal case is covered by `needsEditor` below rather than re-deriving
+    // `resolveInsertTarget` here: that resolver needs an invocation surface the
+    // renderer does not have, and `contexts: ['terminal']` is the only row that
+    // never routes to an editor.
+    const needsEditor  = !writesFile && !isTerminalOnly(a.frontmatter.artifactType);
+    const insertHidden = needsEditor && !insertAvailable ? ' hidden' : '';
 
     const inputsHtml = a.vars.length > 0
         ? a.vars.map(v => {
             const src = varSources[v.name];
-            const badge = src ? `<span class="var-source" data-var-source="${e(v.name)}">from: ${e(src)}</span>` : '';
+            const badge = src ? `<span class="var-source" data-var-source="${e(v.name)}">${e(vscode.l10n.t('from: {0}', src))}</span>` : '';
             return `
              <div class="input-row">
                <label for="v-${e(v.name)}">${e(labelForVar(v.name))}</label>
@@ -83,7 +100,7 @@ export function renderPreviewHtml(
                ${badge}
              </div>`;
           }).join('')
-        : '<p class="muted">No variables defined.</p>';
+        : `<p class="muted">${e(vscode.l10n.t('No variables defined.'))}</p>`;
 
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -103,25 +120,21 @@ ${styleLinkTags(cssUri)}
   ${desc ? `<p class="desc">${desc}</p>` : ''}
   ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
   <div class="dirty-notice" id="dirtyNotice" hidden>
-    Temporary changes — they affect this insert only. Click Overwrite to save them to the <code>.md</code>.
+    ${e(vscode.l10n.t('Temporary changes — they affect this insert only. Click Overwrite to save them to the {0}.', '{{mdFile}}')).replace('{{mdFile}}', '<code>.md</code>')}
   </div>
   ${buildCodeBlockHtml(codeRowsHtml, lang)}
-  <div class="slabel">Variables</div>
+  <div class="slabel">${e(vscode.l10n.t('Variables'))}</div>
   <div id="varsSection">
     <div class="inputs" id="varInputs">${inputsHtml}</div>
-    <div class="actions varset-actions">
-      <button class="btn btn-secondary" id="applyVarSetBtn">Apply Variable Set</button>
-      <button class="btn btn-secondary" id="saveAsVarSetBtn" style="display:none;">Save as Variable Set</button>
-    </div>
   </div>
   <div class="vars-resize-handle" id="varsResizeHandle" role="separator" aria-orientation="horizontal"
-       aria-label="Resize the variables section" tabindex="0"></div>
+       aria-label="${e(vscode.l10n.t('Resize the variables section'))}" tabindex="0"></div>
   <div class="actions">
-    <button class="btn btn-insert"    id="insertBtn">${primaryLabel}</button>
-    <button class="btn btn-secondary" id="copyBtn">Copy</button>
-    <button class="btn btn-secondary" id="overwriteBtn" hidden>Overwrite</button>
-    <button class="btn btn-secondary" id="editBtn">Edit</button>
-    <button class="btn btn-cancel"    id="cancelBtn">Cancel</button>
+    <button class="btn btn-insert"    id="insertBtn"${insertHidden}>${e(primaryLabel)}</button>
+    <button class="btn btn-secondary" id="copyBtn">${e(vscode.l10n.t('Copy'))}</button>
+    <button class="btn btn-secondary" id="overwriteBtn" hidden>${e(vscode.l10n.t('Overwrite'))}</button>
+    <button class="btn btn-secondary" id="editBtn">${e(vscode.l10n.t('Edit'))}</button>
+    <button class="btn btn-cancel"    id="cancelBtn">${e(vscode.l10n.t('Cancel'))}</button>
   </div>
   <p class="path">${e(a.relativePath)}</p>
 <script nonce="${nonce}">
@@ -177,7 +190,7 @@ export function renderMultiBlockPreviewHtml(
     ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
     ${blocksHtml}
     <p class="path">${e(a.relativePath)}</p>
-    <p class="hint">Press Enter to choose a block.</p>`,
+    <p class="hint">${e(vscode.l10n.t('Press Enter to choose a block.'))}</p>`,
     cssUri, cspSource);
 }
 
@@ -193,7 +206,7 @@ export function renderMultiBlockPreviewHtml(
  */
 export function renderPopupEmptyHtml(cssUri: string | string[], cspSource: string): string {
     return popupShell(
-        '<p style="text-align:center;margin-top:40px">Select a file to preview</p>',
+        `<p style="text-align:center;margin-top:40px">${escHtml(vscode.l10n.t('Select a file to preview'))}</p>`,
         cssUri,
         cspSource,
     );

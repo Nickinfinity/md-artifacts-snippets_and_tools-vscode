@@ -10,8 +10,8 @@ import type { ArtifactsArray } from './artifact.types.js';
  *  4. Per-type create-form behaviour — language mode, label, multi-block (artifact-type-config.service.ts)
  *
  * Context key and command ID are derived from `dir.toLowerCase()`:
- *   context key — `obsidian-artifacts.<dir.toLowerCase()>Active`
- *   command     — `obsidian-artifacts.insert.<dir.toLowerCase()>`
+ *   context key — `md-artifacts.<dir.toLowerCase()>Active`
+ *   command     — `md-artifacts.insert.<dir.toLowerCase()>`
  *
  * `contexts: ['all']` means the artifact surfaces in every VS Code context menu.
  *
@@ -89,6 +89,11 @@ export const ARTIFACTS: ArtifactsArray = [
 		dir: 'Variables',
 		default: false,
 		contexts: ['all'],
+		// D-11 — a Variables file opens in an editable view, never the insert
+		// preview. This one flag drives both halves: the main pane's Open list
+		// omits it (`getBrowseTypes`) and the picker routes it to the pane's
+		// edit mode (`opensForEdit`), so the list and the routing cannot drift.
+		opensForEdit: true,
 	},
 	{
 		type: 'AIPrompt',
@@ -255,11 +260,104 @@ export const MAX_PANE_WIDTH_PX = 700;
  *
  * A short artifact would otherwise render a two-line sliver that is awkward to
  * edit in. Applied as a CSS custom property rather than a hard-coded rule
- * (`code-block.css` reads `--oa-code-min-lines`), because a stylesheet cannot
+ * (`code-block.css` reads `--mda-code-min-lines`), because a stylesheet cannot
  * import a constant and a second spelling of the number is exactly the drift
  * this repo keeps writing guard tests about.
  *
  * @example
- * `style="--oa-code-min-lines: ${CODE_BLOCK_MIN_LINES}"`
+ * `style="--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}"`
  */
 export const CODE_BLOCK_MIN_LINES = 8;
+
+// ── Variables pane: actions per row ──────────────────────────────────────────
+
+/**
+ * The categories a Variables-pane right-click menu is split into, in display
+ * order. Each becomes a VS Code menu group (`<n>_<category>`), so they appear
+ * as separated sections, top to bottom.
+ */
+export const VARIABLES_MENU_CATEGORIES = ['view', 'create', 'edit', 'apply', 'delete'] as const;
+
+/** One Variables-pane menu category — see {@link VARIABLES_MENU_CATEGORIES}. */
+export type VariablesMenuCategory = typeof VARIABLES_MENU_CATEGORIES[number];
+
+/** What one kind of row offers: its inline icons (in order) and its right-click sections. */
+export type VariablesRowActions = { inline: readonly string[] } & Record<VariablesMenuCategory, readonly string[]>;
+
+/**
+ * **THE rules for what each Variables-pane row can do** — the single source for
+ * which actions a set, a sub-set or a variable offers, per file shape.
+ *
+ * Keyed by the row's `contextValue` (`variablesView.provider.ts`'s
+ * `VARIABLE_CONTEXT_VALUES`; a file row's value is its shape — see
+ * `getVarsFileShape`). Values are `md-artifacts.variables.<suffix>` command
+ * suffixes. `package.json`'s `view/item/context` menus are the static mirror VS
+ * Code reads before activation; `package-variables-menus.test.ts` rebuilds them
+ * from this table and fails on any difference.
+ *
+ * The "create" rules follow the file shapes:
+ * - `fileBlank` (header only) — either first step: a variable (one untitled
+ *   block) or a sub-set. The inline `+` asks which (`addToBlank`).
+ * - `fileFlat` (one untitled block) — add a variable; a new sub-set names the
+ *   untitled block "Default" first (`addSubSet`).
+ * - `fileSets` (titled sub-sets, even one) — add a sub-set; variables are
+ *   added on the sub-set rows.
+ *
+ * @example
+ * VARIABLES_ROW_ACTIONS.fileFlat.create // → ['addVar', 'newSubSet']
+ */
+export const VARIABLES_ROW_ACTIONS: Readonly<Record<'fileBlank' | 'fileFlat' | 'fileSets' | 'subset' | 'var', VariablesRowActions>> = {
+    fileBlank: {
+        inline: ['addToBlank', 'openFile', 'deleteFile'],
+        view:   ['viewInfo'],
+        create: ['addVar', 'newSubSet'],
+        edit:   ['openFile', 'editDescription', 'editTags'],
+        apply:  [],
+        delete: ['deleteFile'],
+    },
+    fileFlat: {
+        inline: ['addVar', 'openFile', 'deleteFile', 'applyToPreview', 'applyToEditor'],
+        view:   ['viewInfo'],
+        create: ['addVar', 'newSubSet'],
+        edit:   ['openFile', 'editDescription', 'editTags'],
+        apply:  ['applyToPreview', 'applyToEditor'],
+        delete: ['deleteFile'],
+    },
+    fileSets: {
+        inline: ['newSubSet', 'openFile', 'deleteFile'],
+        view:   ['viewInfo'],
+        create: ['newSubSet'],
+        edit:   ['openFile', 'editDescription', 'editTags'],
+        apply:  [],
+        delete: ['deleteFile'],
+    },
+    subset: {
+        inline: ['addVar', 'applyToPreview', 'applyToEditor'],
+        view:   ['viewInfo'],
+        create: ['addVar'],
+        edit:   ['renameSubSet', 'editDescription'],
+        apply:  ['applyToPreview', 'applyToEditor'],
+        delete: ['deleteSubSet'],
+    },
+    var: {
+        inline: ['editValue'],
+        view:   ['viewInfo'],
+        create: [],
+        edit:   ['editValue', 'renameVar'],
+        apply:  [],
+        delete: ['deleteVar'],
+    },
+};
+
+/**
+ * Extra `when` conditions an **inline** icon carries: the apply icons show
+ * only when there is something to apply to. Their right-click entries stay
+ * unconditional (each command explains itself when invoked with no target).
+ *
+ * @example
+ * VARIABLES_INLINE_WHEN.applyToPreview // → 'md-artifacts.previewActive'
+ */
+export const VARIABLES_INLINE_WHEN: Readonly<Record<string, string>> = {
+    applyToPreview: 'md-artifacts.previewActive',
+    applyToEditor:  'editorIsOpen',
+};

@@ -19,7 +19,7 @@ import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-const FORM_VIEW_TYPE = 'obsidian-artifacts.artifactForm';
+const FORM_VIEW_TYPE = 'md-artifacts.artifactForm';
 
 /**
  * Options for opening the Artifact Form panel.
@@ -81,13 +81,15 @@ export function decideFormPanelAction(args: {
  * @param type - The artifact type the form is targeting.
  * @returns The window title.
  * @example
- * panelTitle('Snippet', 'create'); // → 'Obsidian Artifacts: Create Snippets'
- * panelTitle('Snippet', 'edit');   // → 'Obsidian Artifacts: Edit Snippets'
+ * panelTitle('Snippet', 'create'); // → 'MD Artifacts: Create Snippets'
+ * panelTitle('Snippet', 'edit');   // → 'MD Artifacts: Edit Snippets'
  */
 function panelTitle(type: ArtifactType, mode: OpenFormOpts['mode']): string {
     // type always comes from getCreateFormTypes(), so the lookup cannot miss.
-    const verb = mode === 'edit' ? 'Edit' : 'Create';
-    return `Obsidian Artifacts: ${verb} ${getEntry(type).name}`;
+    const name = getEntry(type).name;
+    return mode === 'edit'
+        ? vscode.l10n.t('MD Artifacts: Edit {0}', name)
+        : vscode.l10n.t('MD Artifacts: Create {0}', name);
 }
 
 /**
@@ -119,12 +121,13 @@ function buildModel(opts: OpenFormOpts): ArtifactFormModel {
  * void confirmThenRetarget(controller, { mode: 'create', type: 'Template', prefill });
  */
 async function confirmThenRetarget(ctrl: ArtifactFormController, opts: OpenFormOpts): Promise<void> {
+    const replaceAction = vscode.l10n.t('Replace');
     const choice = await vscode.window.showWarningMessage(
-        'Replace the unsaved form?',
-        { modal: true, detail: 'The artifact form has unsaved changes. Replacing it discards them.' },
-        'Replace',
+        vscode.l10n.t('Replace the unsaved form?'),
+        { modal: true, detail: vscode.l10n.t('The artifact form has unsaved changes. Replacing it discards them.') },
+        replaceAction,
     );
-    if (choice === 'Replace') { ctrl.retarget(opts); }
+    if (choice === replaceAction) { ctrl.retarget(opts); }
 }
 
 /**
@@ -372,12 +375,13 @@ class ArtifactFormController {
 
     private async handleRemoveBlock(blockIndex: number): Promise<void> {
         const singular = getTypeSingular(this.opts.type);
+        const deleteAction = vscode.l10n.t('Delete');
         const answer   = await vscode.window.showWarningMessage(
-            `This ${singular} block will be deleted. Continue?`,
+            vscode.l10n.t('This {0} block will be deleted. Continue?', singular),
             { modal: true },
-            'Delete',
+            deleteAction,
         );
-        this.post({ command: 'removeBlockConfirmed', blockIndex, confirmed: answer === 'Delete' });
+        this.post({ command: 'removeBlockConfirmed', blockIndex, confirmed: answer === deleteAction });
     }
 
     /**
@@ -414,12 +418,13 @@ class ArtifactFormController {
 
     private async handleCancel(dirty: boolean): Promise<void> {
         if (!dirty) { this.dispose(); return; }
+        const discardAction = vscode.l10n.t('Discard');
         const answer = await vscode.window.showWarningMessage(
-            'Discard unsaved changes?',
+            vscode.l10n.t('Discard unsaved changes?'),
             { modal: true },
-            'Discard',
+            discardAction,
         );
-        if (answer === 'Discard') {
+        if (answer === discardAction) {
             this.dispose();
         } else {
             this.post({ command: 'cancelConfirmed', confirmed: false });
@@ -464,9 +469,9 @@ class ArtifactFormController {
         // Step 2: filename prompt
         const defaultName = deriveFileName(model.title);
         const fileName    = await vscode.window.showInputBox({
-            title:          'Save artifact as',
+            title:          vscode.l10n.t('Save artifact as'),
             value:          defaultName,
-            prompt:         'File name (without .md extension)',
+            prompt:         vscode.l10n.t('File name (without .md extension)'),
             ignoreFocusOut: true,
             validateInput:  v => {
                 const r = validateArtifactFilename(v);
@@ -524,12 +529,13 @@ class ArtifactFormController {
         }
 
         if (result.kind === 'collision') {
+            const overwriteAction = vscode.l10n.t('Overwrite');
             const answer = await vscode.window.showWarningMessage(
-                `"${result.filePath}" already exists. Overwrite?`,
+                vscode.l10n.t('"{0}" already exists. Overwrite?', result.filePath),
                 { modal: true },
-                'Overwrite',
+                overwriteAction,
             );
-            if (answer === 'Overwrite') {
+            if (answer === overwriteAction) {
                 await this.writeWithCollision(vaultRoot, type, chosenDir, fileName, content, true);
             }
             // Cancel from collision → return focus to form (panel stays open)

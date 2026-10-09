@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI AGENTS when working with code in this repository.
 
 ## Branching and pull requests
 
@@ -41,7 +41,7 @@ pnpm install           # Install deps (no node_modules by default — run after 
 npm run compile        # One-off TypeScript build (outputs to dist/)
 npm run watch          # Watch mode for development (preferred during active development)
 npm run lint           # ESLint check (runs against src/)
-npm run test           # Compile + lint + run all tests (1130 passing)
+npm run test           # Compile + lint + run all tests (1507 passing)
 rm -rf dist && npm test # REQUIRED after any file delete or rename — see below
 npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale; use this to verify
 ```
@@ -51,7 +51,7 @@ test's stale compiled artifact keeps running and *inflates* the pass count into
 a phantom green. `rm -rf dist` after any delete or rename.
 
 **macOS socket-path caveat.** `.vscode-test.mjs` pins
-`--user-data-dir=/tmp/oa-vsct` because macOS caps unix socket paths at 103 chars
+`--user-data-dir=/tmp/mda-vsct` because macOS caps unix socket paths at 103 chars
 and the default under a deep repo path overflows it (`listen EINVAL … .sock`).
 Seeing that does not mean the suite is broken — never fall back to a partial gate.
 
@@ -61,7 +61,7 @@ Press **F5** in VS Code to launch the Extension Development Host.
 
 ## What This Extension Does
 
-**Obsidian Artifacts: AI Snippets & Tools** bridges an Obsidian vault and VS Code, letting developers insert vault content — snippets, templates, commands, agent configs, AI prompts, and variables — directly into the editor or terminal without leaving VS Code.
+**MD Artifacts: AI Snippets & Tools** bridges an Obsidian vault and VS Code, letting developers insert vault content — snippets, templates, commands, agent configs, AI prompts, and variables — directly into the editor or terminal without leaving VS Code.
 
 - **Settings panel** — pick and validate the vault root, toggle artifact directories.
 - **Artifact picker** — a `vscode.QuickPick` hierarchical navigator with a
@@ -71,7 +71,7 @@ Press **F5** in VS Code to launch the Extension Development Host.
 - **Create form** — a webview form that writes new artifacts into the vault.
 - **Variable Sets** — reusable `<VK-xxx>` default bundles, applied with a diff
   preview or saved from current values.
-- **Activity-bar home** — a dedicated container (icon: `media/obsidian-artifacts.svg`,
+- **Activity-bar home** — a dedicated container (icon: `media/md-artifacts.svg`,
   freely replaceable — nothing reads or fingerprints it) holds two panes: the
   **main pane**, a two-mode webview that lists create-form types (`idle`) and
   hosts the insert preview (`preview`) once an artifact is picked; and the
@@ -86,15 +86,20 @@ Press **F5** in VS Code to launch the Extension Development Host.
 src/
 ├── extension.ts                      # Entry point — activate() / deactivate()
 ├── commands/
-│   ├── openSettings.command.ts       # Registers obsidian-artifacts.settings
+│   ├── openSettings.command.ts       # Registers md-artifacts.settings
 │   ├── insert.command.ts             # One insert command per artifact (loop over ARTIFACTS)
 │   ├── create.command.ts             # Create-artifact flow + editor-selection capture
-│   ├── migrate.command.ts            # obsidian-artifacts.migrateFrontmatter — dry-run, then apply
+│   ├── migrate.command.ts            # md-artifacts.migrateFrontmatter — dry-run, then apply
 │   ├── capture/                      # One CaptureFn per surface, vscode-free
 │   │   └── editor.capture.ts · terminal.capture.ts · explorer.capture.ts
 │   ├── create-prefill.helpers.ts     # THE prefill builders (pure)
 │   ├── create-from-surface.command.ts   # Derived create-command registration (mirrors insert.command.ts)
-│   └── variables.command.ts (+ .command.helpers · .confirm.helpers)  # Variables CRUD commands + confirmations
+│   ├── variables.command.ts (+ .command.helpers · .confirm.helpers)  # Variables CRUD commands + confirmations
+│   ├── variables-add-blank.command.ts  # Blank set's "Add…" (Variable or Sub-set)
+│   ├── variables-meta.command.ts     # Edit Description… / Edit Tags… (pane)
+│   ├── variables-info.command.ts     # View Info — the Variables adapter for the info popup
+│   ├── var-name-prompt.helpers.ts    # Pane prompts with the fixed VK- prefix
+│   └── variables-apply.command.ts · variables-search.command.ts
 ├── services/                         # Domain logic. Panels/commands stay thin wiring.
 │   ├── artifact-type-config.service.ts   # THE ARTIFACTS reader — getEntry, getAllTypes, getFormConfig…
 │   ├── config.service.ts                 # THE settings reader — CONFIG_SECTION, getVaultPath(RootUri)
@@ -131,11 +136,15 @@ src/
 │   │   ├── artifactPicker.panel.ts   # Re-export shim (back-compat for insert.command.ts)
 │   │   ├── artifactPicker/           # Parts table under Architecture. navigator · codeBlock ·
 │   │   │                             # preview(.render/.clientJs/.helpers/.createFile/.batch) ·
-│   │   │                             # blockEditor · fullEditor · varSetController · varSetDiff ·
+│   │   │                             # blockEditor · varSetController · varSetDiff ·
 │   │   │                             # multiIndex(.dest) · webviewHost · webviewSnippets · shared
 │   │   │                             # (+ *.helpers.ts siblings)
 │   │   ├── artifactForm/             # panel(.helpers) · form.html · form.blocks ·
 │   │   │                             # form.clientJs · form.helpers · blockExpand · shared
+│   │   ├── shared/                   # Cross-editor UI pieces (markup + one client-script string each):
+│   │   │                             # tagsField.ts · reorderControls.ts — see "Reusable UI building blocks"
+│   │   ├── varsetForm/               # Variable Set editor: render · subsets (sub-set groups + edit script) · panel
+│   │   ├── infoPanel/                # View Info popup — infoPanel.ts (open/reuse) · infoPanel.render.ts (pure, no script)
 │   │   └── settings.panel.ts · varsetPicker.panel.ts · destFolderPicker.panel.ts
 │   ├── base.css                      # Global reset + bare h1/hr/button — EVERY panel links this
 │   ├── main-view.css                 # Narrow-pane layout overrides for the sidebar preview
@@ -145,14 +154,15 @@ src/
 │   ├── constants.ts                  # ARTIFACTS · LANG_ALIAS · LANG_FENCE · LANG_EXT
 │   ├── parsed-artifact.types.ts      # ArtifactType union, ParsedArtifactFile, ParsedBlock, ParsedVar
 │   ├── multi-index.types.ts          # IndexStep · IndexPlan · DestCandidate · CarryOver · BatchOutcome
+│   ├── info.types.ts                 # InfoModel — what a View Info popup shows (artifact-agnostic)
 │   └── artifact.types.ts · artifact-form.types.ts (CaptureResult · CaptureFn) · varset.types.ts · webview-messages.types.ts
 ├── utils/
 │   ├── helpers.ts                    # getNonce() — CSPRNG-backed
 │   ├── html.ts                       # THE escHtml (& < > " ') + styleLinkTags
 │   └── path-containment.ts           # THE containment rule — isPathWithin(root, candidate)
 ├── features/ · providers/            # (empty) reserved
-media/obsidian-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
-test/                                 # 1130 tests. fixtures/ + snapshots/
+media/md-artifacts.svg          # Activity-bar container icon — replaceable, referenced by path only
+test/                                 # 1507 tests. fixtures/ + snapshots/
 ├── snapshots/varset/*.md             # Byte-exact var-set emission goldens — NEVER edit
 ├── snapshots/form-html/*.html        # Form-panel HTML snapshots
 └── drift guards: language-consistency · frontmatter-keys · constants · webview-snippets ·
@@ -176,7 +186,7 @@ Sync — **create only, never auto-delete.**
 
 On folder pick: `validateObsidianVault()` (requires `.obsidian/`) →
 `detectVaultDirs()` → auto-create the `default: true` entries → persist path and
-feature flags to `obsidianArtifacts.*` (Settings Sync). It is the only **panel** that writes that config section, and sources the
+feature flags to `mdArtifacts.*` (Settings Sync). It is the only **panel** that writes that config section, and sources the
 section name from `CONFIG_SECTION`. One programmatic writer also exists —
 `config.service.ts`'s `setVariablesHeightFraction`, for the drag handle, which
 lives beside its matching reader rather than reaching into the section from a
@@ -218,6 +228,17 @@ regression this list exists to prevent; each is held by a named guard test.
 | Modal confirmation | `services/confirm.service.ts` — `confirmModal` | covered via `test/edit-artifact.test.ts` (delete) and `test/preview-buttons.test.ts` (overwrite) |
 | Block-code writes | `artifactPicker/preview.helpers.ts` — `persistBlockCode`, wrapping `patchBlockCode` | `test/preview-buttons.test.ts` — `preview.ts` may not call `patchBlockCode` directly |
 | Max pane width / code-area min height | `types/constants.ts` — `MAX_PANE_WIDTH_PX`, `CODE_BLOCK_MIN_LINES` | `test/preview-buttons.test.ts` — the sheet must read the custom property, never a second literal |
+| Script-context escaping (`<\/`, `<!--`) | `artifactPicker/webviewSnippets.ts` — `jsStr` | `test/webview-snippets.test.ts` — exactly one `jsStr` in `src/`, and no other file performing the escape |
+| Bundle values never reach HTML unescaped | the `escHtml` / `jsStr` / `jsStr(escHtml(…))` rule above | `test/l10n-html-escaping.test.ts` — scans for any `${vscode.l10n.t(` not wrapped in an escaper |
+| i18n asset packaging | `.vscodeignore` (no exclusion of `package.nls*` / `l10n/`) + `package.json`'s `"l10n": "./l10n"` | `test/packaging-assets.test.ts` — content-scanned, not column-0 anchored |
+| nls / l10n key naming | the English source string **is** the key — no key ids | `test/l10n-bundle.test.ts` |
+| Insert target (editor vs terminal) | `services/preview-target.service.ts` | `test/preview-target.service.test.ts` |
+| Variables file shape (blank / flat / sets) — which `+` a pane row shows, whether a sub-set level exists | `varset.service.ts` — `getVarsFileShape`; flat→sets naming in `variables-crud.service.ts` — `addSubSet` + `uniqueDefaultName` | `test/variables-file-shapes.test.ts` · `package-variables-menus.test.ts` (one inline `+` per row) |
+| Variables-pane actions per row (inline icons + right-click categories view · create · edit · apply · delete) | `types/constants.ts` — `VARIABLES_ROW_ACTIONS`, `VARIABLES_MENU_CATEGORIES`, `VARIABLES_INLINE_WHEN` | `package-variables-menus.test.ts` — rebuilds `package.json`'s Variables menus from the table and requires an exact match |
+| ↑/↓ reorder control (any editor list) | `ui/panels/shared/reorderControls.ts` — `buildReorderButtons`, `REORDER_CLIENT_JS` | `reorder-controls.test.ts` — no other `src/` file may spell the buttons; each bundle carries the script once |
+| Editable tags field (any editor) | `ui/panels/shared/tagsField.ts` — `buildTagsField`, `TAGS_FIELD_CLIENT_JS` | covered via both forms' tests |
+| View Info popup (any artifact) | `types/info.types.ts` — `InfoModel`; `ui/panels/infoPanel/` — `openInfoPanel`, `renderInfoHtml` | `variables-info.test.ts` — escaping, no-script CSP |
+| `VK-` prefix on variable names (fixed, not typed) | form: `varsetForm.render.ts` — `renderVarNameCell` + client `vkName`; pane: `commands/var-name-prompt.helpers.ts` — `withVkPrefix` (twins — the webview cannot import) | `varset-form-subset-controls.test.ts` · `variables-command.test.ts` |
 
 **Context menus are driven by `constants.ts`, always.** An artifact's
 `contexts` field is the single source for *where* its command shows (editor /
@@ -230,7 +251,7 @@ new artifact wired in constants but missing from `package.json` shows **no
 menu entry, no error** without it.
 
 **Never write `ARTIFACTS.find(...)`, a second `escHtml`, or a second slug.**
-Never call `vscode.workspace.getConfiguration('obsidianArtifacts')` outside
+Never call `vscode.workspace.getConfiguration('mdArtifacts')` outside
 `config.service.ts`.
 
 ### Artifact picker (`src/ui/panels/artifactPicker/`)
@@ -242,11 +263,10 @@ back-compat with `commands/insert.command.ts`.
 |---|---|
 | `navigator.ts` (+ `.helpers.ts`) | `ArtifactNavigator`, `openArtifactPicker`, parse cache, hierarchical browsing, accept/active routing |
 | `codeBlock.ts` | Editable code-area HTML (`buildCodeBlockHtml`) + `CODE_BLOCK_CLIENT_JS` (caret preservation, debounced re-render, paste/Enter intercept). Also carries `WEBVIEW_ESC_LBL_JS`. |
-| `preview.ts` | `PreviewPanelController` — popup lifecycle + message routing. **Controller only.** |
+| `preview.ts` | `PreviewPanelController` — popup lifecycle + message routing, **including the full-edit flow** (`handleFullEdit`, `'fullEdit'` message): the real `.md` opens in an editor tab, save → `fileUpdated`, change (500 ms) → `updateVars`. There is no `fullEditor.ts`; an earlier version of this table listed one. **Controller only.** |
 | `preview.render.ts` | `renderPreviewHtml`, `renderMultiBlockPreviewHtml`, `renderPopupEmptyHtml`, `mergeVarsWithDefaults` |
 | `preview.clientJs.ts` | `PREVIEW_CLIENT_JS` — the popup's webview-side script |
-| `blockEditor.ts` (+ `.helpers.ts`) | `BlockEditController` — one block to a temp file; `normalizeLangId` / `resolveLangId` / `extForLang` |
-| `fullEditor.ts` (+ `.helpers.ts`) | `FullEditController` — real `.md` in an editor tab; save → `fileUpdated`, change (500 ms) → `updateVars` |
+| `blockEditor.ts` | `BlockEditController` — one block to a temp file; `normalizeLangId` / `resolveLangId` / `extForLang` |
 | `varSetController.ts` · `varSetDiff.ts` | Variable-set apply/save routing and diff HTML |
 | `webviewSnippets.ts` | `WEBVIEW_ESC_LBL_JS` — shared client-JS `esc`/`lbl` |
 | `shared.ts` | Single `out` OutputChannel |
@@ -495,7 +515,7 @@ because of a hard VS Code constraint:
 > matching `contributes.commands` entry. Per-item overrides in
 > `contributes.menus` are silently ignored.
 
-IDs follow `obsidian-artifacts.insert.<dir.toLowerCase()>` via
+IDs follow `md-artifacts.insert.<dir.toLowerCase()>` via
 `artifactCommandId(dir)` and must match `package.json`. A type declaring
 **both** `'editor'` and `'terminal'` in `contexts` (only `AIPrompt` today) also
 registers `artifactTerminalCommandId(dir)` — `<base>.terminal` — a second
@@ -516,7 +536,7 @@ and the type-config accessors. Then, for menu presentation only:
 and is labelled **"See/Edit Variables"** (browse/edit, not insert); it sits in
 `package.json` group `"2_variables@1"` while others use `"1_insert@N"`, so VS
 Code's group separator keeps it last. Each surface shows direct entries when one
-artifact is active there, or an "Obsidian Artifacts" submenu when two or more
+artifact is active there, or an "MD Artifacts" submenu when two or more
 are (`*HasMultiple` context keys, maintained by `context.service.ts`).
 
 **Insert target — the invocation surface, not focus.** `AIPrompt` is the first
@@ -685,7 +705,8 @@ via the `isWithinRoot(rootUri, candidateUri)` adapter `multiIndex.ts` imports
 from `destFolderPicker.panel.ts`; it never re-implements the
 prefix-with-separator check itself, and neither do the other two former copies
 of that check (`artifact-writer.service.ts`'s own local adapter, and the
-frontmatter migration's symlink-aware wrapper) — one rule, three thin callers.
+frontmatter migration's symlink-aware wrapper) — one rule, seven call sites
+across five modules.
 The workspace check also covers the mirrored candidate, which is safe by
 construction and never re-validated. This is a **different, earlier** guard
 than `safeRelPath` (`multi-index.service.ts`):
@@ -851,16 +872,37 @@ after its expanded block editor saves, not by the preview flow):
 > the last commit before the PR), the orchestrator/reviewer/worker topology and
 > their prompt templates, the dispatch mechanics (workers `sonnet`, reviewer and
 > orchestrator `opus`, named on **every** spawn), the mandatory skills, the task
-> spec, the gate command, the ledger format, and the plan's definition of done.
+> spec, the **refinement waves** (§5.3), the gate command, the ledger format, and
+> the plan's definition of done.
+>
+> **A drafted plan is not a runnable plan** (`CREATING_A_PLAN.md` §5.3). Two
+> further Opus roles refine it, per wave, before anything is dispatched — the
+> **Loopholes and Details Fixer** (ambiguity, goal reachability, disjointness,
+> and every `Signatures` / `Test first` claim verified against the actual tree)
+> and the **Tasks Optimizer and Resource Finder**, which is the plan's **TDD and
+> DRY** specialist: it enforces that each task's test work is ordered *before*
+> its implementation in the task's own text, and that every task names the
+> existing component, helper, table or service it reuses rather than growing a
+> sibling. Cycle is A → apply → B → apply → A again → `ready`. Both roles are
+> **read-and-report and never edit a file** — the plan is single-writer, like the
+> ledger.
+>
+> **Refinement passes are human-triggered and agent-requested**, exactly like
+> execution waves. The authoring agent stops after each draft or application and
+> **asks** for the next pass by name and scope; it never chains A → B → A on its
+> own, and `READY` means *runnable*, never *run it*. The plan carries a
+> refinement status table mirrored into `progress.md`, and **no wave is
+> dispatchable while its row reads anything but `ready`.**
 
 > **Running a plan → read the plan, and nothing else.**
 > **Every plan in this repo is self-contained by construction**
-> (`CREATING_A_PLAN.md` §5.2): it ends with an **execution appendix** carrying the
-> role prompt templates verbatim, the dispatch mechanics, the gate, the review
-> loop, the commit-and-push policy, the skills table and the static-analysis rule.
+> (`CREATING_A_PLAN.md` §5.2): it ends with an **execution appendix** carrying all
+> five role prompt templates verbatim — the three execution roles and the two
+> refinement roles — plus the dispatch mechanics, the gate, the review loop, the
+> commit-and-push policy, the skills table and the static-analysis rule.
 > An orchestrator that has never opened `CREATING_A_PLAN.md` can run it.
 >
-> **Do not send an executing agent to `CREATING_A_PLAN.md`.** It is ~550 lines of
+> **Do not send an executing agent to `CREATING_A_PLAN.md`.** It is ~800 lines of
 > guidance about a job that is already finished, and it invites re-deriving
 > decisions the plan has already made and recorded. If something needed to execute
 > is missing from the plan, that is a **bug in the plan** — fix it there. The only
@@ -925,6 +967,131 @@ Messages are in the single protocol table above.
 
 ---
 
+## Variables UI — the pane and the editor
+
+Two surfaces edit the same `Variables/*.md` files: the **Variables pane** (a
+tree in the activity bar) and the **Variable Set editor** (`varsetForm/`, a
+webview form opened by the pencil icon / "Edit Variable Set"). Both write
+through `serializeArtifact`; neither has its own emitter.
+
+### File shapes — everything derives from these
+
+`getVarsFileShape(parsed)` (`varset.service.ts`) is the one classifier:
+
+| Shape | On disk | Pane shows | Row `contextValue` |
+|---|---|---|---|
+| `blank` | frontmatter only | the file row, no children | `fileBlank` |
+| `flat` | one **untitled** ` ```vks ` fence | file → variables (no sub-set level) | `fileFlat` |
+| `sets` | one or more `## Title` + fence — **even one** | file → sub-sets → variables | `fileSets` |
+
+Read from structure, never from a count: a single *titled* sub-set is `sets`.
+A flat file with zero variables writes no fence, so it reads back as `blank` —
+deliberately the same thing.
+
+**Moving between shapes** (one rule each, shared by pane and editor):
+- blank → flat: first variable goes into an untitled block (`handleAddVar` gives
+  a blank model one).
+- blank → sets / flat → sets: `addSubSet` (`variables-crud.service.ts`) is
+  **the** place a flat file gains sub-sets — it names the untitled block
+  `uniqueDefaultName` (`"Default"`, `"Default 2"`, …; English, written to disk).
+  The editor pre-fills the same name when Add sub-set reveals the field.
+- sets → flat: editor only — delete down to one sub-set and clear its name.
+- sets → blank: delete every sub-set (pane or editor); the file stays, header only.
+
+### The pane
+
+- **Rows by position.** Commands address a sub-set by the clicked row's
+  **index** (`SubSetRef = string | number` in the mutators), never by heading:
+  an untitled block has no heading and hand-written files may repeat one.
+  `toFormModel` and `extractSubSets(parsed, { includeEmpty: true })` are
+  block-for-block aligned so a row index is a model index. Empty sub-sets are
+  shown (a just-created one must appear); the Apply picker still filters them.
+- **One inline `+` per row**, chosen by shape: blank → **Add…** (quick-pick:
+  Variable or Sub-set), flat → Add variable, sets → Add sub-set, sub-set row →
+  Add variable.
+- **Right-click is categorised** into separated sections, in this order:
+  **View** (View Info) · **Create** · **Edit** · **Apply** · **Delete**. What each
+  row offers lives in `VARIABLES_ROW_ACTIONS` (`types/constants.ts`) — the
+  table, not `package.json`, is the source; regenerate the menus from it and
+  `package-variables-menus.test.ts` holds the two equal. To change a menu, edit
+  the table, then mirror it.
+- **Shown compactly, searchable.** File rows show tags (`#tag`) beside the name
+  and description + tags on hover; sub-set rows show their description. Search
+  matches titles, names, values, descriptions and tags.
+- **Edit from the pane:** Edit Description… (set or sub-set — a multi-line one is
+  refused and pointed at the editor, never flattened), Edit Tags… (commas or
+  spaces, leading `#` ok), Rename, Edit Value. Name prompts ask only for the
+  part after `VK-`.
+- **View Info** opens the shared info popup (see building blocks below).
+
+### The editor (Variable Set form)
+
+- Per sub-set: name (✎ swaps the `<h3>` for an input), description textarea,
+  ↑/↓, 🗑 (codicons `edit`/`trash`, matching the pane). Every sub-set can be
+  deleted, the last included. Per variable row: fixed `VK-` label + the rest of
+  the name, value, ↑/↓, 🗑.
+- **Everything is staged in the DOM until Save**; Cancel discards. The client
+  posts `pairs`, `headings` and `descriptions` grouped per `.subset-group` in
+  **document order** — so a move on screen *is* the reorder in the file.
+  Posted headings/descriptions are authoritative (after a delete the original
+  file is no longer index-aligned); only a payload without them falls back to
+  the opened file by index.
+- Validation on Save: names `validateSubSetHeadings` (unique, non-empty with 2+,
+  no newline/backtick), descriptions `validateSubSetDescriptions` (no line
+  starting with ```` ``` ```` or `## `; inline code is fine), pairs `validateVarPairs`.
+
+### What a save must preserve (each one was a real data-loss bug here)
+
+Frontmatter `description`, `tags`, `env`; each sub-set's description; an
+untitled block staying untitled (the set title used to leak in as `## Title`).
+Opening `test/fixtures/vars-edit/with-descriptions.md` in the editor and
+saving unchanged must reproduce it **byte for byte** (`variables-metadata.test.ts`).
+
+**Known gap:** a hand-written file with an untitled fence *before* its `## `
+sub-sets loses that fence's variables on save. The parser cannot tell such a
+file from a normal multi-block one (`parsed.vars` holds the *first* fence's
+vars either way); fixing it needs `parser.service.ts` to report a leading
+untitled fence.
+
+---
+
+## Reusable UI building blocks (DRY)
+
+Webview scripts cannot `import`, so a shared UI piece is **two halves in one
+file**: a server-side markup builder and one exported client-script **string**,
+interpolated once per bundle (the `WEBVIEW_ESC_LBL_JS` pattern). Never paste a
+copy into a second script; extend the shared file.
+
+| Piece | Server half | Client half | Users today |
+|---|---|---|---|
+| Tags field | `buildTagsField(tags, labelClass)` | `TAGS_FIELD_CLIENT_JS` (expects `let tags` + `markDirty`) | artifact form, var-set form |
+| ↑/↓ reorder | `buildReorderButtons(itemClass, index, total, attrs)` | `REORDER_CLIENT_JS` — `reorderWire(container, onMoved)`, `reorderRefreshAll(root)`, `reorderButtonsHtml(item, attrs)` for script-built rows | artifact form block cards; var-set sub-sets and rows |
+| View Info popup | build an `InfoModel` (`types/info.types.ts`) | none — static page, CSP forbids script | Variables pane (`variables-info.command.ts`) |
+
+**Reorder rules:** an item is any element with a class; its buttons carry
+`data-reorder="<class>"`, so nested lists (rows inside sub-sets) never move the
+wrong thing. Moves stay among same-class siblings. The control only moves DOM —
+the form must collect values in document order (both do).
+
+**Adding View Info to another artifact** (e.g. snippets): write one adapter
+`build<Type>Info(…) → InfoModel` (labels via `vscode.l10n.t` there — types stay
+`vscode`-free) and call `openInfoPanel(extensionUri, model)`. No new panel,
+renderer, stylesheet or message protocol.
+
+**Adding per-row actions to another tree:** follow `VARIABLES_ROW_ACTIONS` —
+a table in `types/constants.ts` keyed by `contextValue`, categories as menu
+groups `<n>_<category>@<i>`, `package.json` as a generated mirror, and a guard
+test that rebuilds the mirror from the table. Same idea as `ARTIFACTS` →
+insert menus.
+
+**Other shared pieces worth knowing:** `base.css`'s `button[hidden]` rule (a
+bare `button { display }` otherwise beats the UA's `[hidden]`), `confirmModal`,
+`escHtml` / `jsStr`, and the test harness (`test/webview-dom-harness.ts`, which
+now supports `insertBefore`, `removeAttribute`, `hasAttribute` and textarea
+values) for clicking real client scripts in tests.
+
+---
+
 ## Key Config Files
 
 | File | Purpose |
@@ -936,7 +1103,90 @@ Messages are in the single protocol table above.
 | `.vscode/tasks.json` | `npm watch` is the default build task (runs automatically on F5) |
 | `.vscode-test.mjs` | Test runner looks for compiled tests at `dist/test/**/*.test.js` |
 | [`ARTIFACT_FILE_FORMAT.md`](ARTIFACT_FILE_FORMAT.md) | **Authoritative** artifact `.md` structure spec — parser/serializer contract. Read before touching vault files, fixtures, parser, or any writer. |
-| [`CREATING_A_PLAN.md`](CREATING_A_PLAN.md) | **Authoritative** plan-writing process — agent topology, prompt templates, task spec, gate, ledger. Read before writing any plan or dispatching agents. |
+| [`CREATING_A_PLAN.md`](CREATING_A_PLAN.md) | **Authoritative** plan-writing process — agent topology, prompt templates, task spec, refinement waves (§5.3), gate, ledger. Read before writing any plan or dispatching agents. |
+
+---
+
+## Internationalisation — two files, two escaping rules
+
+**Two mechanisms, and they are not interchangeable.** `package.nls.json` /
+`package.nls.es.json` localise the **static manifest** (`contributes.*`, read
+before activation). `l10n/bundle.l10n*.json` plus `vscode.l10n.t()` localise
+**runtime** strings. `engines.vscode` is `^1.117.0`, so `vscode.l10n` (since
+1.73) is available; **`vscode-nls` is deprecated and forbidden**, and
+`@vscode/l10n-dev` stays a **devDependency** — the one runtime dependency is
+still `highlight.js` alone.
+
+**`package.json`'s `"l10n": "./l10n"` points at the *directory*, not the file.**
+Pointing it at `bundle.l10n.json` makes every language fall back to English
+with **no error** — a green suite cannot tell the difference. Guarded by
+`test/packaging-assets.test.ts`.
+
+**Regenerate with:**
+
+```bash
+npx @vscode/l10n-dev@0.0.35 export -o ./l10n ./src
+```
+
+This writes **English only**; the `es` bundle is extended by hand. Assert growth
+**numerically** (`Object.keys(bundle).length` before vs after, strictly greater)
+— an unchanged count means the extractor saw no new call sites, and the whole
+wave's output is inert. Then re-assert **parity**: every `en` key present in
+`es`, and identical `{0}` placeholder sets on both sides. Identical *values* are
+expected for product nouns (`Variables`, `Variable`) and are deliberately
+unguarded.
+
+**Three string shapes are invisible to the extractor** — each ships a silent
+English fallthrough, so none may be used:
+- a **dynamic key** — `l10n.t(someVariable)` produces no bundle entry. Write an
+  explicit lookup with one literal `l10n.t` call per case (see
+  `artifactPicker/varSetDiff.ts`'s `actionLabel`).
+- a string built by **concatenation** — use a single `{0}` template instead.
+- `getTypeSingular`'s nouns, absent **by design** (decision D-8) — exclude them
+  when reading a growth count, or the delta looks like a miss.
+
+### 🔒 Escaping is per destination — `escHtml` and `jsStr` are not substitutes
+
+| Destination | Rule |
+|---|---|
+| HTML text or attribute | `escHtml` (`utils/html.ts` — all five of `&<>"'`) |
+| A string literal inside a client script | `jsStr` (`artifactPicker/webviewSnippets.ts`) |
+| A localised string that a **client script concatenates into HTML** | `jsStr(escHtml(l10n.t(...)))` |
+
+`escHtml` is wrong inside a `<script>`: its entities are never decoded there, so
+`&amp;` reaches the user literally, and it does not neutralise `</script>`.
+`jsStr` handles that (`</` → `<\/`, and `<!--`, which puts the script-data
+tokeniser into escaped state) — but **`jsStr` is not an HTML escape.** It
+guarantees a valid JS *string literal* and nothing more. Where a client script
+builds HTML by concatenation the value crosses **two** boundaries, so both
+escapes apply, HTML first: a bundle value containing `"` otherwise breaks out of
+the attribute it lands in. That inner-first order is the inverse of the usual
+rule and is deliberate.
+
+**Escape *after* format, never both.** `escHtml(l10n.t('from: {0}', src))` is
+correct; `l10n.t('from: {0}', escHtml(src))` double-escapes; `l10n.t('from: {0}',
+src)` alone is an injection.
+
+**Keep markup out of bundle strings.** A `{0}` argument carrying raw HTML means
+the *outer* `l10n.t` result cannot simply be wrapped in `escHtml` without
+escaping that markup too. Pass text through `l10n.t`, escape it, and wrap it in
+tags at the call site — the shape `preview.render.ts`'s `env`/`target` pills
+already use.
+
+**Client scripts resolve their strings in the extension host, at import time.**
+The module building the script string is extension-host TypeScript, so it calls
+`l10n.t` there and bakes the result into the constant — no injection plumbing,
+no runtime handshake. The display language is fixed at activation, which is fine:
+VS Code requires a reload to change it.
+
+**The nineteen `vscode`-free services localise at the caller**, never by
+importing `vscode` themselves. Renderers may call `vscode.l10n.t` directly —
+they are UI, not domain.
+
+**🔒 A green suite proves nothing here.** `l10n.t` falls back to the English
+source string when no bundle is loaded, so every test passes identically
+against a working bundle, a broken bundle and no bundle at all. The **F5 pass in
+a Spanish display language is the only verification that exists.**
 
 ---
 
@@ -944,7 +1194,7 @@ Messages are in the single protocol table above.
 
 - `package.json` declares `"activationEvents": ["onStartupFinished"]` — activation is already narrowed off "every window open"; it fires once, after VS Code finishes starting up, not eagerly during startup and not per-command. Nothing further to narrow here without a reason.
 - Compiled output goes to `dist/` and is **gitignored**. Run `npm run compile` after cloning.
-- `media/` ships in the packaged extension. `src/`, `test/`, and `dist/test/` are excluded via `.vscodeignore` — **except `!src/ui/*.css` and `!src/ui/*.ttf`**, both of which must stay globs. The webviews load stylesheets (and the vendored codicon font) from source, so a named per-file exception silently ships a CSS-less or font-less extension when an asset is added or renamed, and the suite stays green because tests run from source. Verify with `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'`, which must print **ten** matched lines (nine stylesheets + `codicon.ttf` — always cite the count together with this exact command; a bare number is ambiguous between the sheet count and the matched-line count). The `--no-dependencies` flag is not optional here — see the
+- `media/` ships in the packaged extension. `src/`, `test/`, and `dist/test/` are excluded via `.vscodeignore` — **except `!src/ui/*.css` and `!src/ui/*.ttf`**, both of which must stay globs. The webviews load stylesheets (and the vendored codicon font) from source, so a named per-file exception silently ships a CSS-less or font-less extension when an asset is added or renamed, and the suite stays green because tests run from source. Verify with `npx vsce ls --no-dependencies | grep -E 'src/ui/.*\.(css|ttf)'`, which must print **eleven** matched lines (ten stylesheets + `codicon.ttf` — always cite the count together with this exact command; a bare number is ambiguous between the sheet count and the matched-line count). The **i18n assets ship the same way and need the same care**: widen the grep to `'src/ui/.*\.(css|ttf)|package\.nls|l10n/'` and it must print **fifteen** — the eleven above plus `package.nls.json`, `package.nls.es.json`, `l10n/bundle.l10n.json` and `l10n/bundle.l10n.es.json`. `.vscodeignore` excludes none of them today, which is exactly why `test/packaging-assets.test.ts` guards it: the guard scans every non-comment, non-`!` line's *content*, because an earlier column-0-anchored version stayed green while `**/l10n/**` silently stripped both bundles from the package. The `--no-dependencies` flag is not optional here — see the
 packaging caveat above; without it `vsce` exits non-zero and `grep` finds
 nothing, which reads exactly like a missing-asset failure.
 - All imports use explicit `.js` extensions (e.g. `'./helpers.js'`) — required by `Node16` module resolution even for `.ts` source files.
@@ -981,24 +1231,41 @@ file. Stateless/pure → its `*.helpers.ts`. Service/cross-cutting →
 it go in the existing file. Notice a file crossed 400 lines while finishing a
 feature → propose the split in that PR, not later.
 
-**Known debt from the main-pane wave, not yet paid:**
-`artifactPicker/preview.ts` is **619** lines — past the ~400 guideline and the
-~500 "plan a split" mark. The seam is the one `artifactForm/` already uses and
-that this file was split on once before: controller (`preview.ts`) · renderers
-(`preview.render.ts`) · webview script (`preview.clientJs.ts`) · pure helpers
-(`preview.helpers.ts`). The width/measure plumbing and the staged-edit handlers
-are the natural next extractions. `settings.panel.ts` is **441**.
+**Known debt, not yet paid** (measured with `wc -l` at the close of the i18n
+wave, 2026-09-18 — **re-measure before trusting these on a later read**):
 
-**Files near the guideline today** (measured with `wc -l`, not guessed —
-re-measure before trusting these numbers on a later read): `commands/variables.command.ts`
-is already **over** at 462 — split before adding to it. Approaching the line:
-`commands/variables.command.helpers.ts` (362), `ui/views/mainView.provider.ts`
-(347), `commands/create-from-surface.command.ts` (329),
-`artifactPicker/webviewHost.ts` (327). Two pre-existing files grew past the
-guideline again while this branch reused them: `artifactPicker/navigator.ts`
-(445, gained the index-run branch) and `artifactPicker/preview.ts` (433, gained
-the `mainView` reuse wiring). None of these are mid-edit right now — this is a
-marker for whoever touches one next, not a todo.
+`artifactPicker/preview.ts` is **699** lines — past the ~400 guideline, past the
+~500 "plan a split" mark, and now at the **700 "split before adding"** line. It
+is the next split, not a someday. The seam is the one `artifactForm/` already
+uses and that this file was split on once before: controller (`preview.ts`) ·
+renderers (`preview.render.ts`) · webview script (`preview.clientJs.ts`) · pure
+helpers (`preview.helpers.ts`). The width/measure plumbing and the staged-edit
+handlers are the natural next extractions.
+
+`artifactForm/form.clientJs.ts` is **628**. It crossed the mark during the i18n
+wave for a reason that is *not* padding: resolving localised strings at module
+scope needs one `const` per string, which an in-place literal swap cannot avoid.
+The split was deliberately deferred rather than churn a file that had an open
+security fix landing on nine of its lines in the same wave.
+
+**Over the guideline today:** `services/parser.service.ts` (**653**) ·
+`artifactPicker/preview.ts` (699) · `artifactForm/form.clientJs.ts` (628) ·
+`artifactForm/panel.ts` (**548**) · `services/frontmatter-migration.service.ts`
+(**505**) · `commands/variables.command.ts` (**462**) ·
+`ui/panels/settings.panel.ts` (**446**) · `artifactPicker/navigator.ts` (**445**).
+
+**Approaching it:** `artifactPicker/preview.helpers.ts` (395) ·
+`services/artifact-type-config.service.ts` (394) ·
+`ui/views/mainView.provider.ts` (394) · `commands/variables.command.helpers.ts`
+(392) · `services/pane-width.service.ts` (340) ·
+`services/artifact-patcher.service.ts` (330) ·
+`commands/create-from-surface.command.ts` (329) ·
+`artifactPicker/webviewHost.ts` (327).
+
+None of these are mid-edit right now — this is a marker for whoever touches one
+next, not a todo.
+
+---
 
 ### Invariants (each cost a real bug here)
 

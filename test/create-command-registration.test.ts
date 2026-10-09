@@ -25,10 +25,10 @@ suite('create surface registration — extension host', () => {
 	 *
 	 * @returns The registered command ids, including built-ins.
 	 * @example
-	 * (await registeredCommands()).includes('obsidian-artifacts.create.snippets');
+	 * (await registeredCommands()).includes('md-artifacts.create.snippets');
 	 */
 	async function registeredCommands(): Promise<string[]> {
-		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'obsidian-notes-and-snippets');
+		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode');
 		await ext?.activate();
 		return vscode.commands.getCommands(true);
 	}
@@ -50,17 +50,17 @@ suite('create surface registration — extension host', () => {
 	});
 
 	test('every contributed webview view has a registered provider', async () => {
-		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'obsidian-notes-and-snippets');
+		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode');
 		await ext?.activate();
 
 		// Read the ids from the manifest rather than from the provider class.
 		// VS Code resolves what `contributes.views` declares, so that is the id
 		// whose provider must exist — asserting against the class's own constant
 		// would pass happily while the two drifted apart and the pane stayed dead.
-		const views = (ext?.packageJSON?.contributes?.views?.['obsidian-artifacts'] ?? []) as
+		const views = (ext?.packageJSON?.contributes?.views?.['md-artifacts'] ?? []) as
 			{ id: string; type?: string }[];
 		const webviewIds = views.filter(v => v.type === 'webview').map(v => v.id);
-		assert.ok(webviewIds.length > 0, 'no webview views contributed — expected obsidian-artifacts.mainView');
+		assert.ok(webviewIds.length > 0, 'no webview views contributed — expected md-artifacts.mainView');
 
 		for (const id of webviewIds) {
 			// `registerWebviewViewProvider` throws on a duplicate id, so a second
@@ -88,13 +88,13 @@ suite('create surface registration — extension host', () => {
 		// A menu entry pointing at an unregistered id raises "command not found"
 		// only when the user clicks it — which, for a delete command, is the worst
 		// possible moment to discover it.
-		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'obsidian-notes-and-snippets');
+		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode');
 		await ext?.activate();
 
 		const declared = (ext?.packageJSON?.contributes?.commands ?? []) as { command: string }[];
 		const variableIds = declared
 			.map(c => c.command)
-			.filter(id => id.startsWith('obsidian-artifacts.variables.'));
+			.filter(id => id.startsWith('md-artifacts.variables.'));
 		assert.ok(variableIds.length > 0, 'no variables commands contributed');
 
 		const registered = await vscode.commands.getCommands(true);
@@ -114,16 +114,19 @@ suite('create surface registration — extension host', () => {
 		// and prove nothing. Reading the source is the only check available, so
 		// it is the check taken, rather than a runtime-looking assertion that
 		// cannot fail. Catches ledger #52's actual failure: nothing registered.
-		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'obsidian-notes-and-snippets');
-		const views = (ext?.packageJSON?.contributes?.views?.['obsidian-artifacts'] ?? []) as
+		const ext = vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode');
+		const views = (ext?.packageJSON?.contributes?.views?.['md-artifacts'] ?? []) as
 			{ id: string; type?: string }[];
 		const treeIds = views.filter(v => v.type !== 'webview').map(v => v.id);
-		assert.ok(treeIds.length > 0, 'no tree views contributed — expected obsidian-artifacts.variablesView');
+		assert.ok(treeIds.length > 0, 'no tree views contributed — expected md-artifacts.variablesView');
 
 		const source = fs.readFileSync(path.resolve(__dirname, '..', '..', 'src', 'extension.ts'), 'utf8');
+		// Either API binds a provider; createTreeView also hands back the view
+		// (the Variables tree needs it for its search description). Matched as
+		// calls, so a comment naming the API cannot satisfy the guard.
 		assert.ok(
-			source.includes('registerTreeDataProvider'),
-			'extension.ts calls registerTreeDataProvider nowhere, so every contributed tree view is dead',
+			/\b(?:registerTreeDataProvider|createTreeView)\(/.test(source),
+			'extension.ts calls neither registerTreeDataProvider nor createTreeView, so every contributed tree view is dead',
 		);
 
 		for (const id of treeIds) {

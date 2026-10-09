@@ -52,10 +52,10 @@ VK-anotherVar=
   same block (`title`, `tags`, …) still parses normally, but the artifact's
   type itself falls back to the directory-derived default, same as an
   unrecognised `artifactType` value. The **only** path forward for such a file
-  is the **Obsidian Artifacts:
-  Migrate Vault Frontmatter** command (`obsidian-artifacts.migrateFrontmatter`,
+  is the **MD Artifacts:
+  Migrate Vault Frontmatter** command (`md-artifacts.migrateFrontmatter`,
   `src/commands/migrate.command.ts` + `src/services/frontmatter-migration.service.ts`):
-  it always dry-runs first (report in the "Obsidian Artifacts: Migration"
+  it always dry-runs first (report in the "MD Artifacts: Migration"
   output channel), then rewrites `type: <legacy>` → `artifactType: <PascalCase>`
   only after an explicit modal confirmation naming the file count. The rewrite
   is a surgical single-line splice inside the first frontmatter block — every
@@ -537,7 +537,7 @@ Review <VK-repo_name> on <VK-branch_name>.
 
 vars:
 ```vks
-VK-repo_name=obsidian-artifacts
+VK-repo_name=md-artifacts
 ```
 ~~~
 

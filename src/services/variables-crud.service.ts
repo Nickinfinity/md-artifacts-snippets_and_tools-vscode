@@ -62,22 +62,57 @@ function assertValidVarName(name: string): void {
 }
 
 /**
- * Finds a sub-set's index by heading.
+ * Names a sub-set: its heading, or its index into `model.blocks`.
  *
- * @param model   - Model to search.
- * @param heading - Sub-set heading to find (`''` for a single-block file's sole block).
+ * The Variables pane passes the **index** — the position of the row that was
+ * clicked. A heading cannot identify an untitled block (`''`), and two
+ * hand-written blocks may share one; a position is always exact.
+ */
+export type SubSetRef = string | number;
+
+/**
+ * Finds a sub-set's index from a heading or an index.
+ *
+ * @param model - Model to search.
+ * @param ref   - Sub-set heading, or an index into `model.blocks`.
  * @returns The matching block's index.
- * @throws {Error} When no block carries `heading`.
+ * @throws {Error} When no block carries the heading, or the index is out of range.
  *
  * @example
  * findSubSetIndex(model, 'Development')
+ * findSubSetIndex(model, 0)
  */
-function findSubSetIndex(model: ArtifactFormModel, heading: string): number {
-    const index = model.blocks.findIndex(b => b.heading === heading);
+function findSubSetIndex(model: ArtifactFormModel, ref: SubSetRef): number {
+    const index = typeof ref === 'number'
+        ? (Number.isInteger(ref) && ref >= 0 && ref < model.blocks.length ? ref : -1)
+        : model.blocks.findIndex(b => b.heading === ref);
     if (index === -1) {
-        throw new Error(`Sub-set not found: "${heading}".`);
+        throw new Error(`Sub-set not found: "${ref}".`);
     }
     return index;
+}
+
+/** Name given to an untitled block when a file gains a second sub-set (it then needs a `## ` heading). */
+export const DEFAULT_SUBSET_NAME = 'Default';
+
+/**
+ * Returns {@link DEFAULT_SUBSET_NAME}, or the first free numbered variant
+ * (`Default 2`, `Default 3`, …) when a sub-set already uses it.
+ *
+ * Written to disk, so deliberately not localized: a vault is shared data.
+ *
+ * @param taken - Headings already in use.
+ * @returns A heading no sub-set in `taken` carries.
+ *
+ * @example
+ * uniqueDefaultName([]);          // → 'Default'
+ * uniqueDefaultName(['Default']); // → 'Default 2'
+ */
+export function uniqueDefaultName(taken: readonly string[]): string {
+    if (!taken.includes(DEFAULT_SUBSET_NAME)) { return DEFAULT_SUBSET_NAME; }
+    let n = 2;
+    while (taken.includes(`${DEFAULT_SUBSET_NAME} ${n}`)) { n += 1; }
+    return `${DEFAULT_SUBSET_NAME} ${n}`;
 }
 
 /**
@@ -103,11 +138,11 @@ function withBlock(model: ArtifactFormModel, index: number, block: ArtifactFormB
  * Adds a new variable to a sub-set.
  *
  * @param model         - Source model (never mutated).
- * @param subSetHeading - Heading of the target sub-set.
+ * @param subSet        - The target sub-set — its heading, or its index (what the pane passes).
  * @param name          - Full `VK-xxx` token name, no angle brackets.
  * @param defaultValue  - Default value stored for the new var.
  * @returns New model with the var appended to the sub-set's `vars`.
- * @throws {Error} When `subSetHeading` has no matching block, `name` fails
+ * @throws {Error} When `subSet` has no matching block, `name` fails
  * the `VK-` hint rule, or `name` already exists in that sub-set.
  *
  * @example
@@ -115,15 +150,15 @@ function withBlock(model: ArtifactFormModel, index: number, block: ArtifactFormB
  */
 export function addVar(
     model: ArtifactFormModel,
-    subSetHeading: string,
+    subSet: SubSetRef,
     name: string,
     defaultValue: string,
 ): ArtifactFormModel {
     assertValidVarName(name);
-    const index = findSubSetIndex(model, subSetHeading);
+    const index = findSubSetIndex(model, subSet);
     const block = model.blocks[index];
     if (block.vars.some(v => v.name === name)) {
-        throw new Error(`Variable "${name}" already exists in sub-set "${subSetHeading}".`);
+        throw new Error(`Variable "${name}" already exists in sub-set "${block.heading}".`);
     }
     const vars: ParsedVar[] = [...block.vars, { name, defaultValue }];
     return withBlock(model, index, { ...block, vars });
@@ -133,7 +168,7 @@ export function addVar(
  * Renames a variable within a sub-set, preserving its current value.
  *
  * @param model         - Source model (never mutated).
- * @param subSetHeading - Heading of the target sub-set.
+ * @param subSet        - The target sub-set — its heading, or its index (what the pane passes).
  * @param oldName       - Current full token name.
  * @param newName       - New full token name.
  * @returns New model with the var renamed.
@@ -145,19 +180,19 @@ export function addVar(
  */
 export function renameVar(
     model: ArtifactFormModel,
-    subSetHeading: string,
+    subSet: SubSetRef,
     oldName: string,
     newName: string,
 ): ArtifactFormModel {
     assertValidVarName(newName);
-    const index = findSubSetIndex(model, subSetHeading);
+    const index = findSubSetIndex(model, subSet);
     const block = model.blocks[index];
     const varIndex = block.vars.findIndex(v => v.name === oldName);
     if (varIndex === -1) {
-        throw new Error(`Variable "${oldName}" not found in sub-set "${subSetHeading}".`);
+        throw new Error(`Variable "${oldName}" not found in sub-set "${block.heading}".`);
     }
     if (newName !== oldName && block.vars.some(v => v.name === newName)) {
-        throw new Error(`Variable "${newName}" already exists in sub-set "${subSetHeading}".`);
+        throw new Error(`Variable "${newName}" already exists in sub-set "${block.heading}".`);
     }
     const vars = block.vars.slice();
     vars[varIndex] = { ...vars[varIndex], name: newName };
@@ -168,7 +203,7 @@ export function renameVar(
  * Sets a variable's default value, leaving its name unchanged.
  *
  * @param model         - Source model (never mutated).
- * @param subSetHeading - Heading of the target sub-set.
+ * @param subSet        - The target sub-set — its heading, or its index (what the pane passes).
  * @param name          - Full token name of the variable to update.
  * @param value         - New default value.
  * @returns New model with the var's value updated.
@@ -179,15 +214,15 @@ export function renameVar(
  */
 export function setVarValue(
     model: ArtifactFormModel,
-    subSetHeading: string,
+    subSet: SubSetRef,
     name: string,
     value: string,
 ): ArtifactFormModel {
-    const index = findSubSetIndex(model, subSetHeading);
+    const index = findSubSetIndex(model, subSet);
     const block = model.blocks[index];
     const varIndex = block.vars.findIndex(v => v.name === name);
     if (varIndex === -1) {
-        throw new Error(`Variable "${name}" not found in sub-set "${subSetHeading}".`);
+        throw new Error(`Variable "${name}" not found in sub-set "${block.heading}".`);
     }
     const vars = block.vars.slice();
     vars[varIndex] = { ...vars[varIndex], defaultValue: value };
@@ -198,7 +233,7 @@ export function setVarValue(
  * Deletes a variable from a sub-set.
  *
  * @param model         - Source model (never mutated).
- * @param subSetHeading - Heading of the target sub-set.
+ * @param subSet        - The target sub-set — its heading, or its index (what the pane passes).
  * @param name          - Full token name of the variable to delete.
  * @returns New model with the var removed from the sub-set's `vars`.
  * @throws {Error} When the sub-set or `name` is not found.
@@ -206,11 +241,11 @@ export function setVarValue(
  * @example
  * deleteVar(model, 'Development', 'VK-host')
  */
-export function deleteVar(model: ArtifactFormModel, subSetHeading: string, name: string): ArtifactFormModel {
-    const index = findSubSetIndex(model, subSetHeading);
+export function deleteVar(model: ArtifactFormModel, subSet: SubSetRef, name: string): ArtifactFormModel {
+    const index = findSubSetIndex(model, subSet);
     const block = model.blocks[index];
     if (!block.vars.some(v => v.name === name)) {
-        throw new Error(`Variable "${name}" not found in sub-set "${subSetHeading}".`);
+        throw new Error(`Variable "${name}" not found in sub-set "${block.heading}".`);
     }
     const vars = block.vars.filter(v => v.name !== name);
     return withBlock(model, index, { ...block, vars });
@@ -219,9 +254,13 @@ export function deleteVar(model: ArtifactFormModel, subSetHeading: string, name:
 /**
  * Adds a new, empty sub-set (an `ArtifactFormBlock` with no vars).
  *
+ * **The one place a one-block file becomes a sub-sets file.** A file whose
+ * only block is untitled has no `## ` heading; with two sub-sets every block
+ * needs one, so the untitled block is named {@link uniqueDefaultName} first.
+ *
  * @param model   - Source model (never mutated).
  * @param heading - Heading for the new sub-set; must be non-empty and unique.
- * @returns New model with the sub-set appended.
+ * @returns New model with the sub-set appended (and an untitled sole block named).
  * @throws {Error} When `heading` is empty/whitespace-only or already used by
  * another block in `model`.
  *
@@ -236,14 +275,18 @@ export function addSubSet(model: ArtifactFormModel, heading: string): ArtifactFo
         throw new Error(`Sub-set "${heading}" already exists.`);
     }
     const newBlock: ArtifactFormBlock = { heading, description: '', language: '', code: '', vars: [] };
-    return { ...model, blocks: [...model.blocks, newBlock] };
+    const sole = model.blocks.length === 1 ? model.blocks[0] : undefined;
+    const blocks = sole?.heading === ''
+        ? [{ ...sole, heading: uniqueDefaultName([heading]) }]
+        : model.blocks;
+    return { ...model, blocks: [...blocks, newBlock] };
 }
 
 /**
  * Renames a sub-set's heading.
  *
  * @param model      - Source model (never mutated).
- * @param oldHeading - Current heading of the sub-set to rename.
+ * @param oldHeading - Current heading (or index) of the sub-set to rename.
  * @param newHeading - New heading; must be non-empty and unique.
  * @returns New model with the sub-set's heading changed.
  * @throws {Error} When `oldHeading` has no matching block, `newHeading` is
@@ -252,34 +295,54 @@ export function addSubSet(model: ArtifactFormModel, heading: string): ArtifactFo
  * @example
  * renameSubSet(model, 'Development', 'Dev')
  */
-export function renameSubSet(model: ArtifactFormModel, oldHeading: string, newHeading: string): ArtifactFormModel {
+export function renameSubSet(model: ArtifactFormModel, oldHeading: SubSetRef, newHeading: string): ArtifactFormModel {
     if (newHeading.trim().length === 0) {
         throw new Error('Sub-set heading cannot be empty.');
     }
     const index = findSubSetIndex(model, oldHeading);
-    if (newHeading !== oldHeading && model.blocks.some(b => b.heading === newHeading)) {
+    if (model.blocks.some((b, i) => i !== index && b.heading === newHeading)) {
         throw new Error(`Sub-set "${newHeading}" already exists.`);
     }
     return withBlock(model, index, { ...model.blocks[index], heading: newHeading });
 }
 
 /**
- * Deletes a sub-set. Refuses to delete the last remaining sub-set in a
- * file — removing the file itself is a separate, confirmed command.
+ * Sets a sub-set's description — the prose between its `## ` heading and its
+ * fence. Structure-breaking text is the caller's to refuse
+ * (`validateSubSetDescriptions`); this only places it.
+ *
+ * @param model       - Source model (never mutated).
+ * @param subSet      - The target sub-set — its heading, or its index.
+ * @param description - New description; `''` removes it.
+ * @returns New model with the sub-set's description replaced.
+ * @throws {Error} When the sub-set is not found, or it is untitled (an
+ * untitled block has no heading line to keep a description under).
+ *
+ * @example
+ * setSubSetDescription(model, 0, 'Active users keyed by `status`.')
+ */
+export function setSubSetDescription(model: ArtifactFormModel, subSet: SubSetRef, description: string): ArtifactFormModel {
+    const index = findSubSetIndex(model, subSet);
+    if (model.blocks[index].heading === '') {
+        throw new Error('An untitled sub-set cannot have a description — give it a name first.');
+    }
+    return withBlock(model, index, { ...model.blocks[index], description });
+}
+
+/**
+ * Deletes a sub-set — the last one included, matching the edit form. A file
+ * left with none serializes to frontmatter only and reopens as one empty
+ * sub-set; removing the file itself stays a separate, confirmed command.
  *
  * @param model   - Source model (never mutated).
- * @param heading - Heading of the sub-set to delete.
+ * @param heading - Heading (or index) of the sub-set to delete.
  * @returns New model with the sub-set removed.
- * @throws {Error} When `heading` has no matching block, or it is the model's
- * only sub-set.
+ * @throws {Error} When `heading` has no matching block.
  *
  * @example
  * deleteSubSet(model, 'Production')
  */
-export function deleteSubSet(model: ArtifactFormModel, heading: string): ArtifactFormModel {
+export function deleteSubSet(model: ArtifactFormModel, heading: SubSetRef): ArtifactFormModel {
     const index = findSubSetIndex(model, heading);
-    if (model.blocks.length === 1) {
-        throw new Error('Cannot delete the last sub-set of a file — delete the file instead.');
-    }
     return { ...model, blocks: model.blocks.filter((_block, i) => i !== index) };
 }

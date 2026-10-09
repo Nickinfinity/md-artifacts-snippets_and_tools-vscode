@@ -1,5 +1,28 @@
+import * as vscode from 'vscode';
 import type { ApplyChange } from '../../../types/varset.types.js';
 import { escHtml } from '../../../utils/html.js';
+
+/**
+ * Maps the `ApplyChange.action` domain enum to its localised UI label.
+ *
+ * `vscode.l10n.t(c.action)` would pass a variable as the message key, which
+ * the `@vscode/l10n-dev` static extractor cannot see — it produces no bundle
+ * entry and ships English regardless of locale. Three literal call sites,
+ * one per enum member, keep every key extractable.
+ *
+ * @param action - The change's status (`varset.types.ts`'s `ApplyChange.action`).
+ * @returns The localised, human-readable status label.
+ *
+ * @example
+ * actionLabel('filled') // → 'filled' (or its localisation)
+ */
+function actionLabel(action: ApplyChange['action']): string {
+    switch (action) {
+        case 'filled': return vscode.l10n.t('filled');
+        case 'overridden': return vscode.l10n.t('overridden');
+        case 'kept': return vscode.l10n.t('kept');
+    }
+}
 
 /**
  * Renders the variable-set diff confirmation HTML — a table that lists every
@@ -19,7 +42,6 @@ import { escHtml } from '../../../utils/html.js';
  */
 export function renderVarSetDiffHtml(changes: ApplyChange[], subSetName: string): string {
     const e = escHtml;
-    const safeName = e(subSetName);
 
     const rowsHtml = changes.map(c => {
         const oldCell = c.oldValue === ''
@@ -29,7 +51,7 @@ export function renderVarSetDiffHtml(changes: ApplyChange[], subSetName: string)
             ? '<span class="empty">∅</span>'
             : `<code>${e(c.newValue)}</code>`;
         const klass = `diff-${c.action}`;
-        const statusLabel = e(c.action);
+        const statusLabel = e(actionLabel(c.action));
         return /* html */`
         <tr class="${klass}">
           <td><code>${e(c.name)}</code></td>
@@ -41,21 +63,21 @@ export function renderVarSetDiffHtml(changes: ApplyChange[], subSetName: string)
 
     return /* html */`
     <div class="varset-diff" data-varset-diff>
-      <p class="varset-diff-title">Apply "${safeName}"?</p>
+      <p class="varset-diff-title">${e(vscode.l10n.t('Apply "{0}"?', subSetName))}</p>
       <table class="varset-diff-table">
         <thead>
           <tr>
-            <th>Variable</th>
-            <th>Current</th>
-            <th>New</th>
-            <th>Status</th>
+            <th>${e(vscode.l10n.t('Variable'))}</th>
+            <th>${e(vscode.l10n.t('Current'))}</th>
+            <th>${e(vscode.l10n.t('New'))}</th>
+            <th>${e(vscode.l10n.t('Status'))}</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       <div class="actions">
-        <button class="btn btn-insert"    id="varSetApplyBtn">Apply</button>
-        <button class="btn btn-cancel"    id="varSetCancelBtn">Cancel</button>
+        <button class="btn btn-insert"    id="varSetApplyBtn">${e(vscode.l10n.t('Apply'))}</button>
+        <button class="btn btn-cancel"    id="varSetCancelBtn">${e(vscode.l10n.t('Cancel'))}</button>
       </div>
     </div>`;
 }

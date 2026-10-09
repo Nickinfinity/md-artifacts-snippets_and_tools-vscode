@@ -24,13 +24,13 @@ import type { ArtifactType } from '../src/types/parsed-artifact.types.js';
 suite('buildCreateCommandIds (T6)', () => {
 
     test('includes the AI Prompt terminal-surface create id', () => {
-        assert.ok(buildCreateCommandIds().includes('obsidian-artifacts.create.aiprompts.terminal'));
+        assert.ok(buildCreateCommandIds().includes('md-artifacts.create.aiprompts.terminal'));
     });
 
     test('the id trio derives from createCommandId, one word over insert.command.ts', () => {
-        assert.strictEqual(createCommandId('Snippets'), 'obsidian-artifacts.create.snippets');
-        assert.strictEqual(createTerminalCommandId('AIPrompts'), 'obsidian-artifacts.create.aiprompts.terminal');
-        assert.strictEqual(createIndexCommandId('Templates'), 'obsidian-artifacts.create.templates.index');
+        assert.strictEqual(createCommandId('Snippets'), 'md-artifacts.create.snippets');
+        assert.strictEqual(createTerminalCommandId('AIPrompts'), 'md-artifacts.create.aiprompts.terminal');
+        assert.strictEqual(createIndexCommandId('Templates'), 'md-artifacts.create.templates.index');
     });
 
     // Reviewer finding: the derivation loop iterates (surface × type) and only
@@ -51,7 +51,7 @@ suite('buildCreateCommandIds (T6)', () => {
         const entries = deriveCreateSurfaceEntries(fakeSurfaceTypes, () => []);
 
         assert.strictEqual(entries.length, 1);
-        assert.strictEqual(entries[0]?.commandId, 'obsidian-artifacts.create.snippets');
+        assert.strictEqual(entries[0]?.commandId, 'md-artifacts.create.snippets');
     });
 
     // Regression guard over the real ARTIFACTS table — stays green today (8

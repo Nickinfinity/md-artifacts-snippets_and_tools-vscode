@@ -4,19 +4,23 @@ import { getEntry } from '../services/artifact-type-config.service.js';
 import { validateArtifactFilename, deriveFileName } from '../services/filename.service.js';
 import { writeArtifact } from '../services/artifact-writer.service.js';
 import { renderVariablesFile } from '../services/variables-writer.service.js';
+import { parseArtifactFile } from '../services/parser.service.js';
+import { openVarsEditForm } from './open-vars-edit.helpers.js';
 import {
     addVar, renameVar, setVarValue, deleteVar,
     addSubSet, renameSubSet, deleteSubSet,
 } from '../services/variables-crud.service.js';
+import { subSetLabel } from '../services/varset.service.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import type { VariableNode, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
 import {
     buildVariableCommandIds, resolveTarget, commitWrite, buildConfirmMessage, errMessage, at,
-    type CommandIO, defaultIO,
+    OPEN_FILE_COMMAND_ID, type CommandIO, type ResolvedTarget, defaultIO,
 } from './variables.command.helpers.js';
+import { promptVarName } from './var-name-prompt.helpers.js';
 
 /**
- * The nine `obsidian-artifacts.variables.*` tree commands (T16, VSX-219).
+ * The nine `md-artifacts.variables.*` tree commands (T16, VSX-219).
  *
  * Each handler resolves its target from the clicked tree node
  * (`resolveTarget`, `variables.command.helpers.ts`) — never from "the active
@@ -64,42 +68,59 @@ export async function handleNewFile(
     provider: VariablesViewProvider,
     io: CommandIO = defaultIO,
     vaultRoot: vscode.Uri | undefined = getVaultRootUri(),
+    openForm?: (fileUri: vscode.Uri) => Promise<void>,
 ): Promise<void> {
     if (!vaultRoot) {
-        io.showError('Obsidian Artifacts: no vault configured.');
+        io.showError(vscode.l10n.t('MD Artifacts: no vault configured.'));
         return;
     }
     const title = await io.showInputBox({
-        prompt: 'Title for the new Variables file',
-        validateInput: v => v.trim().length > 0 ? undefined : 'Title cannot be empty',
+        prompt: vscode.l10n.t('Title for the new Variables file'),
+        validateInput: v => v.trim().length > 0 ? undefined : vscode.l10n.t('Title cannot be empty'),
     });
     if (title === undefined) { return; }
 
     const fileName = deriveFileName(title);
     const check = validateArtifactFilename(fileName);
     if (!check.ok) {
-        io.showError(`Obsidian Artifacts: ${check.reason ?? 'invalid file name'}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', check.reason ?? 'invalid file name'));
         return;
     }
 
+    // Seeded with one placeholder row, not empty: the form renders the pairs it
+    // was opened with and has no add-row affordance, so an empty file opens as a
+    // table with nothing to edit and no way to add anything.
     const model: ArtifactFormModel = {
         artifactType: 'Variables', title, description: '', tags: [],
-        blocks: [{ heading: '', description: '', language: '', code: '', vars: [] }],
+        blocks: [{
+            heading: '', description: '', language: '', code: '',
+            vars: [{ name: 'VK-name', defaultValue: '' }],
+        }],
     };
     const chosenDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir);
     const result = await writeArtifact({
         vaultRoot, type: 'Variables', chosenDir, fileName, content: renderVariablesFile(model), force: false,
     });
 
-    if (result.kind === 'success') { provider.refresh(); return; }
-    const message = result.kind === 'collision' ? `"${fileName}.md" already exists.` : result.message;
-    io.showError(`Obsidian Artifacts: ${message}`);
+    if (result.kind === 'success') {
+        provider.refresh();
+        // Creating a set and then leaving the user in the tree is a dead end —
+        // open the file that was just written so the values can be filled in.
+        if (openForm) { await openForm(vscode.Uri.joinPath(chosenDir, `${fileName}.md`)); }
+        return;
+    }
+    const message = result.kind === 'collision' ? vscode.l10n.t('"{0}.md" already exists.', fileName) : result.message;
+    io.showError(vscode.l10n.t('MD Artifacts: {0}', message));
 }
 
 // ── New sub-set (target: file) ─────────────────────────────────────────────
 
 /**
- * Adds a new, empty sub-set to the clicked file.
+ * Adds a new, empty sub-set to the clicked file — the inline `+` on a
+ * sub-sets file, right-click on a one-block file (whose untitled block is
+ * then named by `addSubSet`), and Add… → Sub-set on a blank one. When the set holds no
+ * variables yet, the name box starts with the set's own title; a name already
+ * used by a sub-set is flagged while typing.
  *
  * @param node      - Clicked `file` tree node.
  * @param provider  - Tree provider to refresh on success.
@@ -119,14 +140,20 @@ export async function handleNewSubSet(
     const target = await resolveTarget(node, 'file', vaultRoot, io);
     if (!target) { return; }
 
-    const heading = await io.showInputBox({ prompt: 'New sub-set heading' });
+    const taken = new Set(target.model.blocks.map(b => b.heading));
+    const noVars = target.subSets.every(s => s.vars.length === 0);
+    const heading = await io.showInputBox({
+        prompt: vscode.l10n.t('New sub-set heading'),
+        value: noVars ? target.parsed.frontmatter.title || target.parsed.fileName : '',
+        validateInput: text => text !== '' && taken.has(text) ? vscode.l10n.t('Sub-set "{0}" already exists.', text) : undefined,
+    });
     if (heading === undefined) { return; }
 
     try {
         const newModel = addSubSet(target.model, heading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -152,22 +179,51 @@ export async function handleAddVar(
 ): Promise<void> {
     const target = await resolveTarget(node, 'subset', vaultRoot, io);
     if (!target) { return; }
-    const subSet = at(target.subSets, target.subIdx);
-    if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+    // A blank file has no block yet: its first variable makes it a one-block
+    // file, so the model gets one untitled block to receive it.
+    if (target.model.blocks.length === 0) {
+        const untitled = { heading: '', description: '', language: '', code: '', vars: [] };
+        await addVarAt({ ...target, model: { ...target.model, blocks: [untitled] } }, 0, provider, io);
+        return;
+    }
+    if (!at(target.subSets, target.subIdx)) {
+        io.showError(vscode.l10n.t('MD Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
-    const name = await io.showInputBox({ prompt: 'Variable name', value: 'VK-' });
+    await addVarAt(target, target.subIdx ?? -1, provider, io);
+}
+
+/**
+ * Prompts for a variable (name, then value) and adds it to block `index` of
+ * the target's model. Shared by Add variable and the blank file's Add… →
+ * Variable, which passes a model it has just given an untitled block.
+ *
+ * @param target   - Resolved file, whose `model` is the one mutated.
+ * @param index    - Block index in `target.model` — the clicked row's position.
+ * @param provider - Tree provider to refresh on success.
+ * @param io       - Interaction bag.
+ * @returns Resolves once written, cancelled, or refused (toast shown).
+ *
+ * @example
+ * await addVarAt(target, 0, provider, io);
+ */
+export async function addVarAt(
+    target: ResolvedTarget,
+    index: number,
+    provider: VariablesViewProvider,
+    io: CommandIO,
+): Promise<void> {
+    const name = await promptVarName(io, vscode.l10n.t('Variable name'));
     if (name === undefined) { return; }
-    const value = await io.showInputBox({ prompt: `Default value for ${name}` });
+    const value = await io.showInputBox({ prompt: vscode.l10n.t('Default value for {0}', name) });
     if (value === undefined) { return; }
 
     try {
-        const newModel = addVar(target.model, subSet.heading, name, value);
+        const newModel = addVar(target.model, index, name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -197,18 +253,18 @@ export async function handleEditValue(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('MD Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
-    const value = await io.showInputBox({ prompt: `New value for ${current.name}`, value: current.defaultValue });
+    const value = await io.showInputBox({ prompt: vscode.l10n.t('New value for {0}', current.name), value: current.defaultValue });
     if (value === undefined || value === current.defaultValue) { return; }
 
     try {
-        const newModel = setVarValue(target.model, subSet.heading, current.name, value);
+        const newModel = setVarValue(target.model, target.subIdx ?? -1, current.name, value);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -238,18 +294,18 @@ export async function handleRenameVar(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('MD Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
-    const newName = await io.showInputBox({ prompt: 'New variable name', value: current.name });
+    const newName = await promptVarName(io, vscode.l10n.t('New variable name'), current.name);
     if (newName === undefined || newName === current.name) { return; }
 
     try {
-        const newModel = renameVar(target.model, subSet.heading, current.name, newName);
+        const newModel = renameVar(target.model, target.subIdx ?? -1, current.name, newName);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -278,18 +334,18 @@ export async function handleRenameSubSet(
     if (!target) { return; }
     const subSet = at(target.subSets, target.subIdx);
     if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('MD Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
-    const newHeading = await io.showInputBox({ prompt: 'New sub-set heading', value: subSet.heading });
+    const newHeading = await io.showInputBox({ prompt: vscode.l10n.t('New sub-set heading'), value: subSet.heading });
     if (newHeading === undefined || newHeading === subSet.heading) { return; }
 
     try {
-        const newModel = renameSubSet(target.model, subSet.heading, newHeading);
+        const newModel = renameSubSet(target.model, target.subIdx ?? -1, newHeading);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -319,30 +375,29 @@ export async function handleDeleteVar(
     const subSet = at(target.subSets, target.subIdx);
     const current = at(subSet?.vars ?? [], target.varIdx);
     if (!subSet || !current) {
-        io.showError('Obsidian Artifacts: variable not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('MD Artifacts: variable not found — refresh the tree and retry.'));
         return;
     }
 
-    const message = buildConfirmMessage({ kind: 'var', name: current.name, parent: subSet.heading });
+    const message = buildConfirmMessage({ kind: 'var', name: current.name, parent: subSetLabel(subSet) });
     if (!await io.confirm(message)) { return; }
 
     try {
-        const newModel = deleteVar(target.model, subSet.heading, current.name);
+        const newModel = deleteVar(target.model, target.subIdx ?? -1, current.name);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
 // ── Delete sub-set (target: subset, destructive) ────────────────────────────
 
 /**
- * Deletes the clicked sub-set after modal confirmation. Refuses (via the
- * mutator's own thrown error, caught here) to delete a file's last sub-set —
- * delete the file instead. Cancel, Escape, decline, or the refusal all
- * perform zero writes.
+ * Deletes the clicked sub-set after modal confirmation — including a file's
+ * last one (reached through the `fileSingle` row), which leaves the file with
+ * no variables. Cancel, Escape, or decline perform zero writes.
  *
- * @param node      - Clicked `subset` tree node.
+ * @param node      - Clicked `subset` (or `fileSingle`) tree node.
  * @param provider  - Tree provider to refresh on success.
  * @param io        - Interaction bag; defaults to the real `vscode.window`-backed one.
  * @param vaultRoot - Vault root; defaults to `getVaultRootUri()`.
@@ -361,20 +416,20 @@ export async function handleDeleteSubSet(
     if (!target) { return; }
     const subSet = at(target.subSets, target.subIdx);
     if (!subSet) {
-        io.showError('Obsidian Artifacts: sub-set not found — refresh the tree and retry.');
+        io.showError(vscode.l10n.t('MD Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
 
     const message = buildConfirmMessage({
-        kind: 'subset', name: subSet.heading, varCount: subSet.vars.length, parent: target.parsed.relativePath,
+        kind: 'subset', name: subSetLabel(subSet), varCount: subSet.vars.length, parent: target.parsed.relativePath,
     });
     if (!await io.confirm(message)) { return; }
 
     try {
-        const newModel = deleteSubSet(target.model, subSet.heading);
+        const newModel = deleteSubSet(target.model, target.subIdx ?? -1);
         await commitWrite(target.vaultRoot, target.filePath, newModel, provider, io);
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
@@ -423,14 +478,14 @@ export async function handleDeleteFile(
         await vscode.workspace.fs.delete(vscode.Uri.file(target.filePath));
         provider.refresh();
     } catch (err) {
-        io.showError(`Obsidian Artifacts: ${errMessage(err)}`);
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
     }
 }
 
 // ── Registration ──────────────────────────────────────────────────────────
 
 /**
- * Registers the nine `obsidian-artifacts.variables.*` commands.
+ * Registers the nine `md-artifacts.variables.*` commands.
  *
  * @param context  - Extension context used to register the disposable subscriptions.
  * @param provider - The Variables tree provider every mutating command refreshes.
@@ -440,6 +495,70 @@ export async function handleDeleteFile(
  * // Called once inside activate():
  * registerVariablesCommands(context, variablesViewProvider);
  */
+/**
+ * Opens a Variables file in the var-set form's edit mode, by path.
+ *
+ * The pane's route into the form — used both by a file-node click and by
+ * `handleNewFile` right after it writes. Parses the file here because the tree
+ * carries paths, not parsed artifacts, and routes through the one shared
+ * `openVarsEditForm` so the callback bag is not built a second time.
+ *
+ * @param fileUri  - The `.md` to open.
+ * @param provider - Tree provider, refreshed after a successful save.
+ * @param extensionUri - Extension root, for the webview's `localResourceRoots`.
+ * @returns Resolves once the panel is open, or immediately when the file cannot be parsed.
+ *
+ * @example
+ * await openVariablesFileInForm(uri, provider, context.extensionUri);
+ */
+export async function openVariablesFileInForm(
+    fileUri: vscode.Uri,
+    provider: VariablesViewProvider,
+    extensionUri: vscode.Uri,
+    io: CommandIO = defaultIO,
+): Promise<void> {
+    let parsed;
+    try {
+        parsed = parseArtifactFile(fileUri.fsPath, vscode.Uri.joinPath(fileUri, '..').fsPath);
+    } catch (e) {
+        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(e)));
+        return;
+    }
+    if (!parsed) {
+        io.showError(vscode.l10n.t('MD Artifacts: could not read "{0}".', fileUri.fsPath));
+        return;
+    }
+    await openVarsEditForm(parsed, extensionUri, () => provider.refresh());
+}
+
+/**
+ * Opens the clicked `file` tree node in the var-set form's edit mode.
+ *
+ * Reuses `resolveTarget` so the node→path resolution and its containment check
+ * are the shared ones, then hands the parsed file to `openVarsEditForm`.
+ *
+ * @param node         - Clicked `file` tree node.
+ * @param provider     - Tree provider, refreshed after a successful save.
+ * @param extensionUri - Extension root, for the webview's `localResourceRoots`.
+ * @param io           - Interaction bag; defaults to the real `vscode.window`-backed one.
+ * @param vaultRoot    - Vault root; defaults to `getVaultRootUri()`.
+ * @returns Resolves once the panel is open, or immediately when the node cannot be resolved.
+ *
+ * @example
+ * await handleOpenFile(node, provider, context.extensionUri);
+ */
+export async function handleOpenFile(
+    node: VariableNode | undefined,
+    provider: VariablesViewProvider,
+    extensionUri: vscode.Uri,
+    io: CommandIO = defaultIO,
+    vaultRoot: vscode.Uri | undefined = getVaultRootUri(),
+): Promise<void> {
+    const target = await resolveTarget(node, 'file', vaultRoot, io);
+    if (!target) { return; }
+    await openVariablesFileInForm(vscode.Uri.file(target.filePath), provider, extensionUri, io);
+}
+
 export function registerVariablesCommands(context: vscode.ExtensionContext, provider: VariablesViewProvider): void {
     const [
         newFileId, newSubSetId, addVarId, editValueId,
@@ -447,7 +566,12 @@ export function registerVariablesCommands(context: vscode.ExtensionContext, prov
     ] = buildVariableCommandIds();
 
     context.subscriptions.push(
-        vscode.commands.registerCommand(newFileId, () => handleNewFile(provider)),
+        vscode.commands.registerCommand(newFileId, () => handleNewFile(
+            provider, defaultIO, getVaultRootUri(),
+            uri => openVariablesFileInForm(uri, provider, context.extensionUri),
+        )),
+        vscode.commands.registerCommand(OPEN_FILE_COMMAND_ID, (node?: VariableNode) =>
+            handleOpenFile(node, provider, context.extensionUri)),
         vscode.commands.registerCommand(newSubSetId, (node?: VariableNode) => handleNewSubSet(node, provider)),
         vscode.commands.registerCommand(addVarId, (node?: VariableNode) => handleAddVar(node, provider)),
         vscode.commands.registerCommand(editValueId, (node?: VariableNode) => handleEditValue(node, provider)),

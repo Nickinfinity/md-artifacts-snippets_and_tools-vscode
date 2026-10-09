@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <defs>
+    <!-- Whole canvas minus a margin around the badge, so the O+A never touches it. -->
+    <clipPath id="badge-gap">
+      <path clip-rule="evenodd" d="M0 0H24V24H0Z M13.8 15.9H24V24H12.2V17.5A1.6 1.6 0 0 1 13.8 15.9Z"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#badge-gap)"><g transform="translate(0.3 0.3) scale(0.9)">
+    <path fill-rule="evenodd" d="M12 2.3c5.35 0 9.7 4.35 9.7 9.7s-4.35 9.7-9.7 9.7-9.7-4.35-9.7-9.7 4.35-9.7 9.7-9.7Zm0 2.4a7.3 7.3 0 1 0 0 14.6 7.3 7.3 0 0 0 0-14.6Z"/>
+    <path fill-rule="evenodd" d="M12 4.2 16.4 16.5H7.6Z M11.6 9.51H12.4L14.185 14.5H9.815Z"/>
+  </g></g>
+  <!-- Markdown mark (M + down arrow) knocked out of a solid badge, bottom-right. -->
+  <path fill-rule="evenodd" transform="translate(13.1 16.8) scale(0.05)" d="M20 0h168a20 20 0 0 1 20 20v88a20 20 0 0 1-20 20H20A20 20 0 0 1 0 108V20A20 20 0 0 1 20 0Z M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39Z M155 98l-30-33h20V30h20v35h20Z"/>
+</svg>

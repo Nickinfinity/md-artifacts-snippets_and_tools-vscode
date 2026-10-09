@@ -319,7 +319,7 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
         assert.match(reason, /index/i);
     });
 
-    test('an artifact declaring env: is refused — the model has no field for it', () => {
+    test('an artifact declaring env: is editable — the model carries the field now', () => {
         const md = [
             '---',
             'artifactType: Snippet',
@@ -333,9 +333,14 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
             '```',
             '',
         ].join('\n');
-        const reason = unsupportedEditReason(parseMd(md), md);
-        assert.ok(reason, 'an env-carrying artifact was accepted for editing');
-        assert.match(reason, /env/i);
+        // H7.0b gave `ArtifactFormModel` an `env` field and the serializer an emit
+        // line, so the key now survives a form round trip. The refusal existed
+        // only because it did not.
+        assert.strictEqual(
+            unsupportedEditReason(parseMd(md), md),
+            undefined,
+            'an env-carrying artifact is refused although the model now carries env'
+        );
     });
 
     test('an ordinary snippet is still editable', () => {

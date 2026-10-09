@@ -116,7 +116,7 @@ suite('pane-layout.service', () => {
                 };
             };
         };
-        const mirror = pkg.contributes.configuration.properties['obsidianArtifacts.mainPane.variablesHeightFraction'];
+        const mirror = pkg.contributes.configuration.properties['mdArtifacts.mainPane.variablesHeightFraction'];
 
         test('minimum/maximum are the exact static mirror of this service\'s bounds', () => {
             // This service is the authority; package.json is the static mirror

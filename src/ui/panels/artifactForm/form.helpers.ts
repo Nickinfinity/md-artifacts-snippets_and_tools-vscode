@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { getDefaultLanguage, getTypeSingular } from '../../../services/artifact-type-config.service.js';
 import type { ArtifactType } from '../../../types/parsed-artifact.types.js';
 import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
@@ -81,7 +82,7 @@ export function defaultModel(type: ArtifactType): ArtifactFormModel {
  * labelForAddBlock('Snippet') // → '+ Add additional snippet'
  */
 export function labelForAddBlock(type: ArtifactType): string {
-    return `+ Add additional ${getTypeSingular(type)}`;
+    return vscode.l10n.t('+ Add additional {0}', getTypeSingular(type));
 }
 
 /**
@@ -100,5 +101,5 @@ export function labelForAddBlock(type: ArtifactType): string {
  * labelForDeleteEntire('Command') // → 'Delete Artifact'
  */
 export function labelForDeleteEntire(_type: ArtifactType): string {
-    return 'Delete Artifact';
+    return vscode.l10n.t('Delete Artifact');
 }
