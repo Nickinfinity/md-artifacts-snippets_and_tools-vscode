@@ -11,3 +11,4 @@ node_modules
 src/docs/
 .vscode/
 docs/
+/docs/*
