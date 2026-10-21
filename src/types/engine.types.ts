@@ -142,7 +142,7 @@ export interface EngineArtifact {
  * One file of an `artifact.tree` listing.
  *
  * @example
- * const f: TreeFile = { path: 'Snippets/hello.md', name: 'hello.md', title: 'Hello' };
+ * const f: TreeFile = { path: 'Snippets/hello.md', name: 'hello', title: 'Hello' };
  */
 export interface TreeFile {
     readonly path: string; readonly name: string; readonly title?: string; readonly description?: string;

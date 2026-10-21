@@ -5,16 +5,12 @@
   "New": "Nuevo",
   "Open": "Abrir",
   "Settings": "Configuración",
-  "No variable sets found. Create a `type: variables` file in the vault's Variables/ directory.": "No se encontraron conjuntos de variables. Cree un archivo `type: variables` en el directorio Variables/ de la bóveda.",
-  "Apply Variable Set": "Aplicar conjunto de variables",
-  "Pick a variable set — sorted by match score": "Elija un conjunto de variables — ordenado por puntuación de coincidencia",
   "MD Artifacts: AI Snippets & Tools - Settings": "MD Artifacts: AI Snippets & Tools - Configuración",
   "Preview pane settings reset to defaults.": "Configuración del panel de vista previa restablecida a los valores predeterminados.",
   "Select Vault": "Seleccionar bóveda",
   "Obsidian vault path saved: {0}": "Ruta de la bóveda de Obsidian guardada: {0}",
   "No folder selected.": "Ninguna carpeta seleccionada.",
   "Please select a vault first.": "Seleccione primero una bóveda.",
-  "Cannot disable \"{0}\" — directory is not empty.": "No se puede deshabilitar \"{0}\" — el directorio no está vacío.",
   "Obsidian vault": "bóveda de Obsidian",
   "MD Artifacts: AI Snippets & Tools - CONFIG": "MD Artifacts: AI Snippets & Tools - CONFIGURACIÓN",
   "MD Artifacts: AI Snippets & Tools": "MD Artifacts: AI Snippets & Tools",
@@ -22,7 +18,6 @@
   "This extension connects VS Code to your {0}, letting you browse notes, insert snippets, and create new entries without leaving the editor.": "Esta extensión conecta VS Code con tu {0}, permitiéndote explorar notas, insertar fragmentos y crear nuevas entradas sin salir del editor.",
   "To get started, point the extension to your vault's root folder — the directory that contains your {0} folder. Your selection is saved locally and persists across sessions.": "Para empezar, indica a la extensión la carpeta raíz de tu bóveda: el directorio que contiene tu carpeta {0}. Tu selección se guarda localmente y persiste entre sesiones.",
   "Vault Features": "Funciones de la bóveda",
-  "Select which directories to create in your vault. Directories marked as \"default\" will be auto-created when you first select your vault.": "Selecciona qué directorios crear en tu bóveda. Los directorios marcados como «predeterminados» se crearán automáticamente al seleccionar tu bóveda por primera vez.",
   "Vault Location": "Ubicación de la bóveda",
   "No vault selected": "Ninguna bóveda seleccionada",
   "Select Vault Folder": "Seleccionar carpeta de la bóveda",
@@ -320,5 +315,7 @@
   "Engine warning: {0}": "Advertencia del motor: {0}",
   "Engine trace output may contain secrets (file contents, variable values).": "La salida de traza del motor puede contener secretos (contenido de archivos, valores de variables).",
   "{0} Install: {1}": "{0} Instalar: {1}",
-  "Restart engine": "Reiniciar motor"
+  "Restart engine": "Reiniciar motor",
+  "Use \"{0}\" as your vault?": "¿Usar \"{0}\" como tu bóveda?",
+  "These directories will be created: {0}": "Se crearán estos directorios: {0}"
 }

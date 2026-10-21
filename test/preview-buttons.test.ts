@@ -197,10 +197,11 @@ suite('staged edits and Overwrite', () => {
         path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', 'blockEditor.ts'),
         'utf8',
     );
-    const previewSource = fs.readFileSync(
-        path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', 'preview.ts'),
-        'utf8',
-    );
+    const previewSource = ['preview.ts', 'preview.width.ts', 'preview.staged.ts', 'preview.actions.ts', 'preview.types.ts']
+        .map(f => fs.readFileSync(
+            path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', f),
+            'utf8',
+        )).join('\n');
 
     test('the expanded editor never writes to the vault itself', () => {
         // It used to patch and write the .md on every save, which made one of
@@ -217,7 +218,7 @@ suite('staged edits and Overwrite', () => {
     });
 
     test('Overwrite confirms before writing', () => {
-        const at = previewSource.indexOf('private async handleOverwrite');
+        const at = previewSource.indexOf('async handleOverwrite(');
         assert.ok(at > 0, 'handleOverwrite missing');
         const body = previewSource.slice(at, at + 1600);
         assert.ok(body.includes('confirmModal('), 'Overwrite does not confirm');

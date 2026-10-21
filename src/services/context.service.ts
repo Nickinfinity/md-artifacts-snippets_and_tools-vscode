@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { detectVaultDirs } from './vault.service.js';
 import { ARTIFACTS } from '../types/constants.js';
-import { getVaultPath } from './config.service.js';
-import { isInContext, getCreateTypesForSurface } from './artifact-type-config.service.js';
+import { isInContext, getCreateTypesForSurface, getAllTypes } from './artifact-type-config.service.js';
+import { getEngine } from '../engine/engine.vscode.js';
+import type { EngineResult } from '../types/engine.types.js';
 import type { ArtifactContext } from '../types/artifact.types.js';
 import type { ArtifactType } from '../types/parsed-artifact.types.js';
 
@@ -26,99 +26,61 @@ export function artifactContextKey(dir: string): string {
 	return `${CTX}.${dir.toLowerCase()}Active`;
 }
 
+type Surface = Exclude<ArtifactContext, 'all'>;
+const SURFACES: readonly Surface[] = ['editor', 'terminal', 'explorer'];
+
 /**
- * Sets all vault-related VS Code context keys based on the provided vault path.
+ * Pure derivation of every context key from the engine's `types.list` rows.
  *
- * Keys are derived dynamically from `ARTIFACTS` — adding a new artifact to
- * constants.ts automatically produces the matching context key here.
+ * Keys: `vaultConfigured` (rows present: `types.list` fails with `vault.not_selected`
+ * exactly when no vault is set), `<dir>Active` per artifact (`enabled && dirExists` —
+ * the engine's `enabled` already folds the override, and a disabled type's folder stays),
+ * and the `<surface>HasMultiple` / `<surface>CreateHasMultiple` counts (>= 2 -> submenu).
  *
- * Keys set:
- * - `md-artifacts.vaultConfigured`            — true when a vault path is configured
- * - `md-artifacts.<dir.toLowerCase()>Active`  — true when that artifact dir exists on disk
- * - `md-artifacts.editorHasMultiple`          — true when ≥2 editor artifacts are active
- * - `md-artifacts.terminalHasMultiple`        — true when ≥2 terminal artifacts are active
- * - `md-artifacts.explorerHasMultiple`        — true when ≥2 explorer artifacts are active
- * - `md-artifacts.<surface>CreateHasMultiple` — true when ≥2 *create-capable*
- *   artifacts are active on that surface. A separate family from the insert keys
- *   above: a surface can offer one insert type and two create types, or the
- *   reverse, so one key cannot serve both menus.
- *
- * The `*HasMultiple` keys drive the single-vs-submenu logic in package.json menus:
- * one active artifact → direct labelled entry, two or more → "MD Artifacts" submenu.
- *
- * @param {string | null} vaultPath - Absolute path to the vault root, or null if unconfigured
- * @returns {Promise<void>}
+ * @param rows - `types.list` result, or `null` when the engine could not answer.
+ * @returns Full `md-artifacts.*` key/value pairs, `vaultConfigured` first.
+ * @example
+ * contextKeysFor(null); // every key false
  */
-async function setVaultContextKeys(vaultPath: string | null): Promise<void> {
-	await setCtx('vaultConfigured', vaultPath !== null);
-
-	if (vaultPath === null) {
-		// Vault not configured — clear all per-artifact and per-context keys
-		for (const a of ARTIFACTS) {
-			await vscode.commands.executeCommand('setContext', artifactContextKey(a.dir), false);
-		}
-		await setCtx('editorHasMultiple',   false);
-		await setCtx('terminalHasMultiple', false);
-		await setCtx('explorerHasMultiple', false);
-		await setCtx('editorCreateHasMultiple',   false);
-		await setCtx('terminalCreateHasMultiple', false);
-		await setCtx('explorerCreateHasMultiple', false);
-		return;
+export function contextKeysFor(rows: EngineResult<'types.list'> | null): ReadonlyArray<readonly [string, boolean]> {
+	const known = new Set<string>(getAllTypes());
+	const active = new Set<ArtifactType>(
+		(rows ?? []).filter(r => known.has(r.type) && r.enabled && r.dirExists).map(r => r.type));
+	const keys: Array<readonly [string, boolean]> = [[`${CTX}.vaultConfigured`, rows !== null]];
+	for (const a of ARTIFACTS) { keys.push([artifactContextKey(a.dir), active.has(a.type)]); }
+	const count = (types: readonly ArtifactType[]) => types.filter(t => active.has(t)).length;
+	// `isInContext` / `getCreateTypesForSurface` are THE surface rules; no re-check here.
+	for (const s of SURFACES) {
+		keys.push([`${CTX}.${s}HasMultiple`, count(getAllTypes().filter(t => isInContext(t, s))) >= 2]);
 	}
-
-	// Check which artifact directories currently exist on disk
-	const dirs = detectVaultDirs(vaultPath);
-
-	// Set one context key per artifact based on whether its directory exists
-	for (const d of dirs) {
-		await vscode.commands.executeCommand('setContext', artifactContextKey(d.dir), d.exists);
+	for (const s of SURFACES) {
+		keys.push([`${CTX}.${s}CreateHasMultiple`, count(getCreateTypesForSurface(s)) >= 2]);
 	}
-
-	// Count active artifacts per VS Code context surface.
-	// Used by package.json `when` clauses to choose between direct entries and submenus.
-	// `isInContext` (artifact-type-config.service.ts) is THE `'all'`-matching rule.
-	// This file carried a private copy until Wave 0 close; two bodies for one rule
-	// is the drift `package-menus.test.ts` would only catch after it had shipped.
-	const countActive = (surface: Exclude<ArtifactContext, 'all'>) =>
-		dirs.filter(d => isInContext(d.type, surface) && d.exists).length;
-
-	await setCtx('editorHasMultiple',   countActive('editor')   >= 2);
-	await setCtx('terminalHasMultiple', countActive('terminal') >= 2);
-	await setCtx('explorerHasMultiple', countActive('explorer') >= 2);
-
-	// Create menus collapse on the same rule as insert, but over a different
-	// population: create-capable types (createForm) rather than insert-capable
-	// ones. Derived from the same §2 rule via getCreateTypesForSurface, so a new
-	// createForm entry in ARTIFACTS reaches these keys with no edit here.
-	const countCreate = (surface: Exclude<ArtifactContext, 'all'>) => {
-		const createTypes: readonly ArtifactType[] = getCreateTypesForSurface(surface);
-		return dirs.filter(d => d.exists && createTypes.includes(d.type)).length;
-	};
-
-	await setCtx('editorCreateHasMultiple',   countCreate('editor')   >= 2);
-	await setCtx('terminalCreateHasMultiple', countCreate('terminal') >= 2);
-	await setCtx('explorerCreateHasMultiple', countCreate('explorer') >= 2);
+	return keys;
 }
 
 /**
- * Reads `mdArtifacts.vaultPath` from VS Code settings and refreshes
- * all vault-related VS Code context keys.
+ * Asks the engine which types are active and refreshes all vault-related context keys.
  *
- * VS Code settings are the single source of truth for the vault path — no
- * custom file storage is used. Settings Sync propagates the value across devices.
+ * A background read: engine unavailable / no vault / any throw degrades to all keys
+ * false, never rejects and never toasts. Call on activation, on config change and
+ * after the settings panel writes.
  *
- * Should be called:
- * 1. On extension activation — restores context from the previous session
- * 2. After any `mdArtifacts.*` setting changes (via onDidChangeConfiguration)
- * 3. After the config panel writes a new vault path or toggles a directory
- *
+ * @param setContext - Injected sink (default: the `setContext` command).
  * @returns {Promise<void>}
- *
  * @example
  * await refreshVaultContext();
  */
-export async function refreshVaultContext(): Promise<void> {
-	const vaultPath = getVaultPath();
-
-	await setVaultContextKeys(vaultPath.length > 0 ? vaultPath : null);
+export async function refreshVaultContext(
+	setContext: (key: string, value: boolean) => Thenable<unknown> =
+		(k, v) => vscode.commands.executeCommand('setContext', k, v),
+): Promise<void> {
+	let rows: EngineResult<'types.list'> | null = null;
+	try {
+		// getEngine() throws synchronously, so it must sit inside the try.
+		rows = await getEngine().request('types.list', {});
+	} catch {
+		rows = null;
+	}
+	for (const [k, v] of contextKeysFor(rows)) { await setContext(k, v); }
 }

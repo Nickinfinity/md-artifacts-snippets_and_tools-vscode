@@ -1,4 +1,7 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { resolveInVault } from '../../../engine/adapt.js';
+import type { TreeFile } from '../../../types/engine.types.js';
 import type { ParsedArtifactFile, ParsedBlock } from '../../../types/parsed-artifact.types.js';
 
 /** Debounce window for QuickPick `onDidChangeActive` → preview render. */
@@ -11,6 +14,10 @@ export interface ArtifactItem extends vscode.QuickPickItem {
     isBack?: boolean;
     /** Set when this item represents a `##`-headed block inside a multi-block file. */
     block?: ParsedBlock;
+    /** Vault-relative POSIX path — the one key for cache, stack and engine calls. */
+    relPath?: string;
+    /** The engine listed this file with an error; shown, never hidden. */
+    broken?: boolean;
 }
 
 /**
@@ -46,6 +53,7 @@ export function relFsPath(uri: vscode.Uri, rootFs: string): string {
  * @param fallback - Display name to use before the file is parsed.
  * @param parsed   - Parsed metadata, or `undefined` if not yet loaded.
  * @param rootFs   - Absolute filesystem path of the artifact root directory.
+ * @param relPath  - Vault-relative POSIX path carried on the item.
  * @returns A fully-populated QuickPick item.
  *
  * @example
@@ -56,10 +64,11 @@ export function buildItem(
     isDir: boolean,
     fallback: string,
     parsed: ParsedArtifactFile | undefined,
-    rootFs: string
+    rootFs: string,
+    relPath?: string
 ): ArtifactItem {
     if (isDir) {
-        return { label: `$(folder)  ${fallback}`, uri, isDirectory: true };
+        return { label: `$(folder)  ${fallback}`, uri, isDirectory: true, relPath };
     }
 
     const title       = parsed?.frontmatter.title || fallback;
@@ -76,5 +85,42 @@ export function buildItem(
         ? [varsPart, tagsPart].filter(Boolean).join('    ')
         : undefined;
 
-    return { label: `$(file)  ${title}`, description, detail, uri, isDirectory: false };
+    return { label: `$(file)  ${title}`, description, detail, uri, isDirectory: false, relPath };
+}
+
+/**
+ * Maps one `artifact.tree` level to QuickPick items: back row, dirs, then files.
+ *
+ * @param tree      - The engine reply (untrusted names; containment is checked per item).
+ * @param dirRel    - Vault-relative path of the listed directory.
+ * @param hasBack   - Whether to lead with the `..` row.
+ * @param vaultRoot - Absolute vault root.
+ * @param cached    - Parse-cache lookup by vault-relative path, so re-entered levels keep their detail row.
+ * @returns Items in display order; throws when an engine path escapes the vault.
+ *
+ * @example
+ * treeToItems({ dirs: [], files: [] }, 'Snippets', true, '/v'); // [back row]
+ */
+export function treeToItems(
+    tree: { readonly dirs: readonly string[]; readonly files: readonly TreeFile[] },
+    dirRel: string,
+    hasBack: boolean,
+    vaultRoot: string,
+    cached: (relPath: string) => ParsedArtifactFile | undefined = () => undefined,
+): ArtifactItem[] {
+    const items: ArtifactItem[] = [];
+    if (hasBack) { items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true }); }
+    for (const name of tree.dirs) {
+        const rel = dirRel ? `${dirRel}/${name}` : name;
+        items.push(buildItem(vscode.Uri.file(resolveInVault(rel, vaultRoot)), true, name, undefined, vaultRoot, rel));
+    }
+    for (const f of tree.files) {
+        const name = f.title || f.name;
+        const uri = vscode.Uri.file(resolveInVault(f.path, vaultRoot));
+        const item = buildItem(uri, false, name, cached(f.path), path.join(vaultRoot, f.path.split('/')[0]), f.path);
+        if (f.error) { items.push({ ...item, label: `$(warning)  ${name}`, description: f.error.code, broken: true }); continue; }
+        if (f.description) { item.description = f.description; }
+        items.push(item);
+    }
+    return items;
 }

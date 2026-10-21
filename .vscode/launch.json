@@ -13,6 +13,8 @@
 				"--extensionDevelopmentPath=${workspaceFolder}",
         "--disable-extensions" //disable all other extensions
 			],
+			// F5 must not rewrite the CLI's default vault (vault.select persists to this dir).
+			"env": { "MDA_CONFIG_DIR": "/tmp/mda-f5-cfg" },
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
 			],

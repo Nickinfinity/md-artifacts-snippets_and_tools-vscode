@@ -1,338 +1,150 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
+import type { Subset, VarsFile } from '../src/types/engine.types.js';
 import { VarSetScanner } from '../src/services/varset.service.js';
+import { startEngine } from '../src/engine/engine.vscode.js';
+import { setSessionVault } from '../src/services/vault-watch.service.js';
+import { createFakeEngine, type FakeEngine } from './fake-engine.js';
 
 /**
- * Integration tests for VarSetScanner — recursively scans a Variables directory
- * and returns parsed `.md` artifact files, caching results until invalidated.
- *
- * The class does NOT exist yet — all tests here should fail until
- * src/services/varset.service.ts is implemented and exports `VarSetScanner`.
- *
- * Usage contract:
- *   const scanner = new VarSetScanner();
- *   const files   = await scanner.scan(variablesDirUri);
- *   scanner.invalidate();
+ * VarSetScanner over the fake engine: `scan` is one `vars.list`, adapted to the parsed shape,
+ * cached per directory until `invalidate()`. Directory walking and type filtering are engine-owned.
  */
 
-// ── Test helpers ──────────────────────────────────────────────────────────────
+const DIR = vscode.Uri.file('/v/Variables');
 
 /**
- * Creates a fresh temporary directory rooted at the OS temp dir.
+ * Builds a sub-set with one variable.
  *
- * @returns Absolute path to a unique scratch directory the test owns.
- *
+ * @param heading - Sub-set heading.
+ * @param extra   - Fields merged over the defaults (e.g. `varsError`).
+ * @returns A `Subset`.
  * @example
- * const dir = mkTempVarsDir();
+ * subset('Dev', { varsError: { code: 'x.y', params: {} } });
  */
-function mkTempVarsDir(): string {
-    return fs.mkdtempSync(path.join(os.tmpdir(), 'varset-scanner-test-'));
+function subset(heading: string, extra: Partial<Subset> = {}): Subset {
+    return { index: 0, heading, description: '', vars: [{ name: 'VK-a', defaultValue: heading }], ...extra };
 }
 
 /**
- * Removes a directory tree previously returned from `mkTempVarsDir`.
+ * Builds a `sets` listing entry.
  *
- * @param dir - Absolute path returned from `mkTempVarsDir`.
- * @returns void
- *
+ * @param name  - File name stem.
+ * @param subs  - Its sub-sets.
+ * @param extra - Fields merged over the defaults.
+ * @returns A `VarsFile`.
  * @example
- * rmTempVarsDir(dir);
+ * file('all', [subset('Dev'), subset('Prod')]);
  */
-function rmTempVarsDir(dir: string): void {
-    fs.rmSync(dir, { recursive: true, force: true });
+function file(name: string, subs: Subset[], extra: Partial<VarsFile> = {}): VarsFile {
+    return { path: `Variables/${name}.md`, name, shape: 'sets', subsets: subs, ...extra };
 }
-
-/**
- * Writes a `artifactType: Variables` artifact `.md` file with a single `vars` fence.
- *
- * @param filePath - Absolute target path on disk.
- * @param env      - Frontmatter `env` value (e.g. `dev`, `prod`).
- * @param vars     - Map of `KEY=value` pairs to embed in the vars fence.
- * @returns void
- *
- * @example
- * writeVarFile('/tmp/x/dev.md', 'dev', { API_URL: 'http://localhost:3000' });
- */
-function writeVarFile(filePath: string, env: string, vars: Record<string, string>): void {
-    const lines = [
-        '---',
-        'artifactType: Variables',
-        `env: ${env}`,
-        '---',
-        '',
-        '```vks',
-        ...Object.entries(vars).map(([k, v]) => `${k}=${v}`),
-        '```',
-        '',
-    ];
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, lines.join('\n'), 'utf-8');
-}
-
-/**
- * Writes a multi-block `artifactType: Variables` artifact file using `## Heading` blocks.
- *
- * @param filePath - Absolute target path on disk.
- * @param blocks   - Ordered array of `{ heading, vars }` entries.
- * @returns void
- *
- * @example
- * writeMultiBlockVarFile('/tmp/x/all.md', [
- *   { heading: 'Dev',  vars: { API_URL: 'http://localhost' } },
- *   { heading: 'Prod', vars: { API_URL: 'https://api.example.com' } },
- * ]);
- */
-function writeMultiBlockVarFile(
-    filePath: string,
-    blocks: { heading: string; vars: Record<string, string> }[],
-): void {
-    const out: string[] = ['---', 'artifactType: Variables', '---', ''];
-    for (const b of blocks) {
-        out.push(`## ${b.heading}`, '```bash');
-        for (const [k, v] of Object.entries(b.vars)) { out.push(`${k}=${v}`); }
-        out.push('```', '');
-    }
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, out.join('\n'), 'utf-8');
-}
-
-/**
- * Writes a non-variables artifact (`artifactType: Snippet`) for negative-path coverage.
- *
- * @param filePath - Absolute target path on disk.
- * @returns void
- *
- * @example
- * writeSnippetFile('/tmp/x/snippet.md');
- */
-function writeSnippetFile(filePath: string): void {
-    const content = [
-        '---',
-        'artifactType: Snippet',
-        'title: Not A Var Set',
-        '---',
-        '',
-        '```code',
-        'console.log("hi");',
-        '```',
-        '',
-    ].join('\n');
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, content, 'utf-8');
-}
-
-// ── Test suite ────────────────────────────────────────────────────────────────
 
 suite('VarSetScanner', () => {
+    let fake: FakeEngine;
+    let handle: vscode.Disposable;
+    let listing: VarsFile[];
+    const showError = (): Thenable<string | undefined> => Promise.resolve(undefined);
 
-    let tmpDir: string;
+    const requests = (): number => fake.received.filter(r => r.method === 'vars.list').length;
 
-    setup(() => { tmpDir = mkTempVarsDir(); });
-    teardown(() => { rmTempVarsDir(tmpDir); });
+    setup(() => {
+        listing = [];
+        fake = createFakeEngine();
+        fake.on('vars.list', () => ({ result: { files: listing } }));
+        handle = startEngine({ spawn: () => fake, enginePath: process.execPath, showError });
+        setSessionVault('/v');
+    });
+    teardown(() => { setSessionVault(undefined); handle.dispose(); });
 
-    // ── scan — basic behaviour ────────────────────────────────────────────────
-
-    test('returns parsed .md files from the directory', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'),  'dev',  { API_URL: 'http://localhost' });
-        writeVarFile(path.join(tmpDir, 'prod.md'), 'prod', { API_URL: 'https://api.example.com' });
-
-        const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 2);
-        const names = files.map((f: ParsedArtifactFile) => f.fileName).sort();
-        assert.deepStrictEqual(names, ['dev', 'prod']);
+    test('a sets file arrives with one block per sub-set, fenceLang yaml VKs', async () => {
+        listing = [file('all', [subset('Dev'), subset('Prod')])];
+        const files = await new VarSetScanner().scan(DIR);
+        assert.strictEqual(files.length, 1);
+        assert.deepStrictEqual(files[0].blocks.map(b => b.heading), ['Dev', 'Prod']);
+        assert.strictEqual(files[0].blocks[0].fenceLang, 'yaml VKs');
+        assert.strictEqual(files[0].filePath, '/v/Variables/all.md');
         assert.ok(files.every((f: ParsedArtifactFile) => f.frontmatter.artifactType === 'Variables'));
     });
 
-    test('returns empty array for an empty directory', async () => {
-        const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-        assert.deepStrictEqual(files, []);
+    test('a flat file has blocks: [] and its vars on the top level', async () => {
+        listing = [{ path: 'Variables/simple.md', name: 'simple', shape: 'flat', subsets: [subset('')] }];
+        const [f] = await new VarSetScanner().scan(DIR);
+        assert.deepStrictEqual(f.blocks, []);
+        assert.deepStrictEqual(f.vars.map(v => v.name), ['VK-a']);
     });
 
-    // ── scan — filtering ──────────────────────────────────────────────────────
-
-    test('skips non-.md files', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'), 'dev', { KEY: 'value' });
-        fs.writeFileSync(path.join(tmpDir, 'notes.txt'),       'plain text', 'utf-8');
-        fs.writeFileSync(path.join(tmpDir, 'config.json'),     '{}',         'utf-8');
-        fs.writeFileSync(path.join(tmpDir, 'README'),          'no ext',     'utf-8');
-
-        const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 1);
-        assert.strictEqual(files[0].fileName, 'dev');
+    test('an empty listing is an empty array', async () => {
+        assert.deepStrictEqual(await new VarSetScanner().scan(DIR), []);
     });
 
-    test('skips files where frontmatter.artifactType is not "Variables"', async () => {
-        writeVarFile(path.join(tmpDir, 'real-vars.md'), 'dev', { KEY: 'value' });
-        writeSnippetFile(path.join(tmpDir, 'snippet.md'));
-        // No frontmatter at all → falls through to default type 'Snippet' → skipped.
-        fs.writeFileSync(path.join(tmpDir, 'no-fm.md'), '```code\necho hi\n```\n', 'utf-8');
-
-        const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 1);
-        assert.strictEqual(files[0].fileName, 'real-vars');
-        assert.strictEqual(files[0].frontmatter.artifactType, 'Variables');
+    test('Q4: files with error, file-level varsError or a sub-set varsError are skipped', async () => {
+        const bad = { code: 'vars.bad', params: {} };
+        listing = [
+            file('good', [subset('Dev')]),
+            file('io', [], { error: { code: 'io.failed' } }),
+            file('fileLevel', [subset('Dev')], { varsError: bad }),
+            file('inSet', [subset('A'), subset('B', { varsError: bad })]),
+        ];
+        const files = await new VarSetScanner().scan(DIR);
+        assert.deepStrictEqual(files.map(f => f.fileName), ['good']);
     });
 
-    // ── scan — recursion ──────────────────────────────────────────────────────
-
-    test('recurses into subdirectories', async () => {
-        writeVarFile(path.join(tmpDir, 'top.md'),                         'dev',  { A: '1' });
-        writeVarFile(path.join(tmpDir, 'envs', 'staging.md'),             'stg',  { A: '2' });
-        writeVarFile(path.join(tmpDir, 'envs', 'prod', 'us-east.md'),     'prod', { A: '3' });
-        writeVarFile(path.join(tmpDir, 'envs', 'prod', 'eu-west.md'),     'prod', { A: '4' });
-
+    test('second scan is cached: same references, one vars.list', async () => {
+        listing = [file('dev', [subset('Dev')])];
         const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 4);
-        const names = files.map((f: ParsedArtifactFile) => f.fileName).sort();
-        assert.deepStrictEqual(names, ['eu-west', 'staging', 'top', 'us-east']);
+        const first = await scanner.scan(DIR);
+        const second = await scanner.scan(DIR);
+        assert.strictEqual(second[0], first[0]);
+        assert.strictEqual(requests(), 1);
     });
 
-    test('recursion still filters non-.md and non-variables files at every level', async () => {
-        writeVarFile(path.join(tmpDir, 'top.md'),                       'dev',  { A: '1' });
-        writeSnippetFile(path.join(tmpDir, 'sub', 'snippet.md'));
-        fs.writeFileSync(path.join(tmpDir, 'sub', 'ignored.txt'), 'x', 'utf-8');
-        writeVarFile(path.join(tmpDir, 'sub', 'real.md'),               'prod', { A: '2' });
-
+    test('cache is keyed by directory: another vault dir re-lists', async () => {
         const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        const names = files.map((f: ParsedArtifactFile) => f.fileName).sort();
-        assert.deepStrictEqual(names, ['real', 'top']);
+        await scanner.scan(DIR);
+        await scanner.scan(vscode.Uri.file('/other/Variables'));
+        assert.strictEqual(requests(), 2);
     });
 
-    // ── Parsed shape ─────────────────────────────────────────────────────────
-
-    test('multi-block variable file has one block per ## heading with its own vars', async () => {
-        writeMultiBlockVarFile(path.join(tmpDir, 'all.md'), [
-            { heading: 'Development', vars: { API_URL: 'http://localhost:3000', DB_URL: 'mongodb://localhost' } },
-            { heading: 'Production',  vars: { API_URL: 'https://api.example.com', DB_URL: 'mongodb://prod' } },
-        ]);
-
+    test('a failed vars.list yields [] and is never cached', async () => {
+        let n = 0;
+        fake.on('vars.list', () => (++n === 1
+            ? { error: { code: 'io.failed', params: {} } }
+            : { result: { files: [file('dev', [subset('Dev')])] } }));
         const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 1);
-        const file = files[0];
-        assert.strictEqual(file.blocks.length, 2);
-        assert.strictEqual(file.blocks[0].heading, 'Development');
-        assert.strictEqual(file.blocks[1].heading, 'Production');
-        // Each block has its own vars list — auto-detected from the block code.
-        assert.ok(Array.isArray(file.blocks[0].vars));
-        assert.ok(Array.isArray(file.blocks[1].vars));
+        assert.deepStrictEqual(await scanner.scan(DIR), []);
+        const second = await scanner.scan(DIR);
+        assert.strictEqual(requests(), 2);
+        assert.deepStrictEqual(second.map(f => f.fileName), ['dev']);
     });
 
-    test('single-block variable file has blocks: [] and vars on the top-level vars field', async () => {
-        writeVarFile(path.join(tmpDir, 'simple.md'), 'dev', {
-            API_URL: 'http://localhost:3000',
-            DB_URL:  'mongodb://localhost:27017',
-        });
-
+    test('invalidate re-lists and returns fresh objects', async () => {
+        listing = [file('dev', [subset('Dev')])];
         const scanner = new VarSetScanner();
-        const files   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(files.length, 1);
-        const file = files[0];
-        assert.deepStrictEqual(file.blocks, []);
-        assert.ok(file.vars.length >= 2, `expected top-level vars to be populated, got ${JSON.stringify(file.vars)}`);
-        const names = file.vars.map((v: { name: string }) => v.name).sort();
-        assert.deepStrictEqual(names, ['API_URL', 'DB_URL']);
-    });
-
-    // ── Caching ───────────────────────────────────────────────────────────────
-
-    test('second scan returns the same references without re-reading disk', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'),  'dev',  { KEY: 'a' });
-        writeVarFile(path.join(tmpDir, 'prod.md'), 'prod', { KEY: 'b' });
-
-        const scanner = new VarSetScanner();
-        const first   = await scanner.scan(vscode.Uri.file(tmpDir));
-        const second  = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(second.length, first.length);
-        // Reference equality on each parsed entry — confirms no re-read happened.
-        for (let i = 0; i < first.length; i++) {
-            assert.strictEqual(second[i], first[i], `entry ${i} should be the same reference`);
-        }
-    });
-
-    test('cached result is not affected by disk changes between calls', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'), 'dev', { KEY: 'original' });
-
-        const scanner = new VarSetScanner();
-        const first   = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        // Mutate disk after first scan — second scan must still return cached refs.
-        writeVarFile(path.join(tmpDir, 'dev.md'),  'dev',  { KEY: 'CHANGED' });
-        writeVarFile(path.join(tmpDir, 'new.md'), 'prod', { KEY: 'new'      });
-
-        const second = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        assert.strictEqual(second.length, first.length);
-        for (let i = 0; i < first.length; i++) {
-            assert.strictEqual(second[i], first[i], `entry ${i} should be the cached reference`);
-        }
-    });
-
-    // ── invalidate ────────────────────────────────────────────────────────────
-
-    test('invalidate clears the cache so the next scan re-reads disk', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'), 'dev', { KEY: 'a' });
-
-        const scanner = new VarSetScanner();
-        const first   = await scanner.scan(vscode.Uri.file(tmpDir));
+        const first = await scanner.scan(DIR);
         scanner.invalidate();
-        const second  = await scanner.scan(vscode.Uri.file(tmpDir));
-
-        // Same content, but different object identities (re-parsed from disk).
-        assert.strictEqual(second.length, first.length);
-        assert.notStrictEqual(second[0], first[0], 'invalidate should force a re-read — references must differ');
+        const second = await scanner.scan(DIR);
+        assert.notStrictEqual(second[0], first[0]);
+        assert.strictEqual(requests(), 2);
     });
 
-    test('invalidate followed by scan picks up new files added since last scan', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'), 'dev', { KEY: 'a' });
-
+    test('invalidate picks up files added and removed since the last scan', async () => {
+        listing = [file('dev', [subset('Dev')])];
         const scanner = new VarSetScanner();
-        const first   = await scanner.scan(vscode.Uri.file(tmpDir));
-        assert.strictEqual(first.length, 1);
-
-        // Add a new file — without invalidate the cached result hides it.
-        writeVarFile(path.join(tmpDir, 'prod.md'), 'prod', { KEY: 'b' });
-        const cached = await scanner.scan(vscode.Uri.file(tmpDir));
-        assert.strictEqual(cached.length, 1, 'cached scan should still report 1 file');
-
+        await scanner.scan(DIR);
+        listing = [file('dev', [subset('Dev')]), file('prod', [subset('Prod')])];
+        assert.strictEqual((await scanner.scan(DIR)).length, 1, 'cached');
         scanner.invalidate();
-        const refreshed = await scanner.scan(vscode.Uri.file(tmpDir));
-        const names     = refreshed.map((f: ParsedArtifactFile) => f.fileName).sort();
-        assert.deepStrictEqual(names, ['dev', 'prod']);
+        assert.deepStrictEqual((await scanner.scan(DIR)).map(f => f.fileName), ['dev', 'prod']);
+        listing = [file('dev', [subset('Dev')])];
+        scanner.invalidate();
+        assert.deepStrictEqual((await scanner.scan(DIR)).map(f => f.fileName), ['dev']);
     });
 
-    test('invalidate followed by scan reflects file removals since last scan', async () => {
-        writeVarFile(path.join(tmpDir, 'dev.md'),  'dev',  { KEY: 'a' });
-        writeVarFile(path.join(tmpDir, 'prod.md'), 'prod', { KEY: 'b' });
-
-        const scanner = new VarSetScanner();
-        const first   = await scanner.scan(vscode.Uri.file(tmpDir));
-        assert.strictEqual(first.length, 2);
-
-        fs.rmSync(path.join(tmpDir, 'prod.md'));
-        scanner.invalidate();
-
-        const refreshed = await scanner.scan(vscode.Uri.file(tmpDir));
-        assert.strictEqual(refreshed.length, 1);
-        assert.strictEqual(refreshed[0].fileName, 'dev');
+    test('no session vault: [] without asking the engine', async () => {
+        setSessionVault(undefined);
+        assert.deepStrictEqual(await new VarSetScanner().scan(DIR), []);
+        assert.strictEqual(requests(), 0);
     });
-
 });

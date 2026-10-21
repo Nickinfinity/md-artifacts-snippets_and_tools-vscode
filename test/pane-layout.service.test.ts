@@ -149,10 +149,11 @@ suite('pane-layout.service', () => {
  */
 suite('variables resize — wiring', () => {
 
-    const previewSource = fs.readFileSync(
-        path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', 'preview.ts'),
-        'utf8',
-    );
+    const previewSource = ['preview.ts', 'preview.width.ts', 'preview.staged.ts', 'preview.actions.ts', 'preview.types.ts']
+        .map(f => fs.readFileSync(
+            path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', f),
+            'utf8',
+        )).join('\n');
     const clientSource = fs.readFileSync(
         path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', 'preview.clientJs.ts'),
         'utf8',

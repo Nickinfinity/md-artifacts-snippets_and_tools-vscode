@@ -28,7 +28,7 @@ export function toVaultPath(absPath: string, vaultRoot: string): string | undefi
  * @example
  * resolveInVault('Snippets/a.md', '/v'); // '/v/Snippets/a.md'
  */
-function resolveInVault(rel: string, vaultRoot: string): string {
+export function resolveInVault(rel: string, vaultRoot: string): string {
     const abs = path.resolve(vaultRoot, ...rel.split('/'));
     if (toVaultPath(abs, vaultRoot) !== rel) {
         throw new EngineRequestError({ code: 'client.protocol', params: { path: rel } });

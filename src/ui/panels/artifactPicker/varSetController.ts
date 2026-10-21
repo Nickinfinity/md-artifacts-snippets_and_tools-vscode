@@ -6,7 +6,7 @@ import { writeVariablesFile } from '../../../services/variables-writer.service.j
 import { slugForVarSet, toVarSetModel, validateVarSetForm } from '../../../services/varset-form.service.js';
 import type { ParsedArtifactFile, ParsedVar } from '../../../types/parsed-artifact.types.js';
 import type { ApplyResult, VarSetFormPayload } from '../../../types/varset.types.js';
-import { getVarSetScanner, pickVarSet } from '../varsetPicker.panel.js';
+import { getVarSetScanner } from '../varsetPicker.panel.js';
 import { openVarSetFormPanel } from '../varsetForm/varsetForm.panel.js';
 import { renderVarSetDiffHtml } from './varSetDiff.js';
 
@@ -22,7 +22,7 @@ export interface VarSetControllerCallbacks {
 
 /**
  * Owns the variable-set message flow inside the preview panel:
- * `pickVarSet`  → QuickPick → diff preview
+ * `showDiffFor` (Variables-pane Apply) → diff preview
  * `confirmApply` / `cancelApply` → finalise
  * `saveAsVarSet` → write a new `Variables/<slug>.md` file.
  *
@@ -31,7 +31,7 @@ export interface VarSetControllerCallbacks {
  *
  * @example
  * const ctrl = new VarSetController(extensionUri, { getCurrentArtifact, postMessage, rememberAppliedSet });
- * await ctrl.handlePickVarSet({ values: { 'VK-host': '' } });
+ * ctrl.showDiffFor('Local Dev', subSet.vars, { 'VK-host': '' });
  */
 export class VarSetController {
 
@@ -51,45 +51,11 @@ export class VarSetController {
     ) {}
 
     /**
-     * Opens the QuickPick, computes the diff, and posts the diff HTML to the webview.
-     *
-     * @param msg - Webview payload — must contain `values: Record<string, string>`
-     *              with the user's current input map.
-     * @returns Resolves once the diff has been posted (or no-op on cancel).
-     *
-     * @example
-     * await ctrl.handlePickVarSet({ values: collectVars() });
-     */
-    async handlePickVarSet(msg: Record<string, unknown>): Promise<void> {
-        const artifact = this.cb.getCurrentArtifact();
-        if (!artifact) { return; }
-
-        const variablesDirUri = getVariablesDirUri();
-        if (!variablesDirUri) {
-            void vscode.window.showErrorMessage(vscode.l10n.t('Variables directory is not configured. Open the Settings panel to enable it.'));
-            return;
-        }
-
-        const picked = await pickVarSet(
-            artifact.vars,
-            artifact.frontmatter.tags ?? [],
-            variablesDirUri,
-            this.extensionUri,
-        );
-        if (!picked) { return; }
-
-        const currentValues = (msg.values as Record<string, string> | undefined) ?? {};
-        this.showDiffFor(picked.subSet.heading, picked.subSet.vars, currentValues);
-    }
-
-    /**
      * Computes the diff and posts it to the webview — the half of the apply
      * flow that has nothing to do with *how* the sub-set was chosen.
      *
      * Split out (W1/H1.4) so the Variables pane can reach the diff step
-     * without reimplementing it: `handlePickVarSet` is the QuickPick caller,
-     * `PreviewPanelController.applyVarSet` is the pane's caller, and both land
-     * here. Synchronous — nothing below awaits.
+     * without reimplementing it: `PreviewPanelController.applyVarSet` is the pane's caller. Synchronous — nothing below awaits.
      *
      * @param heading       - The sub-set's display name, for the diff header and the badge.
      * @param vars          - The sub-set's variables to merge in.

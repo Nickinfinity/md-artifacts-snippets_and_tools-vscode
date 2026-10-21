@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { normalizeStepCount } from './pane-width.service.js';
 import { clampVarsHeightFraction } from './pane-layout.service.js';
+import { getSessionVault } from './vault-watch.service.js';
+import { getAllTypes, getEntry } from './artifact-type-config.service.js';
+import type { ArtifactType } from '../types/parsed-artifact.types.js';
 
 /** Manifest default for `mainPane.previewWidthSteps` — mirrored in `package.json`. */
 const DEFAULT_PREVIEW_WIDTH_STEPS = 3;
@@ -18,19 +21,31 @@ const DEFAULT_PREVIEW_WIDTH_STEPS = 3;
 export const CONFIG_SECTION = 'mdArtifacts';
 
 /**
- * Reads the configured vault path from VS Code settings, trimmed.
+ * Reads the vault the engine session is using.
  *
- * The single vault-path reader for the whole extension — every site that
- * used to open-code `getConfiguration('mdArtifacts').get<string>(...)`
- * calls this instead.
+ * The single vault-path reader for the whole extension. The source is the
+ * session vault (engine `config.get`), no longer the `vaultPath` setting.
  *
- * @returns The trimmed `mdArtifacts.vaultPath` setting, or `''` when unset.
+ * @returns The absolute vault root, or `''` when none is selected.
  *
  * @example
  * const vaultPath = getVaultPath();
  * if (!vaultPath) { return; }
  */
 export function getVaultPath(): string {
+    return getSessionVault() ?? '';
+}
+
+/**
+ * Reads the legacy `mdArtifacts.vaultPath` setting, trimmed — only for the
+ * one-time import into the engine's config.
+ *
+ * @returns The trimmed setting, or `''` when unset.
+ *
+ * @example
+ * const legacy = getLegacyVaultPath();
+ */
+export function getLegacyVaultPath(): string {
     return vscode.workspace
         .getConfiguration(CONFIG_SECTION)
         .get<string>('vaultPath', '')
@@ -38,7 +53,27 @@ export function getVaultPath(): string {
 }
 
 /**
- * Resolves the configured vault path to a `vscode.Uri`.
+ * Reads the legacy `mdArtifacts.features.<dir>` toggles the user set
+ * explicitly, for the one-time import. Unset keys are omitted: manifest
+ * defaults equal the engine's `defaultEnabled`, so nothing is lost.
+ *
+ * @returns Explicit global values keyed by `ArtifactType`.
+ *
+ * @example
+ * getLegacyFeatureFlags(); // → { Snippet: true }
+ */
+export function getLegacyFeatureFlags(): Partial<Record<ArtifactType, boolean>> {
+    const cfg = vscode.workspace.getConfiguration(CONFIG_SECTION);
+    const out: Partial<Record<ArtifactType, boolean>> = {};
+    for (const type of getAllTypes()) {
+        const v = cfg.inspect<boolean>(`features.${getEntry(type).dir.toLowerCase()}`)?.globalValue;
+        if (typeof v === 'boolean') { out[type] = v; }
+    }
+    return out;
+}
+
+/**
+ * Resolves the session vault to a `vscode.Uri`.
  *
  * @returns `vscode.Uri.file(getVaultPath())` when a vault is configured,
  *          otherwise `undefined`.

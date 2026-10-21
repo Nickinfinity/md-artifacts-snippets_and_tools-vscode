@@ -230,7 +230,7 @@ suite('l10n sources — src/commands', () => {
 });
 
 /**
- * T5.2's eleven owned services, listed **literally**.
+ * T5.2's twelve owned services, listed **literally** (`vault-watch.service.ts` joined in W2/H2.1).
  *
  * 🔴 Never `readdirSync(servicesDir)` here. `create-index.service.ts:177`
  * carries `title: 'Index'`, a guard-visible P2 hit in a **`vscode`-free**
@@ -252,6 +252,7 @@ const T52_OWNS: readonly string[] = [
     'vault.service.ts',
     'scratch-file.service.ts',
     'varset.service.ts',
+    'vault-watch.service.ts',
 ];
 
 /**
@@ -304,7 +305,7 @@ suite('l10n sources — src/services', () => {
             'a service entered or left the vscode-free set — localise at the caller, not here');
     });
 
-    test("T5.2's eleven owned services are exactly the vscode-coupled ones", () => {
+    test("T5.2's twelve owned services are exactly the vscode-coupled ones", () => {
         const coupled = fs.readdirSync(servicesDir)
             .filter(f => f.endsWith('.ts') && fs.readFileSync(path.join(servicesDir, f), 'utf8').includes("from 'vscode'"))
             .sort();

@@ -4,7 +4,6 @@ import { registerInsertCommands } from './commands/insert.command.js';
 import { registerEditArtifactCommand } from './commands/editArtifact.command.js';
 import { registerMigrateCommand } from './commands/migrate.command.js';
 import { refreshVaultContext } from './services/context.service.js';
-import { createVaultDirectory } from './services/vault.service.js';
 import { registerCreateSurfaceCommands } from './commands/create-from-surface.command.js';
 import { MainViewProvider, setMainViewProvider } from './ui/views/mainView.provider.js';
 import { VariablesViewProvider } from './ui/views/variablesView.provider.js';
@@ -20,24 +19,28 @@ import type { VariableNode } from './ui/views/variablesView.provider.js';
 import { sweepOrphans } from './services/scratch-file.service.js';
 import { SCRATCH_SUBDIR as FORM_BLOCK_SUBDIR } from './ui/panels/artifactForm/blockExpand.js';
 import { BLOCK_EDIT_SUBDIR } from './ui/panels/artifactPicker/blockEditor.js';
-import { ARTIFACTS } from './types/constants.js';
-import { CONFIG_SECTION, getVaultPath } from './services/config.service.js';
-import { startEngine, requestOrNotify } from './engine/engine.vscode.js';
+import { getLegacyFeatureFlags, getLegacyVaultPath } from './services/config.service.js';
+import { getEngine, startEngine, requestOrNotify } from './engine/engine.vscode.js';
+import { EngineRequestError } from './engine/request-error.js';
+import { planLegacyImport } from './engine/legacy-import.js';
+import type { EngineResult } from './types/engine.types.js';
+import { getSessionVault, onVaultChanged, setSessionVault } from './services/vault-watch.service.js';
+import { getVarSetScanner } from './ui/panels/varsetPicker.panel.js';
 
 /**
  * Called by VS Code when the extension is first activated.
  *
- * Registers all commands, awaits context key initialisation (so menus are
- * correct before the user can interact), auto-opens Settings on first use,
- * and subscribes to configuration changes for Settings Sync / external edits.
+ * Registers all commands, then asks the engine for its session vault (after
+ * registration, so a slow engine never delays commands), runs the one-time
+ * legacy-settings import, awaits context key initialisation (so menus are
+ * correct before the user can interact) and auto-opens Settings on first use.
  *
  * @param {vscode.ExtensionContext} context - Extension context provided by VS Code
  */
 export async function activate(context: vscode.ExtensionContext) {
-	// The engine supervisor is lazy; the version probe makes a missing or
-	// incompatible `mda` visible at startup instead of on the first click.
+	// The engine supervisor is lazy: the `config.get` below is its first request,
+	// and the one that surfaces a missing or incompatible `mda` at startup.
 	context.subscriptions.push(startEngine());
-	void requestOrNotify('system.version', {});
 
 	// Register commands first so executeCommand calls below resolve correctly
 	registerOpenSettingsCommand(context);
@@ -122,43 +125,74 @@ export async function activate(context: vscode.ExtensionContext) {
 		void sweepOrphans(storageUri, subdir);
 	}
 
+	// The engine owns the vault choice (E-8): its session vault replaces the old
+	// `vaultPath` setting. Awaited here, after registration, inside its own catch —
+	// `requestOrNotify` rethrows non-engine errors and activation must not fail.
+	let cfg: EngineResult<'config.get'> | undefined;
+	try { cfg = await requestOrNotify('config.get', {}); } catch { cfg = undefined; }
+	setSessionVault(cfg?.vault);
+	if (cfg) { await importLegacySettings(context, cfg); }
+
+	// The engine sends no change notifications: the vault watcher invalidates caches.
+	context.subscriptions.push(onVaultChanged(() => getVarSetScanner().invalidate()));
+
 	// Await context key setup — ensures menus reflect vault state before first user interaction.
 	// Without await the keys land asynchronously and the first right-click may show no items.
 	await refreshVaultContext();
 
-	// Auto-open Settings on first use (no vault configured yet)
-	const vaultPath = getVaultPath();
-
-	if (!vaultPath) {
-		vscode.commands.executeCommand('md-artifacts.settings');
+	// Auto-open Settings on first use — checked after the import, which may have selected one.
+	if (!getSessionVault()) {
+		void vscode.commands.executeCommand('md-artifacts.settings');
 	}
+}
 
-	// React to any mdArtifacts.* setting change (Settings Sync, manual edits, etc.)
-	context.subscriptions.push(
-		vscode.workspace.onDidChangeConfiguration((e) => {
-			if (!e.affectsConfiguration(CONFIG_SECTION)) { return; }
+/** `globalState` key recording that the legacy `vaultPath` / `features.*` import reached a final outcome. */
+const LEGACY_IMPORTED_KEY = 'mdArtifacts.legacyImported';
 
-			const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-			const changedVaultPath = getVaultPath();
-
-			// When feature flags arrive via Settings Sync, ensure enabled dirs exist on disk.
-			// Only CREATE — never auto-delete to prevent accidental data loss.
-			const featuresKey = `${CONFIG_SECTION}.features`;
-			if (changedVaultPath && e.affectsConfiguration(featuresKey)) {
-				for (const artifact of ARTIFACTS) {
-					const enabled = config.get<boolean>(
-						`features.${artifact.dir.toLowerCase()}`,
-						artifact.default
-					);
-					if (enabled) {
-						createVaultDirectory(changedVaultPath, artifact.dir);
-					}
-				}
+/**
+ * One-time import of the pre-engine settings (O-4). The flag is set only on a final outcome —
+ * never after an engine failure, which would otherwise mark the import done forever.
+ *
+ * @param context - Extension context (its `globalState` holds the done-flag).
+ * @param cfg - The engine's `config.get` result.
+ * @returns Resolves when the import is done, skipped, or abandoned for this activation.
+ * @example
+ * await importLegacySettings(context, cfg);
+ */
+async function importLegacySettings(context: vscode.ExtensionContext, cfg: EngineResult<'config.get'>): Promise<void> {
+	if (context.globalState.get<boolean>(LEGACY_IMPORTED_KEY, false)) { return; }
+	const markDone = (): Thenable<void> => context.globalState.update(LEGACY_IMPORTED_KEY, true);
+	const legacyVaultPath = getLegacyVaultPath();
+	// The engine already has a vault, or there is nothing to import: final.
+	if (cfg.source !== 'none' || !legacyVaultPath) { await markDone(); return; }
+	const info = getEngine().info;
+	if (!info) { return; }
+	let inspect: { isObsidianVault: boolean } | undefined;
+	try {
+		inspect = await getEngine().request('vault.inspect', { path: legacyVaultPath });
+	} catch (e) {
+		// A vanished legacy path is final; any other failure retries next activation.
+		if (e instanceof EngineRequestError && e.data.code === 'path.not_found') { await markDone(); }
+		return;
+	}
+	const defaults = Object.fromEntries(info.types.map(t => [t.type, t.defaultEnabled]));
+	const steps = planLegacyImport({
+		engineSource: cfg.source, legacyVaultPath, legacyFlags: getLegacyFeatureFlags(),
+		alreadyImported: false, defaults, inspect,
+	});
+	try {
+		for (const step of steps) {
+			if (step.op === 'vault.select') {
+				const sel = await getEngine().request('vault.select', { path: step.path, createDefaults: step.createDefaults });
+				setSessionVault(sel.path);
+			} else {
+				await getEngine().request('types.set_enabled', { type: step.type, enabled: step.enabled });
 			}
-
-			refreshVaultContext();
-		})
-	);
+		}
+	} catch {
+		return;   // retried next activation; the flag stays unset
+	}
+	await markDone();   // every step succeeded, or the plan was [] for a final reason (not a vault)
 }
 
 export function deactivate() {}

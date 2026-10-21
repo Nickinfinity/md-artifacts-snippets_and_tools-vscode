@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { getNonce } from '../../utils/helpers.js';
 import { escHtml, styleLinkTags } from '../../utils/html.js';
 import { jsStr } from './artifactPicker/webviewSnippets.js';
-import { validateObsidianVault, detectVaultDirs, createVaultDirectory, deleteVaultDirectory, isDirectoryEmpty } from '../../services/vault.service.js';
+import { getEngine, requestOrNotify } from '../../engine/engine.vscode.js';
+import type { EngineResult } from '../../types/engine.types.js';
+import { getSessionVault, setSessionVault } from '../../services/vault-watch.service.js';
+import { getAllTypes, getEntry, getTypeForDir } from '../../services/artifact-type-config.service.js';
+import { confirmModal } from '../../services/confirm.service.js';
 import { refreshVaultContext } from '../../services/context.service.js';
-import { CONFIG_SECTION, getVaultPath, getPreviewWidthSteps, getVariablesHeightFraction } from '../../services/config.service.js';
+import { CONFIG_SECTION, getPreviewWidthSteps, getVariablesHeightFraction } from '../../services/config.service.js';
 import {
 	MAIN_PANE_KEYS,
 	MAIN_PANE_SECTION_HTML,
@@ -19,8 +22,8 @@ import {
  * 1. Select their Obsidian vault root directory
  * 2. Choose which vault feature directories to create/maintain
  *
- * Vault path and feature flags are persisted via the VS Code Settings API
- * (`mdArtifacts.*`) so they sync across devices via Settings Sync.
+ * The vault and the enabled types live in the engine; only the pane settings
+ * are VS Code settings (`mdArtifacts.*`).
  *
  * @param {vscode.ExtensionContext} context - Extension context providing the extension URI
  *                                            for loading webview assets
@@ -46,16 +49,12 @@ export function openSettingsPanel(context: vscode.ExtensionContext) {
 
 	panel.webview.html = getWebviewContent(panel.webview, context.extensionUri);
 
-	// ── Restore saved config ──────────────────────────────────────────────────
-	// Reads the current vault path from VS Code settings and sends it to the
-	// webview. Called on initial open AND every time the panel becomes visible
-	// again so any external setting changes (e.g. Settings Sync) are reflected.
-	function postCurrentConfig(): void {
-		const savedPath = getVaultPath();
-
+	// Background read: called on open and whenever the panel becomes visible again.
+	async function postCurrentConfig(): Promise<void> {
+		const savedPath = getSessionVault();
 		if (savedPath) {
-			const detectedDirs = detectVaultDirs(savedPath);
-			panel.webview.postMessage({ command: 'updatePath', path: savedPath, dirs: detectedDirs });
+			const dirs = await readDirRows();
+			if (dirs) { await panel.webview.postMessage({ command: 'updatePath', path: savedPath, dirs }); }
 		}
 		// Unconditional: the pane settings have defaults and apply with or
 		// without a vault, so they must seed even on a first, vault-less open.
@@ -65,14 +64,11 @@ export function openSettingsPanel(context: vscode.ExtensionContext) {
 	// Re-hydrate the webview whenever it becomes visible (tab switch or initial focus)
 	panel.onDidChangeViewState(({ webviewPanel }) => {
 		if (webviewPanel.visible) {
-			postCurrentConfig();
+			void postCurrentConfig();
 		}
 	});
 
-	// Listen for messages from the webview (user interactions)
-	// Thin dispatcher: each branch's body lives in its own module-scope handler
-	// so this function stays inside the cognitive-complexity budget as the
-	// panel grows. Add a new message by adding a handler, not a nested block.
+	// Thin dispatcher: add a message by adding a module-scope handler, not a nested block.
 	panel.webview.onDidReceiveMessage(async (message) => {
 		if      (message.command === 'selectFolder')  { await handleSelectFolder(panel); }
 		else if (message.command === 'dirToggle')     { await handleDirToggle(panel, message); }
@@ -80,8 +76,7 @@ export function openSettingsPanel(context: vscode.ExtensionContext) {
 		else if (message.command === 'resetMainPane') { await handleResetMainPane(panel); }
 	});
 
-	// Send the initial saved config once the panel is open
-	postCurrentConfig();
+	void postCurrentConfig();
 }
 
 /**
@@ -153,96 +148,111 @@ function postMainPaneConfig(panel: vscode.WebviewPanel): void {
 	});
 }
 
+/** The slice of a `WebviewPanel` the handlers use — lets tests pass a stub. */
+export interface SettingsPanelLike { readonly webview: { postMessage(message: unknown): Thenable<boolean> } }
+
 /**
- * Handles the "Select Vault Folder" button.
+ * Engine type rows → the client's directory shape (`{ ...registry entry, exists: enabled }`).
+ * Rows the extension has no registry entry for are dropped: `getEntry` throws on them.
+ *
+ * @param rows - `types.list` result.
+ * @returns Rows for the client's `renderDirectories`.
+ * @example
+ * toDirRows([{ type: 'Snippet', dir: 'Snippets', enabled: true, dirExists: true }])[0].exists; // true
+ */
+function toDirRows(rows: EngineResult<'types.list'>) {
+	const known = new Set<string>(getAllTypes());
+	return rows.filter(r => known.has(r.type)).map(r => ({ ...getEntry(r.type), exists: r.enabled }));
+}
+
+/**
+ * Background read of the type rows: never toasts, never rejects (catch-all).
+ *
+ * @returns Client rows, or `undefined` when the engine cannot answer.
+ * @example
+ * const dirs = await readDirRows();
+ */
+async function readDirRows(): Promise<ReturnType<typeof toDirRows> | undefined> {
+	try {
+		return toDirRows(await getEngine().request('types.list', {}));
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Handles the "Select Vault Folder" button: inspect, confirm, select, then refresh keys and rows.
  *
  * @param panel - Panel to post the new vault state back to.
- * @returns Resolves once the vault is validated, stored and echoed back.
+ * @returns Resolves once the vault is selected and echoed back.
  *
  * @example
  * await handleSelectFolder(panel);
  */
-async function handleSelectFolder(panel: vscode.WebviewPanel): Promise<void> {
-			// Show native file picker dialog — users can only select folders, not files
-			const folderUri = await vscode.window.showOpenDialog({
-				canSelectFiles: false,
-				canSelectFolders: true,
-				canSelectMany: false,
-				openLabel: vscode.l10n.t('Select Vault')
-			});
+async function handleSelectFolder(panel: SettingsPanelLike): Promise<void> {
+	const folderUri = await vscode.window.showOpenDialog({
+		canSelectFiles: false,
+		canSelectFolders: true,
+		canSelectMany: false,
+		openLabel: vscode.l10n.t('Select Vault')
+	});
+	if (!folderUri?.[0]) {
+		vscode.window.showWarningMessage(vscode.l10n.t('No folder selected.'));
+		return;
+	}
+	const selected = folderUri[0].fsPath;
 
-			if (folderUri && folderUri[0]) {
-				const selectedFolderPath = folderUri[0].fsPath;
+	// ── Inspect, then confirm what select will create ────────────────────────
+	const report = await requestOrNotify('vault.inspect', { path: selected });
+	if (!report) { return; }
+	if (!report.isObsidianVault) {
+		vscode.window.showErrorMessage(
+			vscode.l10n.t('"{0}" is not a valid Obsidian vault. The selected folder must contain a .obsidian directory.', selected));
+		return;
+	}
+	const ok = await confirmModal({
+		message: vscode.l10n.t('Use "{0}" as your vault?', selected),
+		detail: report.missingDefaults.length > 0
+			? vscode.l10n.t('These directories will be created: {0}', report.missingDefaults.join(', '))
+			: undefined,
+		action: vscode.l10n.t('Select Vault'),
+	});
+	if (!ok) { return; }
 
-				// Validate the selected path is a valid Obsidian vault (contains .obsidian/)
-				if (!validateObsidianVault(selectedFolderPath)) {
-					return;
-				}
-
-				// Persist vault path to VS Code settings (global scope = synced across devices)
-				await vscode.workspace
-					.getConfiguration(CONFIG_SECTION)
-					.update('vaultPath', selectedFolderPath, vscode.ConfigurationTarget.Global);
-
-				vscode.window.showInformationMessage(vscode.l10n.t('Obsidian vault path saved: {0}', selectedFolderPath));
-
-				// Refresh context keys so editor/terminal/explorer menus reflect the new vault state
-				refreshVaultContext();
-
-				// Send vault path and directory status to webview to update UI
-				const detectedDirs = detectVaultDirs(selectedFolderPath);
-				panel.webview.postMessage({ command: 'updatePath', path: selectedFolderPath, dirs: detectedDirs });
-			} else {
-				vscode.window.showWarningMessage(vscode.l10n.t('No folder selected.'));
-			}
+	const chosen = await requestOrNotify('vault.select', { path: selected, createDefaults: true });
+	if (!chosen) { return; }
+	setSessionVault(chosen.path);
+	vscode.window.showInformationMessage(vscode.l10n.t('Obsidian vault path saved: {0}', chosen.path));
+	await refreshVaultContext();
+	const dirs = await readDirRows();
+	await panel.webview.postMessage({ command: 'updatePath', path: chosen.path, dirs });
 }
 
 /**
- * Handles a vault-directory checkbox toggle.
+ * Handles a vault-directory checkbox toggle. Toggle-off never deletes anything.
  *
- * @param panel   - Panel to post the refreshed directory status back to.
- * @param message - Raw webview message carrying `vaultPath`, `dirName`, `isChecked`.
- * @returns Resolves once the directory and its feature flag are in sync.
+ * `message.vaultPath` is ignored (untrusted): the session vault is the only vault, and
+ * `dirName` is resolved through the registry — unknown names are dropped.
+ *
+ * @param panel   - Panel to post the refreshed rows to.
+ * @param message - Raw webview message carrying `dirName`, `isChecked`.
+ * @returns Resolves once the engine, context keys and webview are in sync.
  *
  * @example
- * await handleDirToggle(panel, { vaultPath: '/v', dirName: 'Snippets', isChecked: true });
+ * await handleDirToggle(panel, { command: 'dirToggle', dirName: 'Snippets', isChecked: false });
  */
-async function handleDirToggle(panel: vscode.WebviewPanel, message: Record<string, unknown>): Promise<void> {
-			const vaultPath = message.vaultPath as string;
-			const dirName  = message.dirName  as string;
-			const isChecked = message.isChecked as boolean;
+export async function handleDirToggle(panel: SettingsPanelLike, message: Record<string, unknown>): Promise<void> {
+	if (!getSessionVault()) {
+		vscode.window.showWarningMessage(vscode.l10n.t('Please select a vault first.'));
+		return;
+	}
+	const type = typeof message.dirName === 'string' ? getTypeForDir(message.dirName) : undefined;
+	if (type === undefined || typeof message.isChecked !== 'boolean') { return; }
 
-			// Safety check: ensure a vault has been selected before allowing directory operations
-			if (!vaultPath) {
-				vscode.window.showWarningMessage(vscode.l10n.t('Please select a vault first.'));
-				return;
-			}
-
-			if (isChecked) {
-				// User enabled the feature: CREATE the directory on disk
-				createVaultDirectory(vaultPath, dirName);
-			} else {
-				// User disabled the feature: DELETE the directory only if empty (safety guard)
-				if (!isDirectoryEmpty(path.join(vaultPath, dirName))) {
-					vscode.window.showWarningMessage(vscode.l10n.t('Cannot disable "{0}" — directory is not empty.', dirName));
-					return;
-				}
-				deleteVaultDirectory(vaultPath, dirName);
-			}
-
-			// Persist the feature flag to VS Code settings so it syncs across devices
-			await vscode.workspace
-				.getConfiguration(CONFIG_SECTION)
-				.update(
-					`features.${dirName.toLowerCase()}`,
-					isChecked,
-					vscode.ConfigurationTarget.Global
-				);
-
-			// Refresh context keys and send updated directory status back to the webview
-			refreshVaultContext();
-			const updatedDirs = detectVaultDirs(vaultPath);
-			panel.webview.postMessage({ command: 'updateDirs', dirs: updatedDirs });
+	if (!await requestOrNotify('types.set_enabled', { type, enabled: message.isChecked })) { return; }
+	await refreshVaultContext();
+	const dirs = await readDirRows();
+	if (dirs) { await panel.webview.postMessage({ command: 'updateDirs', dirs }); }
 }
 
 /**
@@ -317,7 +327,6 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
     <!-- Contains checkbox list for directory management -->
     <div id="directoriesSection" class="directories-section">
       <p class="section-label">${escHtml(vscode.l10n.t('Vault Features'))}</p>
-      <p style="font-size: 0.9rem; color: var(--vscode-descriptionForeground); margin-bottom: 12px;">${escHtml(vscode.l10n.t('Select which directories to create in your vault. Directories marked as "default" will be auto-created when you first select your vault.'))}</p>
       <!-- Directory checkboxes will be rendered here by JavaScript -->
       <div id="directoryList" class="directory-list"></div>
     </div>
@@ -382,26 +391,14 @@ ${MAIN_PANE_CLIENT_JS}
       }
     });
 
-    /**
-     * Renders the directory checkbox list based on vault directory status.
-     *
-     * Creates a checkbox for each directory from ARTIFACTS, setting checked state
-     * based on whether the directory exists on disk. Includes labels showing
-     * directory name and whether it's auto-created or optional.
-     *
-     * @param {Array} dirs - Array of directory status objects from detectVaultDirs()
-     */
+    // One checkbox per engine type row; checked = enabled.
     function renderDirectories(dirs) {
       const directoryList = document.getElementById('directoryList');
-      directoryList.innerHTML = ''; // Clear existing items
-
-      // Create checkbox item for each vault directory
+      directoryList.innerHTML = '';
       dirs.forEach(dir => {
-        // Label wraps the entire checkbox item for better UX
         const item = document.createElement('label');
         item.className = 'directory-item';
 
-        // Checkbox: checked if directory exists
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = dir.exists;
@@ -417,16 +414,13 @@ ${MAIN_PANE_CLIENT_JS}
           });
         });
 
-        // Label text and hint container
         const labelDiv = document.createElement('div');
         labelDiv.className = 'directory-label';
 
-        // Directory name
         const labelText = document.createElement('span');
         labelText.className = 'directory-label-text';
         labelText.textContent = dir.name;
 
-        // Hint showing if auto-created (default) or optional
         const hint = document.createElement('span');
         hint.className = 'directory-hint';
         hint.textContent = dir.default ? ${jsStr(vscode.l10n.t('(automatically created)'))} : ${jsStr(vscode.l10n.t('(optional)'))};

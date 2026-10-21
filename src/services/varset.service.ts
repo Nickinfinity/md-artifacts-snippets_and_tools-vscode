@@ -2,14 +2,30 @@ import * as vscode from 'vscode';
 import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
 import type { ApplyChange, ApplyResult, VarSetMatch, VarSubSet, VarsEditPayload } from '../types/varset.types.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
-import { parseFromContent } from './parser.service.js';
+import type { VarsFile } from '../types/engine.types.js';
+import { getEngine } from '../engine/engine.vscode.js';
+import { varsFileToParsed } from '../engine/adapt.js';
+import { getSessionVault } from './vault-watch.service.js';
 
 /**
- * Recursively scans a vault `Variables/` directory for `artifactType: Variables` artifact
- * files, parsing each one and caching the parsed result.
+ * True when the engine could not read the file or any of its sub-sets.
+ *
+ * @param f - A `vars.list` entry.
+ * @returns Whether the entry is broken at file level or on any sub-set.
+ * @example
+ * isBroken({ path: 'Variables/a.md', name: 'a', subsets: [], error: { code: 'io.failed' } }); // true
+ */
+function isBroken(f: VarsFile): boolean {
+    return f.error !== undefined || f.varsError !== undefined || f.subsets.some(s => s.varsError !== undefined);
+}
+
+/**
+ * Lists the vault's `artifactType: Variables` files through the engine (`vars.list`) and caches
+ * the adapted result. The engine walks `Variables/` and filters by type; this class only caches.
  *
  * Cache is keyed by the absolute fs path of the directory passed to `scan`.
- * `invalidate()` clears the cache so the next `scan` call re-reads from disk.
+ * `invalidate()` clears the cache so the next `scan` call re-lists.
+ * ponytail: the adapter keeps 9 consumers on `ParsedArtifactFile` until W5 decides whether they read `VarsFile` directly.
  *
  * @example
  * const scanner = new VarSetScanner();
@@ -37,8 +53,19 @@ export class VarSetScanner {
         const cached = this.cache.get(key);
         if (cached) { return cached; }
 
-        const collected: ParsedArtifactFile[] = [];
-        await this.walk(variablesDirUri, variablesDirUri, collected);
+        const vault = getSessionVault();
+        if (vault === undefined) { return []; }
+        // Background read: any failure degrades to [] and is not cached, so one transient error
+        // cannot leave the pane empty until the next file change.
+        let collected: ParsedArtifactFile[];
+        try {
+            const { files } = await getEngine().request('vars.list', {});
+            // ponytail: a broken file is skipped (Q4) — the adapter would show it as an empty `blank` file and
+            // a TS whole-file rewrite would clobber it. W3's engine writes bring it back, shown broken.
+            collected = files.filter(f => !isBroken(f)).map(f => varsFileToParsed(f, vault));
+        } catch {
+            return [];
+        }
         this.cache.set(key, collected);
         return collected;
     }
@@ -56,51 +83,6 @@ export class VarSetScanner {
     invalidate(): void {
         this.cache.clear();
         this.invalidateEmitter.fire();
-    }
-
-    /**
-     * Recursive directory walker. Reads every `.md` file, keeps only those whose
-     * frontmatter `artifactType` is `'Variables'`, and pushes them into `out`.
-     *
-     * @param dirUri  - Current directory being read.
-     * @param rootUri - Original root URI passed to `scan` — used to compute relative paths.
-     * @param out     - Accumulator that mutates in place across recursion.
-     * @returns Promise that resolves when the directory tree has been fully scanned.
-     *
-     * @example
-     * await this.walk(uri, uri, []);
-     */
-    private async walk(dirUri: vscode.Uri, rootUri: vscode.Uri, out: ParsedArtifactFile[]): Promise<void> {
-        let entries: [string, vscode.FileType][];
-        try {
-            entries = await vscode.workspace.fs.readDirectory(dirUri);
-        } catch {
-            return;
-        }
-
-        for (const [name, type] of entries) {
-            const childUri = vscode.Uri.joinPath(dirUri, name);
-
-            // Recurse into sub-directories
-            if (type === vscode.FileType.Directory) {
-                await this.walk(childUri, rootUri, out);
-                continue;
-            }
-
-            // Skip non-files and non-.md files
-            if (type !== vscode.FileType.File) { continue; }
-            if (!name.endsWith('.md')) { continue; }
-
-            // Read + parse the .md file; skip when artifactType isn't 'Variables'
-            try {
-                const bytes   = await vscode.workspace.fs.readFile(childUri);
-                const content = new TextDecoder().decode(bytes);
-                const parsed  = parseFromContent(content, childUri.fsPath, rootUri.fsPath);
-                if (parsed.frontmatter.artifactType === 'Variables') { out.push(parsed); }
-            } catch {
-                // Unreadable / unparseable file — silently skip.
-            }
-        }
     }
 }
 

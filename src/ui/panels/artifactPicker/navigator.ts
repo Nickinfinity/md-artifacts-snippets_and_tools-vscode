@@ -1,17 +1,19 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { parseFromContent } from '../../../services/parser.service.js';
+import { getEngine, requestOrNotify } from '../../../engine/engine.vscode.js';
+import { toParsedArtifactFile, toVaultPath } from '../../../engine/adapt.js';
+import { onVaultChanged } from '../../../services/vault-watch.service.js';
 import type { BlockRef } from '../../../services/artifact-patcher.service.js';
-import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
+import type { ArtifactType, ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { out } from './shared.js';
-import { ArtifactItem, buildItem, PREVIEW_DEBOUNCE_MS } from './navigator.helpers.js';
+import { ArtifactItem, buildItem, PREVIEW_DEBOUNCE_MS, treeToItems } from './navigator.helpers.js';
 import { PreviewPanelController, blockAsArtifact } from './preview.js';
 import { WebviewHost } from './webviewHost.js';
 import { getMainViewProvider, type MainViewProvider } from '../../views/mainView.provider.js';
 import { ensureView } from '../../views/mainView.preview.js';
 import type { InvocationSurface } from './preview.helpers.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
-import { forcesSingleBlock, opensForEdit } from '../../../services/artifact-type-config.service.js';
+import { forcesSingleBlock, getTypeForDir, opensForEdit } from '../../../services/artifact-type-config.service.js';
 import { isIndexArtifact } from '../../../services/multi-index.service.js';
 import { resolveDestination } from '../../../services/template-destination.service.js';
 import { MultiIndexRunner } from './multiIndex.js';
@@ -81,16 +83,17 @@ export async function openArtifactPicker(
 
     const rootUri = vscode.Uri.joinPath(vaultRoot, artifactDir);
 
-    try {
-        const stat = await vscode.workspace.fs.stat(rootUri);
-        if ((stat.type & vscode.FileType.Directory) === 0) { throw new Error('not a directory'); }
-    } catch {
+    // ── Existence comes from the engine: a missing type dir lists empty, not an error ──
+    const type = getTypeForDir(artifactDir);
+    const rows = await requestOrNotify('types.list', {});
+    if (!rows) { return; }
+    if (!type || !rows.some(r => r.type === type && r.dirExists)) {
         vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Directory "{0}" not found in your vault.', artifactDir));
         return;
     }
 
     const targetEditor = vscode.window.activeTextEditor;
-    await new ArtifactNavigator(rootUri, artifactName, targetEditor, extensionUri, storageUri, destUri, surface).run();
+    await new ArtifactNavigator(rootUri, type, artifactName, targetEditor, extensionUri, storageUri, destUri, surface).run();
 }
 
 // ── ArtifactNavigator ─────────────────────────────────────────────────────────
@@ -101,13 +104,16 @@ class ArtifactNavigator {
     private readonly artifactName: string;
     private readonly extensionUri: vscode.Uri;
     private readonly parseCache = new Map<string, ParsedArtifactFile>();
+    private readonly vaultRoot: string;
+    private readonly watchSub: vscode.Disposable;
     private readonly refreshedUris = new Set<string>();
     private readonly preview: PreviewPanelController;
     /** One transport per picker session; re-attached whenever the pane resolves. */
     private readonly host = new WebviewHost();
 
-    private currentDir: vscode.Uri;
-    private readonly dirStack: vscode.Uri[] = [];
+    /** Vault-relative POSIX path of the listed dir (`Snippets`, `Snippets/sub`). */
+    private currentDir: string;
+    private readonly dirStack: string[] = [];
     private debounceTimer: ReturnType<typeof setTimeout> | undefined;
     /** The artifact whose blocks are currently listed; set by `loadBlocks`. */
     private currentArtifact: ParsedArtifactFile | undefined;
@@ -117,6 +123,7 @@ class ArtifactNavigator {
 
     constructor(
         rootUri: vscode.Uri,
+        private readonly type: ArtifactType,
         artifactName: string,
         targetEditor: vscode.TextEditor | undefined,
         extensionUri: vscode.Uri,
@@ -125,7 +132,9 @@ class ArtifactNavigator {
         private readonly invocationSurface: InvocationSurface,
     ) {
         this.rootUri      = rootUri;
-        this.currentDir   = rootUri;
+        this.vaultRoot    = path.dirname(rootUri.fsPath);
+        this.currentDir   = path.basename(rootUri.fsPath);
+        this.watchSub     = onVaultChanged(() => { this.parseCache.clear(); this.refreshedUris.clear(); });
         this.artifactName = artifactName;
         this.extensionUri = extensionUri;
 
@@ -139,7 +148,7 @@ class ArtifactNavigator {
             extensionUri,
             rootFs:       rootUri.fsPath,
             targetEditor,
-            setCache:     (uri, parsed) => { this.parseCache.set(uri.toString(), parsed); },
+            setCache:     (uri, parsed) => { const rel = toVaultPath(uri.fsPath, this.vaultRoot); if (rel) { this.parseCache.set(rel, parsed); } },
             onDispose:    () => { /* preview self-cleans; navigator has no extra work */ },
             closePicker:  () => this.qp.hide(),
             host:         this.host,
@@ -175,51 +184,37 @@ class ArtifactNavigator {
             // click-outside).  If handleAccept set keepPopupOnHide = true the popup
             // is being handed off to interactive mode — leave it alive.
             if (!this.keepPopupOnHide) { this.preview.dispose(); }
+            this.watchSub.dispose();
             this.qp.dispose();
         });
 
-        await this.loadDir(this.rootUri);
+        await this.loadDir(this.currentDir);
         this.qp.show();
     }
 
     // ── Directory loading ─────────────────────────────────────────────────────
 
-    private async loadDir(uri: vscode.Uri): Promise<void> {
-        this.currentDir = uri;
+    private async loadDir(dirRel: string): Promise<void> {
+        this.currentDir = dirRel;
         this.qp.busy    = true;
         this.qp.value   = '';
         this.refreshedUris.clear();
         this.lastPreviewedUri = '';
 
-        const rel     = this.relPath(uri);
-        this.qp.title = rel ? `${this.artifactName} / ${rel}` : this.artifactName;
+        const typeDir = path.basename(this.rootUri.fsPath);
+        const sub     = dirRel === typeDir ? undefined : dirRel.slice(typeDir.length + 1);
+        this.qp.title = sub ? `${this.artifactName} / ${sub.replaceAll('/', ' / ')}` : this.artifactName;
 
-        const items: ArtifactItem[] = [];
-
-        if (this.dirStack.length > 0) {
-            items.push({ label: '$(arrow-left)  ..', description: vscode.l10n.t('Go back'), isBack: true });
-        }
-
+        const hasBack = this.dirStack.length > 0;
+        let items: ArtifactItem[];
         try {
-            const entries = await vscode.workspace.fs.readDirectory(uri);
-            entries.sort(([nameA, typeA], [nameB, typeB]) => {
-                const aIsDir = (typeA & vscode.FileType.Directory) !== 0;
-                const bIsDir = (typeB & vscode.FileType.Directory) !== 0;
-                if (aIsDir !== bIsDir) { return aIsDir ? -1 : 1; }
-                return nameA.localeCompare(nameB);
-            });
-
-            for (const [name, fileType] of entries) {
-                const isDir = (fileType & vscode.FileType.Directory) !== 0;
-                if (!isDir && !name.endsWith('.md')) { continue; }
-                const itemUri  = vscode.Uri.joinPath(uri, name);
-                const fallback = isDir ? name : name.slice(0, -3);
-                const cached   = isDir ? undefined : this.parseCache.get(itemUri.toString());
-                items.push(buildItem(itemUri, isDir, fallback, cached, this.rootUri.fsPath));
-                if (cached) { this.refreshedUris.add(itemUri.toString()); }
-            }
+            // Background read: catch-all, no toast (a vanished sub-dir shows an empty level).
+            const tree = await getEngine().request('artifact.tree', sub === undefined ? { type: this.type } : { type: this.type, dir: sub });
+            items = treeToItems(tree, dirRel, hasBack, this.vaultRoot, rel => this.parseCache.get(rel));
+            for (const i of items) { if (i.relPath && this.parseCache.has(i.relPath)) { this.refreshedUris.add(i.relPath); } }
         } catch (err) {
             out.appendLine(`[dir] read failed: ${(err as Error).message}`);
+            items = treeToItems({ dirs: [], files: [] }, dirRel, hasBack, this.vaultRoot);
         }
 
         this.qp.items = items;
@@ -265,10 +260,10 @@ class ArtifactNavigator {
     private prefetchItems(items: ArtifactItem[]): void {
         void Promise.all(
             items
-                .filter(i => !i.isDirectory && !i.isBack && i.uri && !this.parseCache.has(i.uri.toString()))
+                .filter(i => !i.isDirectory && !i.isBack && !i.broken && i.relPath && !this.parseCache.has(i.relPath))
                 .map(async i => {
-                    const artifact = await this.getOrParse(i.uri!);
-                    if (artifact) { this.refreshItem(i.uri!, artifact); }
+                    const artifact = await this.getOrParse(i.relPath!);
+                    if (artifact) { this.refreshItem(i.relPath!, artifact); }
                 }),
         );
     }
@@ -291,15 +286,15 @@ class ArtifactNavigator {
             return;
         }
 
-        if (!item || item.isBack || item.isDirectory || !item.uri) {
+        if (!item || item.isBack || item.isDirectory || !item.relPath || !item.uri) {
             this.preview.showEmpty();
             return;
         }
 
-        const artifact = await this.getOrParse(item.uri);
+        const artifact = await this.getOrParse(item.relPath);
         if (!artifact) { return; }
 
-        this.refreshItem(item.uri, artifact);
+        this.refreshItem(item.relPath, artifact);
 
         const key = item.uri.toString();
         if (key === this.lastPreviewedUri) { return; }
@@ -344,30 +339,27 @@ class ArtifactNavigator {
 
     // ── Parsing & cache ───────────────────────────────────────────────────────
 
-    private async getOrParse(uri: vscode.Uri): Promise<ParsedArtifactFile | undefined> {
-        const key = uri.toString();
-        const hit = this.parseCache.get(key);
-        if (hit) { out.appendLine(`[parse] cache hit ${uri.fsPath}`); return hit; }
+    private async getOrParse(relPath: string): Promise<ParsedArtifactFile | undefined> {
+        const hit = this.parseCache.get(relPath);
+        if (hit) { out.appendLine(`[parse] cache hit ${relPath}`); return hit; }
         try {
-            const bytes   = await vscode.workspace.fs.readFile(uri);
-            const content = new TextDecoder().decode(bytes);
-            const parsed  = parseFromContent(content, uri.fsPath, this.rootUri.fsPath);
-            this.parseCache.set(key, parsed);
+            // Background read: catch-all, no toast.
+            const parsed = toParsedArtifactFile(await getEngine().request('artifact.read', { path: relPath }), this.vaultRoot);
+            this.parseCache.set(relPath, parsed);
             out.appendLine(`[parse] OK "${parsed.frontmatter.title ?? parsed.fileName}" vars=${parsed.vars.length}`);
             return parsed;
         } catch (err) {
-            out.appendLine(`[parse] FAILED ${uri.fsPath}: ${(err as Error).message}`);
+            out.appendLine(`[parse] FAILED ${relPath}: ${(err as Error).message}`);
             return undefined;
         }
     }
 
-    private refreshItem(uri: vscode.Uri, artifact: ParsedArtifactFile): void {
-        const key = uri.toString();
+    private refreshItem(key: string, artifact: ParsedArtifactFile): void {
         if (this.refreshedUris.has(key)) { return; }
         this.refreshedUris.add(key);
         this.qp.items = this.qp.items.map(i =>
-            i.uri?.toString() === key
-                ? buildItem(uri, false, artifact.fileName, artifact, this.rootUri.fsPath)
+            i.relPath === key
+                ? buildItem(vscode.Uri.file(artifact.filePath), false, artifact.fileName, artifact, this.rootUri.fsPath, key)
                 : i,
         );
     }
@@ -384,9 +376,9 @@ class ArtifactNavigator {
             return;
         }
 
-        if (item.isDirectory && item.uri) {
+        if (item.isDirectory && item.relPath) {
             this.dirStack.push(this.currentDir);
-            await this.loadDir(item.uri);
+            await this.loadDir(item.relPath);
             return;
         }
 
@@ -396,9 +388,9 @@ class ArtifactNavigator {
             return;
         }
 
-        if (!item.uri) { return; }
+        if (!item.relPath) { return; }
 
-        const artifact = await this.getOrParse(item.uri);
+        const artifact = await this.getOrParse(item.relPath);
         if (!artifact) {
             vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: Could not read file.'));
             return;
@@ -468,12 +460,5 @@ class ArtifactNavigator {
         this.qp.hide();
         this.preview.showPreview(artifact, blockRef);
         this.preview.reveal(false);
-    }
-
-    private relPath(uri: vscode.Uri): string {
-        const root = this.rootUri.fsPath;
-        const p    = uri.fsPath;
-        if (p === root) { return ''; }
-        return p.startsWith(root) ? p.slice(root.length + 1).replaceAll('\\', ' / ') : '';
     }
 }
