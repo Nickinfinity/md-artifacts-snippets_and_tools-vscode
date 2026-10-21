@@ -1,0 +1,13 @@
+{
+  "expect_error": "vars.bad_name",
+  "expect_files": {
+    "Variables/t.md": false
+  },
+  "params": {
+    "title": "T",
+    "values": {
+      "host": "x"
+    }
+  },
+  "vault": "vault"
+}

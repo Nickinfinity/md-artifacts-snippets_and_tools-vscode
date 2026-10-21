@@ -1,0 +1,10 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "name": "VK-new",
+    "path": "Variables/flat.md",
+    "x": 1
+  },
+  "vault": "vault"
+}

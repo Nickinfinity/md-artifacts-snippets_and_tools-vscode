@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "default": "$VAULT",
+    "vaults": [
+      {
+        "available": true,
+        "path": "$VAULT"
+      },
+      {
+        "available": false,
+        "path": "/nonexistent-mda-w4b"
+      }
+    ]
+  },
+  "machine_config": "default = \"$VAULT\"\nvaults = [\"$VAULT\", \"/nonexistent-mda-w4b\"]\n",
+  "params": {},
+  "vault": "vault",
+  "vault_flag": false
+}

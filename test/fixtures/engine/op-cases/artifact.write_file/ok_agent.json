@@ -1,0 +1,20 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "hash": "ff81606a2ff2281ed8282f71bd19b6b5a9238e2411c708946b43c4de53030680",
+    "path": "CLAUDE.md",
+    "warnings": []
+  },
+  "expect_workspace_files": {
+    "CLAUDE.md": "You review mda."
+  },
+  "params": {
+    "destDir": "",
+    "path": "AIAgentsConf/reviewer.md",
+    "values": {
+      "VK-repo": "mda"
+    },
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

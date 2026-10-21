@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "hash": "ba70009ebb23037478457dc3ecf4d2a8ecb472398244cbdccaeb6e88d543565e",
+    "path": "Variables/sets.md"
+  },
+  "expect_files": {
+    "Variables/sets.md": "---\nartifactType: Variables\ntitle: Sets\ntags:\n  - env\n  - dev\n---\n\n## Dev\nDev machine.\n\n```yaml VKs\nVK-host: localhost\n```\n\n## Prod\nLive box.\n\n```yaml VKs\nVK-host: example.com\n```\n"
+  },
+  "params": {
+    "description": "Live box.",
+    "expectedHash": "48798dc21208b2106ef6cbe5a81d786d111485bec7733427bafdfef6cfe990af",
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Prod",
+      "index": 1
+    }
+  },
+  "vault": "vault"
+}

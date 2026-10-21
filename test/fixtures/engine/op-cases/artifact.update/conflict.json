@@ -1,0 +1,20 @@
+{
+  "expect_error": "file.conflict",
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: Edit me\nlanguage: ts\n---\n\n```ts\nexport const <VK-name> = 1;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n"
+  },
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

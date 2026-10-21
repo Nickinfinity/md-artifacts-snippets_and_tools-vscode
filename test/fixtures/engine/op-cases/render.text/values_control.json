@@ -1,0 +1,9 @@
+{
+  "expect_error": "vks.control_char",
+  "params": {
+    "text": "<VK-a>",
+    "values": {
+      "VK-a": "a\u0001"
+    }
+  }
+}

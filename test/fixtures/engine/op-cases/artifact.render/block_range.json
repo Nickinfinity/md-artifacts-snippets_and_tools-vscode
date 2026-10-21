@@ -1,0 +1,8 @@
+{
+  "expect_error": "artifact.block_not_found",
+  "params": {
+    "block": 9,
+    "path": "AIAgentsConf/multi.md"
+  },
+  "vault": "vault"
+}

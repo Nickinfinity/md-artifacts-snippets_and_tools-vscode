@@ -1,0 +1,15 @@
+{
+  "expect_error": "artifact.unrepresentable",
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: Edit me\nlanguage: ts\n---\n\n```ts\nexport const <VK-name> = 1;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n"
+  },
+  "params": {
+    "edit": {
+      "code": "a\n```\nb",
+      "field": "code"
+    },
+    "expectedHash": "a66d1d83245274487be8b44f84ec7473fe570749f520aec0dbe145e004ed483f",
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,10 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "a.ts"
+    ],
+    "type": "Template"
+  }
+}

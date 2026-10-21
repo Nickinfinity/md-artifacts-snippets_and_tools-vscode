@@ -1,0 +1,18 @@
+{
+  "expect_error": "path.outside_root",
+  "expect_error_params": {
+    "path": "../out"
+  },
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "../out",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,35 @@
+{
+  "expect": {
+    "hash": "79b4e016c878dddc208ce38920186bf1dbd67b2f8f3d63dcea04908668ef3a2c",
+    "path": "Templates/vk.md"
+  },
+  "expect_files": {
+    "Templates/vk.md": "---\nartifactType: Template\ntitle: Vk\n---\n\n```\nx <VK-name> <VK-opts>\n```\n\nvars:\n```yaml VKs\nVK-name: widget\nVK-opts:\n  a: '1'\n  b: two words\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "x <VK-name> <VK-opts>",
+          "vars": [
+            {
+              "name": "VK-name",
+              "value": "widget"
+            },
+            {
+              "name": "VK-opts",
+              "value": {
+                "a": "1",
+                "b": "two words"
+              }
+            }
+          ]
+        }
+      ],
+      "title": "Vk"
+    },
+    "path": "Templates/vk.md"
+  },
+  "vault": "vault"
+}

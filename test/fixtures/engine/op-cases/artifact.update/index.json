@@ -1,0 +1,17 @@
+{
+  "expect_error": "artifact.not_serializable",
+  "expect_error_params": {
+    "reason": "index"
+  },
+  "expect_files": {
+    "Templates/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\npaths: [src/components, ../escape, src/components]\n---\n\n1. [[edit]]\n2. [Widget](sub/widget.md)\n3. [[edit#Usage|again]]\n4. ![[esc]]\n5. [[../x]]\n6. [[sub/snip]]\n7. [[sub/nested-index]]\n"
+  },
+  "params": {
+    "expectedHash": "add0851994c05067c8eeaefc02891beb45ba331cd0ed86414b754a120bd50f51",
+    "model": {
+      "artifactType": "Template"
+    },
+    "path": "Templates/index.md"
+  },
+  "vault": "vault"
+}

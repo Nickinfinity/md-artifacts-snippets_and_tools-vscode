@@ -1,0 +1,8 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [],
+    "workspaceRoot": "$WORKSPACE"
+  }
+}

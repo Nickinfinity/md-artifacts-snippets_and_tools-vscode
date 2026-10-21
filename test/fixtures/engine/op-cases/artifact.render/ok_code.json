@@ -1,0 +1,15 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "hi bob",
+    "warnings": []
+  },
+  "params": {
+    "code": "hi <VK-name>",
+    "path": "Snippets/hello.md",
+    "values": {
+      "VK-name": "bob"
+    }
+  },
+  "vault": "vault"
+}

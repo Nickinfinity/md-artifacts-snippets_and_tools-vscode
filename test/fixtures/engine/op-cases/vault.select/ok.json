@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "created": [
+      "Snippets",
+      "AIAgentsConf",
+      "AIPrompts"
+    ],
+    "path": "$VAULT"
+  },
+  "expect_config_files": {
+    "config.toml": "default = \"$VAULT\"\nvaults = [\"$VAULT\"]\n"
+  },
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "vault_bare",
+  "vault_flag": false
+}

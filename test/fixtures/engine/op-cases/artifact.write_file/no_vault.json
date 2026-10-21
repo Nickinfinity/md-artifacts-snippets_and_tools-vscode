@@ -1,0 +1,8 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "destDir": "",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  }
+}

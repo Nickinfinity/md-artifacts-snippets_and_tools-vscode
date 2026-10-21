@@ -1,0 +1,6 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "x": 1
+  }
+}

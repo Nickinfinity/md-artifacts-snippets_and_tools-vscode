@@ -1,0 +1,15 @@
+{
+  "expect": {
+    "created": true,
+    "enabled": true,
+    "type": "Command"
+  },
+  "expect_files": {
+    ".mda/config.toml": "[types.Command]\nenabled = true\n"
+  },
+  "params": {
+    "enabled": true,
+    "type": "Command"
+  },
+  "vault": "vault"
+}

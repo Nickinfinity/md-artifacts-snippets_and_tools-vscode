@@ -1,0 +1,9 @@
+{
+  "expect_error": "path.not_found",
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [],
+    "workspaceRoot": "/nonexistent-mda-ws-3b2a"
+  },
+  "vault": "vault"
+}

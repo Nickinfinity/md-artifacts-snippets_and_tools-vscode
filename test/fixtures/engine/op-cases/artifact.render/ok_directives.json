@@ -1,0 +1,11 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "const users = [\n  { id: 1, name: \"Alice Smith\", tags: [\"core\", \"ops\"] },\n  { id: 2, name: \"Bob Jones\", tags: [] }\n];\n// all tags: core | ops",
+    "warnings": []
+  },
+  "params": {
+    "path": "Templates/users.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,15 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "staging",
+    "warnings": []
+  },
+  "params": {
+    "code": "<VK-env>",
+    "path": "Templates/users.md",
+    "values": {
+      "VK-env": "staging"
+    }
+  },
+  "vault": "vault"
+}

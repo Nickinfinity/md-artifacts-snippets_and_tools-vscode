@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "path": "$VAULT"
+  },
+  "expect_config_files": {
+    "config.toml": "default = \"$VAULT\"\nvaults = [\"/other\", \"$VAULT\"]\n"
+  },
+  "machine_config": "default = \"/other\"\nvaults = [\"/other\", \"$VAULT\"]\n",
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "vault",
+  "vault_flag": false
+}

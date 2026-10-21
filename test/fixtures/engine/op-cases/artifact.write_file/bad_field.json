@@ -1,0 +1,13 @@
+{
+  "expect_error": "op.bad_request",
+  "expect_workspace_files": {
+    "Button.tsx": false
+  },
+  "params": {
+    "destDir": "",
+    "nope": 1,
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

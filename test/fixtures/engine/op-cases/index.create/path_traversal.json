@@ -1,0 +1,19 @@
+{
+  "expect_error": "path.parent_segment",
+  "expect_error_params": {
+    "path": "../x"
+  },
+  "expect_files": {
+    "Templates/gen/a.md": false,
+    "Templates/gen/index.md": false
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "a.ts",
+      "../x"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

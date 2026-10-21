@@ -1,0 +1,25 @@
+{
+  "expect_error": "artifact.unrepresentable",
+  "expect_error_params": {
+    "field": "blocks",
+    "reason": "multi_block"
+  },
+  "expect_files": {
+    "Templates/mb.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "a"
+        },
+        {
+          "code": "b"
+        }
+      ]
+    },
+    "path": "Templates/mb.md"
+  },
+  "vault": "vault"
+}

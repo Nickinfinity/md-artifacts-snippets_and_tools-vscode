@@ -1,0 +1,39 @@
+{
+  "expect": {
+    "hash": "f1b38d4e85dfbb8d44db229c456c59cf41d9605319e2e93f0d7bd94678c88c9a",
+    "path": "AIPrompts/new.md"
+  },
+  "expect_files": {
+    "AIPrompts/new.md": "---\nartifactType: AIPrompt\ntitle: New\n---\n\nWhy this exists.\n\n%%oa:start Main%%\n***\nUse <VK-tool>.\n\n```bash\nrun\n```\n***\n%%oa:end%%\n\nAfter.\n\nvars:\n```yaml VKs\nVK-tool: rg\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "AIPrompt",
+      "blocks": [
+        {
+          "code": "Use <VK-tool>.\n\n```bash\nrun\n```",
+          "vars": [
+            {
+              "name": "VK-tool",
+              "value": "rg"
+            }
+          ]
+        }
+      ],
+      "layout": {
+        "notes": "After.",
+        "payload": "flags",
+        "regions": [
+          {
+            "name": "Main",
+            "notes": "Why this exists.",
+            "rule": true
+          }
+        ]
+      },
+      "title": "New"
+    },
+    "path": "AIPrompts/new.md"
+  },
+  "vault": "vault"
+}

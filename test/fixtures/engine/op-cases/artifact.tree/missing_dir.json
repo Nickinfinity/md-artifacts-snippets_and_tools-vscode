@@ -1,0 +1,8 @@
+{
+  "expect_error": "path.not_found",
+  "params": {
+    "dir": "nope",
+    "type": "Snippet"
+  },
+  "vault": "vault"
+}

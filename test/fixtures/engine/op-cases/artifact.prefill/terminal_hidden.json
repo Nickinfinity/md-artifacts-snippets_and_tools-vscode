@@ -1,0 +1,28 @@
+{
+  "expect": {
+    "artifactType": "AIPrompt",
+    "blocks": [
+      {
+        "code": "ls",
+        "description": "",
+        "heading": "",
+        "language": "markdown",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "source": "terminal",
+    "text": "ls",
+    "type": "AIPrompt"
+  }
+}

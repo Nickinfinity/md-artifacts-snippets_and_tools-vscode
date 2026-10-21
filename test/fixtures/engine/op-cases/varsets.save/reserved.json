@@ -1,0 +1,7 @@
+{
+  "expect_error": "naming.reserved",
+  "params": {
+    "title": "CON"
+  },
+  "vault": "vault"
+}

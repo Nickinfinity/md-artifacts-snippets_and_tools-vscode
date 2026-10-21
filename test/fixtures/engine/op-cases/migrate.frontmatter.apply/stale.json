@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "results": [
+      {
+        "code": "file.conflict",
+        "params": {
+          "actual": "a7abd74eb92db4e8f437c783fd5c48642e25c5fbcc95ba18beef5e7134102abb",
+          "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+          "path": "Snippets/legacy.md"
+        },
+        "path": "Snippets/legacy.md",
+        "status": "skipped"
+      }
+    ],
+    "skipped": 1,
+    "written": 0
+  },
+  "expect_files": {
+    "Snippets/legacy.md": "---\ntype: snippet\ntitle: Legacy\n---\n\n```sh\necho hi\n```\n"
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "path": "Snippets/legacy.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

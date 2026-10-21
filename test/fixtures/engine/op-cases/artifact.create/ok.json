@@ -1,0 +1,22 @@
+{
+  "expect": {
+    "hash": "7aa36f00c40f3e21760c306307a5746a15c0ef33e09b4c465b18a7f85349dcf0",
+    "path": "Templates/new.md"
+  },
+  "expect_files": {
+    "Templates/new.md": "---\nartifactType: Template\ntitle: New\n---\n\n```\necho hi\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "echo hi"
+        }
+      ],
+      "title": "New"
+    },
+    "path": "Templates/new.md"
+  },
+  "vault": "vault"
+}

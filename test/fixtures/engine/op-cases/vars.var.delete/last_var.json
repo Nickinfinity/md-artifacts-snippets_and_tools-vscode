@@ -1,0 +1,15 @@
+{
+  "expect": {
+    "hash": "7e45fdb7f754a0706597c2bd9a5d2ee9b47a81ba9ae37694481e0b08352ba7c3",
+    "path": "Variables/sub/nested.md"
+  },
+  "expect_files": {
+    "Variables/sub/nested.md": "---\nartifactType: Variables\ntitle: Nested\n---\n"
+  },
+  "params": {
+    "expectedHash": "168715275abceba8fa07e0a0a8c507e9585683e5ec26c062c0ea3222de3f93f6",
+    "name": "VK-x",
+    "path": "Variables/sub/nested.md"
+  },
+  "vault": "vault"
+}

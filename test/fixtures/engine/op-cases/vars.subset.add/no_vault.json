@@ -1,0 +1,8 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "heading": "P",
+    "path": "Variables/flat.md"
+  }
+}

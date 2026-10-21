@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "e20592f8a76cf07b0933d3820989ac0ae1001e63bddbd935be67ac2b03ffbc2f",
+    "path": "Templates/blank.md"
+  },
+  "expect_files": {
+    "Templates/blank.md": "---\nartifactType: Template\ntitle: Blank\nextension: ts\n---\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "extension": "ts",
+      "title": "Blank"
+    },
+    "path": "Templates/blank.md"
+  },
+  "vault": "vault"
+}

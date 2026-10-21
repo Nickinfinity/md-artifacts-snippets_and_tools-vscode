@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "31c37006e1fa35e304f8a889209d239a4e5188134b6f0bb5a00ead5259243388",
+    "path": "AIPrompts/flagged.md"
+  },
+  "expect_files": {
+    "AIPrompts/flagged.md": "---\nartifactType: AIPrompt\ntitle: x\n---\n\nScratch notes.\n\n%%oa:start%%\n# Prompt\n\nReview <VK-repo>.\n%%oa:end%%\n"
+  },
+  "params": {
+    "edit": {
+      "field": "title",
+      "value": "x"
+    },
+    "expectedHash": "d0b0c50ea34243b69921d8cc06916326dddfc9b74e15ab30f252248b1cde4324",
+    "path": "AIPrompts/flagged.md"
+  },
+  "vault": "vault"
+}

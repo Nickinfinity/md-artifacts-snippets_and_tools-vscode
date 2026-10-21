@@ -1,0 +1,12 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Variables/notes.md": "---\nartifactType: Snippet\ntitle: Notes\n---\n\n```sh\necho hi\n```\n"
+  },
+  "params": {
+    "expectedHash": "6ddd4d208c203d0c26f7d190f2f632ec53f4e2cb694476cee1d6a3e911490a3c",
+    "path": "Variables/notes.md",
+    "tags": []
+  },
+  "vault": "vault"
+}

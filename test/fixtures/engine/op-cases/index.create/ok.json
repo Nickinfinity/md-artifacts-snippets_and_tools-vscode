@@ -1,0 +1,66 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "ad057991c9a9843a78982851bb6703ad8b7d72c023eb125dc55b3b6f81021bc9",
+        "path": "Templates/gen/a.md",
+        "relPath": "a.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "bfca9597e21762772674033e9640d06fbb249c1de7fa8ea2519871bf772c136c",
+        "path": "Templates/gen/sub/b.md",
+        "relPath": "sub/b.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "ad057991c9a9843a78982851bb6703ad8b7d72c023eb125dc55b3b6f81021bc9",
+        "path": "Templates/gen/dir/a.md",
+        "relPath": "dir/a.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "2a4e1e9544fc965fd9bc195f30d57e04715c6ce31cf385eb89aecf6f08fb2d71",
+        "path": "Templates/gen/dir/a-2.md",
+        "relPath": "dir/a.tsx",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "154e5d9c65de2802e1acac68b6366d8ae53407a05b429d61d8dafabfc27bf295",
+        "path": "Templates/gen/index.md",
+        "relPath": "",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 5
+  },
+  "expect_files": {
+    "Templates/gen/a.md": "---\nartifactType: Template\ntitle: a\nextension: ts\n---\n",
+    "Templates/gen/dir/a-2.md": "---\nartifactType: Template\ntitle: a-2\nextension: tsx\n---\n",
+    "Templates/gen/dir/a.md": "---\nartifactType: Template\ntitle: a\nextension: ts\n---\n",
+    "Templates/gen/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\n---\n\n```\n1. [[a]]\n2. [[sub/b]]\n3. [[dir/a]]\n4. [[dir/a-2]]\n```\n",
+    "Templates/gen/sub/b.md": "---\nartifactType: Template\ntitle: b\nextension: ts\n---\n"
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "a.ts",
+      "sub/b.ts",
+      "dir/a.ts",
+      "dir/a.tsx"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

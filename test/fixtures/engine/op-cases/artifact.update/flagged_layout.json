@@ -1,0 +1,32 @@
+{
+  "expect": {
+    "hash": "35aad46ccc855ca59505eda84c6e213c6d22decc4cf80d8171b84334e2294d0a",
+    "path": "AIPrompts/flagged.md"
+  },
+  "expect_files": {
+    "AIPrompts/flagged.md": "---\nartifactType: AIPrompt\ntitle: Flagged v2\n---\n\nScratch notes.\n\n%%oa:start%%\n# Prompt\n\nReview <VK-repo>.\n%%oa:end%%\n"
+  },
+  "params": {
+    "expectedHash": "d0b0c50ea34243b69921d8cc06916326dddfc9b74e15ab30f252248b1cde4324",
+    "model": {
+      "artifactType": "AIPrompt",
+      "blocks": [
+        {
+          "code": "# Prompt\n\nReview <VK-repo>."
+        }
+      ],
+      "layout": {
+        "payload": "flags",
+        "regions": [
+          {
+            "name": "",
+            "notes": "Scratch notes."
+          }
+        ]
+      },
+      "title": "Flagged v2"
+    },
+    "path": "AIPrompts/flagged.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,8 @@
+{
+  "expect_error": "path.parent_segment",
+  "params": {
+    "mirrorFrom": "../x",
+    "path": "Templates/index.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,34 @@
+{
+  "expect": {
+    "files": [
+      {
+        "description": "Deploy targets",
+        "name": "envs",
+        "path": "Variables/envs.md",
+        "shape": "sets",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "Prod",
+            "index": 1,
+            "vars": [
+              {
+                "defaultValue": "",
+                "name": "VK-db",
+                "value": {
+                  "user": "admin",
+                  "zone": "eu-west"
+                }
+              }
+            ]
+          }
+        ],
+        "title": "Envs"
+      }
+    ]
+  },
+  "params": {
+    "query": "eu-west"
+  },
+  "vault": "vault_vars"
+}

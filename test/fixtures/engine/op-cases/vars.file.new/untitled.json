@@ -1,0 +1,13 @@
+{
+  "expect": {
+    "hash": "999e883e7b44221ba71f56a10bf30f502f748585546f5d5161eacf0204659521",
+    "path": "Variables/untitled.md"
+  },
+  "expect_files": {
+    "Variables/untitled.md": "---\nartifactType: Variables\ntitle: !!!\n---\n"
+  },
+  "params": {
+    "title": "!!!"
+  },
+  "vault": "vault"
+}

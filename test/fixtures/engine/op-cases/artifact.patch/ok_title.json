@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "98ba4b881278581fba04bb2865e1f1f6454920417eef916b7da7f9b6fa79e6f1",
+    "path": "Templates/edit.md"
+  },
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: New title\nlanguage: ts\n---\n\n```ts\nexport const <VK-name> = 1;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n"
+  },
+  "params": {
+    "edit": {
+      "field": "title",
+      "value": "New title"
+    },
+    "expectedHash": "a66d1d83245274487be8b44f84ec7473fe570749f520aec0dbe145e004ed483f",
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

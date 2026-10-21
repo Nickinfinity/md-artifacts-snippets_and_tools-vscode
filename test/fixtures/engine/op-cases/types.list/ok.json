@@ -1,0 +1,42 @@
+{
+  "expect": [
+    {
+      "dir": "Snippets",
+      "dirExists": true,
+      "enabled": true,
+      "type": "Snippet"
+    },
+    {
+      "dir": "AIAgentsConf",
+      "dirExists": true,
+      "enabled": true,
+      "type": "AIAgentsConfig"
+    },
+    {
+      "dir": "Commands",
+      "dirExists": false,
+      "enabled": false,
+      "type": "Command"
+    },
+    {
+      "dir": "Templates",
+      "dirExists": true,
+      "enabled": true,
+      "type": "Template"
+    },
+    {
+      "dir": "Variables",
+      "dirExists": true,
+      "enabled": true,
+      "type": "Variables"
+    },
+    {
+      "dir": "AIPrompts",
+      "dirExists": true,
+      "enabled": true,
+      "type": "AIPrompt"
+    }
+  ],
+  "params": {},
+  "vault": "vault"
+}

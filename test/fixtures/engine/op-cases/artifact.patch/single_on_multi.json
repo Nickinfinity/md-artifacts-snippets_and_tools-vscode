@@ -1,0 +1,15 @@
+{
+  "expect_error": "artifact.block_not_found",
+  "expect_files": {
+    "AIAgentsConf/multi.md": "---\nartifactType: AIAgentsConfig\ntitle: Multi\n---\n\n## One\n\n```bash\necho one\n```\n\n## Two\n\n```bash\necho two\n```\n"
+  },
+  "params": {
+    "edit": {
+      "code": "x",
+      "field": "code"
+    },
+    "expectedHash": "ebf85b7d7b2e7aa0417e12a767265f1054e35616ce5f2fca3b941ec3d79d1a27",
+    "path": "AIAgentsConf/multi.md"
+  },
+  "vault": "vault"
+}

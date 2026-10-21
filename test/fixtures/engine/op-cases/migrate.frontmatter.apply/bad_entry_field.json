@@ -1,0 +1,13 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "files": [
+      {
+        "hash": "x",
+        "path": "Snippets/a.md",
+        "x": 1
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

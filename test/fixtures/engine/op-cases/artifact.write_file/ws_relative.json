@@ -1,0 +1,15 @@
+{
+  "expect_error": "op.bad_request",
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/component.md",
+    "workspaceRoot": "rel"
+  },
+  "vault": "vault"
+}

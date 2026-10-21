@@ -1,0 +1,14 @@
+{
+  "expect_error": "artifact.not_whole_file",
+  "expect_files": {
+    "Snippets/a.md": false
+  },
+  "params": {
+    "dir": "Snippets",
+    "paths": [
+      "a.ts"
+    ],
+    "type": "Snippet"
+  },
+  "vault": "vault"
+}

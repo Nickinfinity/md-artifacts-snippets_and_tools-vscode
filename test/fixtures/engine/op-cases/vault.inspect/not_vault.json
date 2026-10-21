@@ -1,0 +1,51 @@
+{
+  "expect": {
+    "dirs": [
+      {
+        "dir": "Snippets",
+        "state": "missing",
+        "type": "Snippet"
+      },
+      {
+        "dir": "AIAgentsConf",
+        "state": "missing",
+        "type": "AIAgentsConfig"
+      },
+      {
+        "dir": "Commands",
+        "state": "missing",
+        "type": "Command"
+      },
+      {
+        "dir": "Templates",
+        "state": "missing",
+        "type": "Template"
+      },
+      {
+        "dir": "Variables",
+        "state": "missing",
+        "type": "Variables"
+      },
+      {
+        "dir": "AIPrompts",
+        "state": "missing",
+        "type": "AIPrompt"
+      }
+    ],
+    "isObsidianVault": false,
+    "missingDefaults": [
+      "Snippet",
+      "AIAgentsConfig",
+      "AIPrompt"
+    ],
+    "path": "$VAULT"
+  },
+  "expect_config_files": {
+    "config.toml": false
+  },
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "not_vault",
+  "vault_flag": false
+}

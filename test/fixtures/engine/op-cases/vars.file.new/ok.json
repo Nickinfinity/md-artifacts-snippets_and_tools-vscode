@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "hash": "af4d304bc472bcdbae811ebaf9a8bdd7cd30636cd6eb68e612c5378b7ac24767",
+    "path": "Variables/local-dev.md"
+  },
+  "expect_files": {
+    "Variables/local-dev.md": "---\nartifactType: Variables\ntitle: Local Dev\ndescription: Dev box\ntags:\n  - env\n---\n"
+  },
+  "params": {
+    "description": "Dev box",
+    "tags": [
+      "env"
+    ],
+    "title": "Local Dev"
+  },
+  "vault": "vault"
+}

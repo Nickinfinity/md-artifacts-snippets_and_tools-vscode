@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "dirs": [],
+    "files": [
+      {
+        "name": "nested",
+        "path": "Snippets/sub/nested.md",
+        "title": "Nested"
+      }
+    ]
+  },
+  "params": {
+    "dir": "sub",
+    "type": "Snippet"
+  },
+  "vault": "vault"
+}

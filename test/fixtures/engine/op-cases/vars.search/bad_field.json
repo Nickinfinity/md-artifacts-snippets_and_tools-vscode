@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "query": "a",
+    "x": 1
+  },
+  "vault": "vault_vars"
+}

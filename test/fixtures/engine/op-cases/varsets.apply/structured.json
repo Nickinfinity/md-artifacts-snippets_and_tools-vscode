@@ -1,0 +1,25 @@
+{
+  "expect": {
+    "changes": [
+      {
+        "action": "filled",
+        "name": "VK-db",
+        "newValue": {
+          "alpha": "a",
+          "zeta": "z"
+        },
+        "oldValue": ""
+      }
+    ],
+    "values": {
+      "VK-db": {
+        "alpha": "a",
+        "zeta": "z"
+      }
+    }
+  },
+  "params": {
+    "path": "Variables/structured.md"
+  },
+  "vault": "vault"
+}

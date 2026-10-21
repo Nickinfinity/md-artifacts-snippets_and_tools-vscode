@@ -1,0 +1,25 @@
+{
+  "expect": {
+    "results": [
+      {
+        "code": "path.not_found",
+        "params": {
+          "path": "Snippets/none.md"
+        },
+        "path": "Snippets/none.md",
+        "status": "skipped"
+      }
+    ],
+    "skipped": 1,
+    "written": 0
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "path": "Snippets/none.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

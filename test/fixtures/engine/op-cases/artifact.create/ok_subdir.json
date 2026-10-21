@@ -1,0 +1,22 @@
+{
+  "expect": {
+    "hash": "4319e46ff5c1ced88907487e934857bc69581987648fe65bea6e59499ad1aa74",
+    "path": "Templates/sub/deep.md"
+  },
+  "expect_files": {
+    "Templates/sub/deep.md": "---\nartifactType: Template\ntitle: Deep\n---\n\n```\necho hi\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "echo hi"
+        }
+      ],
+      "title": "Deep"
+    },
+    "path": "Templates/sub/deep.md"
+  },
+  "vault": "vault"
+}

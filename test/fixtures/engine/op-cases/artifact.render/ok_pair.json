@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "You review mda.",
+    "warnings": []
+  },
+  "params": {
+    "path": "AIAgentsConf/reviewer.md",
+    "values": {
+      "VK-repo": "mda"
+    }
+  },
+  "vault": "vault"
+}

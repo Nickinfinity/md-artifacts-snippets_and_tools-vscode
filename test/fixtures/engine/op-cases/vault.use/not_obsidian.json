@@ -1,0 +1,14 @@
+{
+  "expect_config_files": {
+    "config.toml": false
+  },
+  "expect_error": "vault.not_obsidian",
+  "expect_error_params": {
+    "path": "$VAULT"
+  },
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "not_vault",
+  "vault_flag": false
+}

@@ -1,0 +1,7 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "enabled": true,
+    "type": "Command"
+  }
+}

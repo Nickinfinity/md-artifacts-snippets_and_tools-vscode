@@ -1,0 +1,8 @@
+{
+  "expect": {
+    "configDir": "$CONFIG",
+    "source": "flag",
+    "vault": "$VAULT"
+  },
+  "vault": "vault"
+}

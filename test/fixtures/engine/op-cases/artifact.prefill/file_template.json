@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "artifactType": "Template",
+    "blocks": [
+      {
+        "code": "x",
+        "description": "",
+        "heading": "",
+        "language": "tsx",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "tsx",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "fileName": "Button.tsx",
+    "languageId": "typescriptreact",
+    "source": "file",
+    "text": "x",
+    "type": "Template"
+  }
+}

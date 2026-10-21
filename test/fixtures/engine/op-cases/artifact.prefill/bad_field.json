@@ -1,0 +1,9 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "nope": 1,
+    "source": "selection",
+    "text": "x",
+    "type": "Snippet"
+  }
+}

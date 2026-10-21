@@ -1,0 +1,19 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Snippets/legacy.md": "---\ntype: snippet\ntitle: Legacy\n---\n\n```sh\necho hi\n```\n"
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "a7abd74eb92db4e8f437c783fd5c48642e25c5fbcc95ba18beef5e7134102abb",
+        "path": "Snippets/legacy.md"
+      },
+      {
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "path": "../x.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "hash": "6347c7b35d6c9dc5f495becbde24eb8c3e4602584820cd88c9d6508c2c1fca89",
+    "path": "Variables/sub/x.md"
+  },
+  "expect_files": {
+    "Variables/sub/x.md": "---\nartifactType: Variables\ntitle: X\n---\n\n```yaml VKs\nVK-a: b\n```\n"
+  },
+  "params": {
+    "dir": "Variables/sub",
+    "title": "X",
+    "values": {
+      "VK-a": "b"
+    }
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,9 @@
+{
+  "expect_error": "naming.path_injection",
+  "params": {
+    "fileName": "sub/b.ts",
+    "source": "file",
+    "text": "x",
+    "type": "Snippet"
+  }
+}

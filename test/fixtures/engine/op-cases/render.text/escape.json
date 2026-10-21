@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "output": "\u001b[1m",
+    "warnings": []
+  },
+  "params": {
+    "text": "\u001b[1m"
+  }
+}

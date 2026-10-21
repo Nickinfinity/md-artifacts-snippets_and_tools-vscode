@@ -1,0 +1,7 @@
+{
+  "expect_error": "path.not_found",
+  "params": {
+    "path": "Snippets/none.md"
+  },
+  "vault": "vault_vars"
+}

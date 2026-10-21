@@ -895,6 +895,22 @@
           "minimum": 0.05,
           "maximum": 0.5,
           "description": "%config.mdArtifacts.mainPane.variablesHeightFraction.description%"
+        },
+        "mdArtifacts.engine.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "%config.mdArtifacts.engine.path.description%"
+        },
+        "mdArtifacts.engine.debug": {
+          "type": "string",
+          "enum": [
+            "off",
+            "debug",
+            "trace"
+          ],
+          "default": "off",
+          "description": "%config.mdArtifacts.engine.debug.description%"
         }
       }
     }

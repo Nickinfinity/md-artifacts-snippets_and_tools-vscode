@@ -1,0 +1,35 @@
+{
+  "expect": {
+    "results": [
+      {
+        "hash": "f7013e9b24ebe55a60883a96dfc37093b90a7ff490cb4aa53546ec5a0bbb5b77",
+        "path": "Snippets/bom.md",
+        "status": "written"
+      },
+      {
+        "hash": "2e73386620222b27c694584630975874561c829990b4ca3e7c5947b5dafd4780",
+        "path": "Commands/latin1.md",
+        "status": "written"
+      }
+    ],
+    "skipped": 0,
+    "written": 2
+  },
+  "expect_files": {
+    "Commands/latin1.md": "---\nartifactType: Command\n---\ncaf\ufffd\n",
+    "Snippets/bom.md": "---\nartifactType: Snippet\n---\nbody\n"
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "b94089d244728cb68c4e0750969c76c0198e0aef601e5d85478286a8b464c019",
+        "path": "Snippets/bom.md"
+      },
+      {
+        "hash": "5c14d681b051518f4867510a22d050fb0f798f966da9f9b38c083edcd5adad86",
+        "path": "Commands/latin1.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "Command",
+    "blocks": [
+      {
+        "code": "ls -la",
+        "description": "",
+        "heading": "",
+        "language": "",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "languageId": "shellscript",
+    "source": "terminal",
+    "text": "ls -la",
+    "type": "Command"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "hash": "299c57e2faff3c3344a7d0fb3f8f613b109a08a4c390d5907c34794c1af29b27",
+    "path": "Users.js",
+    "warnings": []
+  },
+  "expect_workspace_files": {
+    "Users.js": "const users = [\n  { id: 1, name: \"Alice Smith\", tags: [\"core\", \"ops\"] },\n  { id: 2, name: \"Bob Jones\", tags: [] }\n];\n// all tags: core | ops"
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/users.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

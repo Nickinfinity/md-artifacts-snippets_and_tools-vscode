@@ -1,0 +1,11 @@
+{
+  "expect_error": "path.not_found",
+  "expect_error_params": {
+    "path": "Templates/none.md"
+  },
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Templates/none.md"
+  },
+  "vault": "vault"
+}

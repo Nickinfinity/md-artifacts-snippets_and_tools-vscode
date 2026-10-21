@@ -1,0 +1,10 @@
+{
+  "expect_error": "vks.bad_key",
+  "params": {
+    "path": "Snippets/hello.md",
+    "values": {
+      "a.b": "x"
+    }
+  },
+  "vault": "vault"
+}

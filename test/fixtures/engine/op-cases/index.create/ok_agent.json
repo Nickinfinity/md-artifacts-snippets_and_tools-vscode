@@ -1,0 +1,46 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "2243bcaba2711f503ef5f6bf3ac6022d79c7dae2257357dc725b660e3d6ed723",
+        "path": "AIAgentsConf/claude.md",
+        "relPath": "CLAUDE.md",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "206479b2b940695fecd5170b397330462c2c6c7c03a2976dab74b7b612bd9023",
+        "path": "AIAgentsConf/cursorrules.md",
+        "relPath": ".cursorrules",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "cec9270346184041bc0478c09ba16398acc9f567142ec2478d5d3c1b2a6102f4",
+        "path": "AIAgentsConf/index.md",
+        "relPath": "",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 3
+  },
+  "expect_files": {
+    "AIAgentsConf/claude.md": "---\nartifactType: AIAgentsConfig\ntitle: claude\ntarget: CLAUDE.md\n---\n",
+    "AIAgentsConf/cursorrules.md": "---\nartifactType: AIAgentsConfig\ntitle: cursorrules\ntarget: .cursorrules\n---\n",
+    "AIAgentsConf/index.md": "---\nartifactType: AIAgentsConfig\ntitle: Index\nindex: true\n---\n\n```\n1. [[claude]]\n2. [[cursorrules]]\n```\n"
+  },
+  "params": {
+    "dir": "AIAgentsConf",
+    "paths": [
+      "CLAUDE.md",
+      ".cursorrules"
+    ],
+    "type": "AIAgentsConfig"
+  },
+  "vault": "vault"
+}

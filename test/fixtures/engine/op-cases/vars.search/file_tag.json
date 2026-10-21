@@ -1,0 +1,59 @@
+{
+  "expect": {
+    "files": [
+      {
+        "name": "dev",
+        "path": "Variables/dev.md",
+        "shape": "flat",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "localhost",
+                "name": "VK-host"
+              },
+              {
+                "defaultValue": "8080",
+                "name": "VK-port"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "title": "Dev"
+      },
+      {
+        "name": "ops",
+        "path": "Variables/team/ops.md",
+        "shape": "flat",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "ops-bot",
+                "name": "VK-user"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          "api",
+          "ops"
+        ],
+        "title": "Ops"
+      }
+    ]
+  },
+  "params": {
+    "query": "#api"
+  },
+  "vault": "vault_vars"
+}

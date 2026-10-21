@@ -1,0 +1,18 @@
+{
+  "expect_error": "artifact.not_whole_file",
+  "expect_error_params": {
+    "type": "Snippet"
+  },
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "Snippets/hello.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

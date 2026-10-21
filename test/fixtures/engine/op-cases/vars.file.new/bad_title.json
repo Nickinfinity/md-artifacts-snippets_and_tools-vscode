@@ -1,0 +1,11 @@
+{
+  "expect_error": "vars.bad_title",
+  "expect_error_params": {},
+  "expect_files": {
+    "Variables/untitled.md": false
+  },
+  "params": {
+    "title": "  "
+  },
+  "vault": "vault"
+}

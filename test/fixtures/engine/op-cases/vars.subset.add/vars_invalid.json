@@ -1,0 +1,12 @@
+{
+  "expect_error": "artifact.vars_invalid",
+  "expect_files": {
+    "Variables/bad.md": "---\nartifactType: Variables\ntitle: Bad\n---\n\n```yaml VKs\nVK-a: x # note\n```\n"
+  },
+  "params": {
+    "expectedHash": "5ed10e9afef46894e01678d3f828de94b09acf22453f318196954efae7ed8757",
+    "heading": "X",
+    "path": "Variables/bad.md"
+  },
+  "vault": "vault"
+}

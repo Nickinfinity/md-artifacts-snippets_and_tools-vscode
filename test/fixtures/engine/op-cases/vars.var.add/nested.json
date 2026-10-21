@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "hash": "cef57672cdf1ef22193614a15dfb7e224a8a6fb68b396a7d5f69b53c274b2739",
+    "path": "Variables/sub/nested.md"
+  },
+  "expect_files": {
+    "Variables/sub/nested.md": "---\nartifactType: Variables\ntitle: Nested\n---\n\n```yaml VKs\nVK-x: '1'\nVK-y: '2'\n```\n"
+  },
+  "params": {
+    "expectedHash": "168715275abceba8fa07e0a0a8c507e9585683e5ec26c062c0ea3222de3f93f6",
+    "name": "VK-y",
+    "path": "Variables/sub/nested.md",
+    "value": "2"
+  },
+  "vault": "vault"
+}

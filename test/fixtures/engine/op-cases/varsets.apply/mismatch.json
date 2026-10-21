@@ -1,0 +1,11 @@
+{
+  "expect_error": "artifact.block_not_found",
+  "params": {
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Dev",
+      "index": 1
+    }
+  },
+  "vault": "vault"
+}

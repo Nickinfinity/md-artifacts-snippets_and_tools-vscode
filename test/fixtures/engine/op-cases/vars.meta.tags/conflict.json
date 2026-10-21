@@ -1,0 +1,12 @@
+{
+  "expect_error": "file.conflict",
+  "expect_files": {
+    "Variables/flat.md": "---\nartifactType: Variables\ntitle: Flat\n---\n\n```yaml VKs\nVK-host: localhost\nVK-port: '3000'\n```\n"
+  },
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Variables/flat.md",
+    "tags": []
+  },
+  "vault": "vault"
+}

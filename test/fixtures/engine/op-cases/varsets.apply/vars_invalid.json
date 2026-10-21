@@ -1,0 +1,7 @@
+{
+  "expect_error": "artifact.vars_invalid",
+  "params": {
+    "path": "Variables/bad.md"
+  },
+  "vault": "vault"
+}

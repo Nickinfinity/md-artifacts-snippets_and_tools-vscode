@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "Snippet",
+    "blocks": [
+      {
+        "code": "const x = 1;",
+        "description": "",
+        "heading": "",
+        "language": "tsx",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "languageId": "typescriptreact",
+    "source": "selection",
+    "text": "const x = 1;",
+    "type": "Snippet"
+  }
+}

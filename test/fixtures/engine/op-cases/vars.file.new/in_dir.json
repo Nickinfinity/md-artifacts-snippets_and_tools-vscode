@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "hash": "6ffec00fc454409c976759234859ec7319704426e06536cf4fc22b1f3c079fba",
+    "path": "Variables/sub/x.md"
+  },
+  "expect_files": {
+    "Variables/sub/x.md": "---\nartifactType: Variables\ntitle: X\n---\n"
+  },
+  "params": {
+    "dir": "Variables/sub",
+    "title": "X"
+  },
+  "vault": "vault"
+}

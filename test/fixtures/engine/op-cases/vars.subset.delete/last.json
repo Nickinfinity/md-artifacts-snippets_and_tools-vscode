@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "d7b5013e0d0d3f8b4dda7f87dcc5656defd5c6aab49010007e7d3956dc357d8e",
+    "path": "Variables/one-set.md"
+  },
+  "expect_files": {
+    "Variables/one-set.md": "---\nartifactType: Variables\ntitle: One\n---\n"
+  },
+  "params": {
+    "expectedHash": "f137eaa95db9c3d6489619c7d37ca91e28c56213aabb9b81079c6f56525d1d46",
+    "path": "Variables/one-set.md",
+    "subset": {
+      "heading": "Only",
+      "index": 0
+    }
+  },
+  "vault": "vault"
+}

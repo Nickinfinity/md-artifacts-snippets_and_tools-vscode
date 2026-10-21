@@ -52,6 +52,8 @@
   "config.mdArtifacts.features.variables.description": "Habilita el directorio Variables (aparece en todos los menús contextuales).",
   "config.mdArtifacts.mainPane.previewWidthSteps.description": "Cuánto se ensancha la barra lateral al abrir una vista previa, en pasos de ensanchado. Es un número de pasos y no un ancho porque VS Code no expone ninguna API para fijar o leer el ancho de una vista — al cerrar la vista previa se aplica el mismo número de pasos de estrechado, restaurando el ancho anterior sin necesidad de leerlo nunca. Pon 0 para desactivar el redimensionado.",
   "config.mdArtifacts.mainPane.variablesHeightFraction.description": "Altura de la sección de variables de la vista previa como fracción de la altura del panel (por defecto 0.1667 — un sexto). Mínimo 0.05, máximo 0.5. Arrastrar el tirador de la sección actualiza este valor.",
+  "config.mdArtifacts.engine.path.description": "Ruta absoluta al binario del motor `mda`. Déjala vacía para buscar `mda` en tu PATH.",
+  "config.mdArtifacts.engine.debug.description": "Registro del motor que se muestra en el canal de salida \"MD Artifacts: Engine\": off, debug o trace. La salida trace puede contener secretos de tu bóveda.",
   "config.title": "MD Artifacts: AI Snippets & Tools",
   "view.mainView.name": "Artefactos",
   "view.variablesView.name": "Variables",

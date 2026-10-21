@@ -1,0 +1,7 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

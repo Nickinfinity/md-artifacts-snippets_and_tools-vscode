@@ -1,0 +1,15 @@
+{
+  "expect_error": "path.not_found",
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/component.md",
+    "workspaceRoot": "/nonexistent-mda-ws-7c1f"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,11 @@
+{
+  "expect_error": "config.invalid",
+  "expect_files": {
+    ".mda/config.toml": "[types\n"
+  },
+  "params": {
+    "enabled": true,
+    "type": "Snippet"
+  },
+  "vault": "vault_badcfg"
+}

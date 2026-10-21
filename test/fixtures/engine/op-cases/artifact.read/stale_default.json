@@ -1,0 +1,12 @@
+{
+  "expect_error": "vault.unavailable",
+  "expect_error_params": {
+    "path": "/nonexistent-mda-w4a"
+  },
+  "machine_config": "default = \"/nonexistent-mda-w4a\"\nvaults = [\"/nonexistent-mda-w4a\"]\n",
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault",
+  "vault_flag": false
+}

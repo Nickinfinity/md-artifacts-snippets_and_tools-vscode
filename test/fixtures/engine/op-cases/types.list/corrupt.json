@@ -1,0 +1,5 @@
+{
+  "expect_error": "config.invalid",
+  "params": {},
+  "vault": "vault_badcfg"
+}

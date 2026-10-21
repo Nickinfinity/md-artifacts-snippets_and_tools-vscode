@@ -1,0 +1,13 @@
+{
+  "expect_error": "vks.control_char",
+  "expect_files": {
+    "Variables/t.md": false
+  },
+  "params": {
+    "title": "T",
+    "values": {
+      "VK-a": "a\u0001"
+    }
+  },
+  "vault": "vault"
+}

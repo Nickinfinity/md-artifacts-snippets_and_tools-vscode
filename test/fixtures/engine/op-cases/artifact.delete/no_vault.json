@@ -1,0 +1,7 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Templates/edit.md"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [
+      {
+        "destDir": "",
+        "relPath": "a",
+        "x": 1
+      }
+    ],
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

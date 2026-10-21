@@ -1,0 +1,46 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "2bf28849cade87113ec4170ef2bf9ffb1179fc9a276afa675c9de2424349560b",
+        "path": "Edit me.ts",
+        "relPath": "edit.md",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "14b989859af36f87bb9d1061d4a637df7aca5a35ad8fca5cd38c45d00e66ccef",
+        "path": "sub/Widget.ts",
+        "relPath": "sub/widget.md",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 2
+  },
+  "expect_workspace_files": {
+    "Edit me.ts": "export const x = 1;",
+    "sub/Widget.ts": "export const w = 2;"
+  },
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [
+      {
+        "destDir": "",
+        "relPath": "edit.md"
+      },
+      {
+        "destDir": "sub",
+        "relPath": "sub/widget.md"
+      }
+    ],
+    "values": {
+      "VK-name": "x"
+    },
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

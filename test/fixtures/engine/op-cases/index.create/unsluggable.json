@@ -1,0 +1,17 @@
+{
+  "expect_error": "index.unsluggable",
+  "expect_error_params": {
+    "segment": "!!!"
+  },
+  "expect_files": {
+    "Templates/gen/index.md": false
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "!!!/b.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

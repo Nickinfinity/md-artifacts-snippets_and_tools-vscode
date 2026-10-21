@@ -1,0 +1,23 @@
+{
+  "expect": {
+    "results": [
+      {
+        "code": "migrate.up_to_date",
+        "params": {},
+        "path": "Commands/done.md",
+        "status": "skipped"
+      }
+    ],
+    "skipped": 1,
+    "written": 0
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "cfb681346e3802ce7bfb73468051ebc0df1a4bfd5a6a7a4eb810265d1489ee9a",
+        "path": "Commands/done.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

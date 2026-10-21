@@ -1,0 +1,15 @@
+{
+  "expect_error": "vars.bad_heading",
+  "expect_error_params": {
+    "reason": "empty"
+  },
+  "expect_files": {
+    "Variables/flat.md": "---\nartifactType: Variables\ntitle: Flat\n---\n\n```yaml VKs\nVK-host: localhost\nVK-port: '3000'\n```\n"
+  },
+  "params": {
+    "expectedHash": "c42fac55361cbad76ff13f44e1429d039493ed1d46e60598e4774ba30b03b0cb",
+    "heading": "  ",
+    "path": "Variables/flat.md"
+  },
+  "vault": "vault"
+}

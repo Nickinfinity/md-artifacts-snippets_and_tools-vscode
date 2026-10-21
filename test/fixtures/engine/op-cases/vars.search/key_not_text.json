@@ -1,0 +1,9 @@
+{
+  "expect": {
+    "files": []
+  },
+  "params": {
+    "query": "zone"
+  },
+  "vault": "vault_vars"
+}

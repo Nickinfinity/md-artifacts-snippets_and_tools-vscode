@@ -1,0 +1,105 @@
+{
+  "expect": {
+    "files": [
+      {
+        "name": "dev",
+        "path": "Variables/dev.md",
+        "shape": "flat",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "localhost",
+                "name": "VK-host"
+              },
+              {
+                "defaultValue": "8080",
+                "name": "VK-port"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "title": "Dev"
+      },
+      {
+        "name": "empty",
+        "path": "Variables/empty.md",
+        "shape": "blank",
+        "subsets": [],
+        "title": "Empty"
+      },
+      {
+        "description": "Deploy targets",
+        "name": "envs",
+        "path": "Variables/envs.md",
+        "shape": "sets",
+        "subsets": [
+          {
+            "description": "Staging box.",
+            "heading": "Stage",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "stage.example.com",
+                "name": "VK-host"
+              }
+            ]
+          },
+          {
+            "description": "",
+            "heading": "Prod",
+            "index": 1,
+            "vars": [
+              {
+                "defaultValue": "example.com",
+                "name": "VK-host"
+              },
+              {
+                "defaultValue": "",
+                "name": "VK-db",
+                "value": {
+                  "user": "admin",
+                  "zone": "eu-west"
+                }
+              }
+            ]
+          }
+        ],
+        "title": "Envs"
+      },
+      {
+        "name": "ops",
+        "path": "Variables/team/ops.md",
+        "shape": "flat",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "ops-bot",
+                "name": "VK-user"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          "api",
+          "ops"
+        ],
+        "title": "Ops"
+      }
+    ]
+  },
+  "params": {
+    "query": "  "
+  },
+  "vault": "vault_vars"
+}

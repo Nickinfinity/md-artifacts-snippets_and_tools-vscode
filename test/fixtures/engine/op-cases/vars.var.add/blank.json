@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "hash": "2ea455d5a2048e91ad80b09c28d7c86ee21a539aee5802645994141eb172cc53",
+    "path": "Variables/blank.md"
+  },
+  "expect_files": {
+    "Variables/blank.md": "---\nartifactType: Variables\ntitle: Blank\n---\n\n```yaml VKs\nVK-new: x\n```\n"
+  },
+  "params": {
+    "expectedHash": "0f73bf522876dd2005835327567c881a162f7c8b7fbc9ed0fab5e0a50aff57f0",
+    "name": "VK-new",
+    "path": "Variables/blank.md",
+    "value": "x"
+  },
+  "vault": "vault"
+}

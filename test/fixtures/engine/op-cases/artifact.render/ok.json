@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "echo marker-7f3a bob",
+    "warnings": []
+  },
+  "params": {
+    "path": "Snippets/hello.md",
+    "values": {
+      "VK-name": "bob"
+    }
+  },
+  "vault": "vault"
+}

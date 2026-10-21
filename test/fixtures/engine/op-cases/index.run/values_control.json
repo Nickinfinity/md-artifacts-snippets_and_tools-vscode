@@ -1,0 +1,15 @@
+{
+  "expect_error": "vks.control_char",
+  "expect_workspace_files": {
+    "Edit me.ts": false
+  },
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [],
+    "values": {
+      "VK-x": "\u001b"
+    },
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

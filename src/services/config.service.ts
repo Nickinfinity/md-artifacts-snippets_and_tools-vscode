@@ -76,6 +76,40 @@ export function getPreviewWidthSteps(): number {
 }
 
 /**
+ * Reads the configured `mda` engine binary path, trimmed.
+ *
+ * Machine-scoped: a binary path is meaningless on another machine, so it is
+ * never synced. Validation (absolute, executable) is `locateEngine`'s job.
+ *
+ * @returns The trimmed `mdArtifacts.engine.path` setting, or `''` when unset.
+ *
+ * @example
+ * locateEngine({ settingPath: getEnginePath(), ... });
+ */
+export function getEnginePath(): string {
+    return vscode.workspace
+        .getConfiguration(CONFIG_SECTION)
+        .get<string>('engine.path', '')
+        .trim();
+}
+
+/**
+ * Reads the engine debug level, narrowed to the manifest's enum.
+ *
+ * Settings are untrusted input — a hand-edited value outside the enum
+ * resolves to `'off'` rather than reaching the engine's argv.
+ *
+ * @returns `'off'`, `'debug'` or `'trace'`.
+ *
+ * @example
+ * const args = getEngineDebug() === 'trace' ? ['serve', '--debug=trace'] : ['serve'];
+ */
+export function getEngineDebug(): 'off' | 'debug' | 'trace' {
+    const v = vscode.workspace.getConfiguration(CONFIG_SECTION).get<string>('engine.debug', 'off');
+    return v === 'debug' || v === 'trace' ? v : 'off';
+}
+
+/**
  * Reads the variables-section height as a fraction of the pane height.
  *
  * Validated through `pane-layout.service`'s bounds — persisted settings are

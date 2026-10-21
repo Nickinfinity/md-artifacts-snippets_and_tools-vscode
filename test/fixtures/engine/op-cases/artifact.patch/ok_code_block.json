@@ -1,0 +1,20 @@
+{
+  "expect": {
+    "hash": "d8b4b8f2de4b05e593a749091553142c4a6dfd0ba5f087c9d94ba1881364cd1f",
+    "path": "AIAgentsConf/multi.md"
+  },
+  "expect_files": {
+    "AIAgentsConf/multi.md": "---\nartifactType: AIAgentsConfig\ntitle: Multi\n---\n\n## One\n\n```bash\necho one\n```\n\n## Two\n\n```bash\necho 2\n```\n"
+  },
+  "params": {
+    "edit": {
+      "block": 1,
+      "code": "echo 2",
+      "field": "code",
+      "heading": "Two"
+    },
+    "expectedHash": "ebf85b7d7b2e7aa0417e12a767265f1054e35616ce5f2fca3b941ec3d79d1a27",
+    "path": "AIAgentsConf/multi.md"
+  },
+  "vault": "vault"
+}

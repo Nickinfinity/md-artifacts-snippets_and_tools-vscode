@@ -1,0 +1,104 @@
+{
+  "expect": {
+    "results": [
+      {
+        "code": "path.parent_segment",
+        "params": {
+          "path": "../AIAgentsConf/reviewer.md"
+        },
+        "relPath": "../AIAgentsConf/reviewer.md",
+        "status": "skipped"
+      },
+      {
+        "code": "artifact.not_whole_file",
+        "params": {
+          "type": "Snippet"
+        },
+        "relPath": "sub/snip.md",
+        "status": "skipped"
+      },
+      {
+        "code": "artifact.is_index",
+        "params": {},
+        "relPath": "sub/nested-index.md",
+        "status": "skipped"
+      },
+      {
+        "code": "path.not_found",
+        "params": {
+          "path": "Templates/missing.md"
+        },
+        "relPath": "missing.md",
+        "status": "skipped"
+      },
+      {
+        "code": "file.exists",
+        "params": {
+          "actual": "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee",
+          "path": "out/Button.tsx"
+        },
+        "relPath": "component.md",
+        "status": "skipped"
+      },
+      {
+        "code": "path.outside_root",
+        "params": {
+          "path": "../out"
+        },
+        "relPath": "edit.md",
+        "status": "skipped"
+      },
+      {
+        "code": "naming.reserved",
+        "params": {},
+        "relPath": "edit.md",
+        "status": "skipped"
+      }
+    ],
+    "skipped": 7,
+    "written": 0
+  },
+  "expect_workspace_files": {
+    "CLAUDE.md": false,
+    "CON.txt": false,
+    "Edit me.ts": false,
+    "out/Button.tsx": "old\n"
+  },
+  "params": {
+    "path": "Templates/index.md",
+    "steps": [
+      {
+        "destDir": "",
+        "relPath": "../AIAgentsConf/reviewer.md"
+      },
+      {
+        "destDir": "",
+        "relPath": "sub/snip.md"
+      },
+      {
+        "destDir": "",
+        "relPath": "sub/nested-index.md"
+      },
+      {
+        "destDir": "",
+        "relPath": "missing.md"
+      },
+      {
+        "destDir": "out",
+        "relPath": "component.md"
+      },
+      {
+        "destDir": "../out",
+        "relPath": "edit.md"
+      },
+      {
+        "destDir": "",
+        "fileName": "CON.txt",
+        "relPath": "edit.md"
+      }
+    ],
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault",
+  "workspace": "workspace"
+}

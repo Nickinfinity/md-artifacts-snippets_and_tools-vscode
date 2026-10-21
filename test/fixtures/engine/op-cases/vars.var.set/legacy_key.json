@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "hash": "34ef1e02d5351adc9e228dd96cf8b9ac96edb8696671b8e70a3a63ebf0731487",
+    "path": "Variables/legacy.md"
+  },
+  "expect_files": {
+    "Variables/legacy.md": "---\nartifactType: Variables\ntitle: Legacy\n---\n\n```yaml VKs\nVK-host: localhost\nAPI_URL: http://b\n```\n"
+  },
+  "params": {
+    "expectedHash": "bd4076b61fe8abebf58da0842118bb43bcfee23ecdf409ad008bb322a1daee5e",
+    "name": "API_URL",
+    "path": "Variables/legacy.md",
+    "value": "http://b"
+  },
+  "vault": "vault"
+}

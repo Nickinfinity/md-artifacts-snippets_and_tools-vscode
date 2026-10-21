@@ -1,0 +1,8 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "name": "VK-host",
+    "path": "Variables/flat.md"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "expect_error": "path.not_found",
+  "params": {
+    "path": "Templates/nope.md"
+  },
+  "vault": "vault"
+}

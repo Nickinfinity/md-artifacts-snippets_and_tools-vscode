@@ -1,0 +1,10 @@
+{
+  "expect_error": "vault.not_selected",
+  "expect_error_params": {},
+  "params": {
+    "model": {
+      "artifactType": "Template"
+    },
+    "path": "Templates/n.md"
+  }
+}

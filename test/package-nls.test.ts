@@ -55,8 +55,9 @@ suite('package.nls.json localisation guard', () => {
 		// 76 → 78: `variables.addToBlank` (blank file's Add…), same two sites.
 		// 78 → 82: `variables.editDescription` and `variables.editTags`, two sites each.
 		// 82 → 84: `variables.viewInfo`, a title and a category site.
+		// 84 → 86: `engine.path` and `engine.debug` settings, one description each.
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 84);
+		assert.strictEqual(sites.length, 86);
 
 		// UNFILTERED count: the `""` review sentinel is es-ONLY. The en bundle has
 		// exactly 54 keys and no sentinel. 51 → 52: `cmd.variables.openFile.title`.
@@ -64,7 +65,8 @@ suite('package.nls.json localisation guard', () => {
 		// 54 → 55: `cmd.variables.applyToEditor.title`. 55 → 56: `cmd.variables.addToBlank.title`.
 		// 56 → 58: `cmd.variables.editDescription.title`, `cmd.variables.editTags.title`.
 		// 58 → 59: `cmd.variables.viewInfo.title`.
-		assert.strictEqual(Object.keys(en).length, 59);
+		// 59 → 61: `config.mdArtifacts.engine.path.description`, `config.mdArtifacts.engine.debug.description`.
+		assert.strictEqual(Object.keys(en).length, 61);
 
 		// A Map, not a Set of values: pins the key→value binding, not just the
 		// value set — red on a wrong value, a wrong key, and a mis-keyed pair.
@@ -92,8 +94,9 @@ suite('package.nls.json localisation guard', () => {
 		//
 		// The length pin is what stops it being vacuous over a subset: without
 		// it, a helper returning 5 of 70 sites passes here and in the Map guard.
+		// 84 → 86: `engine.path` and `engine.debug` settings (see the Map guard above).
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 84);
+		assert.strictEqual(sites.length, 86);
 
 		const bare = sites.filter(s => !/^%.+%$/.test(s.value));
 		assert.deepStrictEqual(bare, [],

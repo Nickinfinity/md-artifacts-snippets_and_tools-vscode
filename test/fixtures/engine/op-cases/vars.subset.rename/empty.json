@@ -1,0 +1,16 @@
+{
+  "expect_error": "vars.bad_heading",
+  "expect_files": {
+    "Variables/sets.md": "---\nartifactType: Variables\ntitle: Sets\ntags: [env, dev]\n---\n\n## Dev\nDev machine.\n\n```yaml VKs\nVK-host: localhost\n```\n\n## Prod\n\n```yaml VKs\nVK-host: example.com\n```\n"
+  },
+  "params": {
+    "expectedHash": "48798dc21208b2106ef6cbe5a81d786d111485bec7733427bafdfef6cfe990af",
+    "heading": " ",
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Prod",
+      "index": 1
+    }
+  },
+  "vault": "vault"
+}

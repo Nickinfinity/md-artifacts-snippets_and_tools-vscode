@@ -1,0 +1,14 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "description": "d",
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Dev",
+      "index": 0
+    },
+    "x": 1
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,15 @@
+{
+  "expect_error": "vks.control_char",
+  "expect_workspace_files": {
+    "Button.tsx": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/component.md",
+    "values": {
+      "VK-name": "a\u0001b"
+    },
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,10 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "path": "Snippets/hello.md",
+    "values": {
+      "VK-name": 1
+    }
+  },
+  "vault": "vault"
+}

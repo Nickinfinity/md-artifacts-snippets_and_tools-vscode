@@ -1,0 +1,12 @@
+{
+  "expect_error": "artifact.not_serializable",
+  "expect_files": {
+    "Variables/mixed.md": "---\nartifactType: Variables\ntitle: Mixed\n---\n\n```yaml VKs\nVK-top: t\n```\n\n## A\n\n```yaml VKs\nVK-a: a\n```\n"
+  },
+  "params": {
+    "expectedHash": "5ff5694deb6953c2a2906dadf9e89ac7db2497770d15dd4ffd770186366cfba7",
+    "heading": "X",
+    "path": "Variables/mixed.md"
+  },
+  "vault": "vault"
+}

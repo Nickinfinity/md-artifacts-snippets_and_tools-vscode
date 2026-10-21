@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "configDir": "$CONFIG",
+    "defaultError": {
+      "code": "vault.unavailable",
+      "params": {
+        "path": "/nonexistent-mda-w4a"
+      }
+    },
+    "source": "none"
+  },
+  "machine_config": "default = \"/nonexistent-mda-w4a\"\nvaults = [\"/nonexistent-mda-w4a\"]\n",
+  "vault_flag": false
+}

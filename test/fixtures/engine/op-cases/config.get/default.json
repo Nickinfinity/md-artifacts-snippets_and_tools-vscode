@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "configDir": "$CONFIG",
+    "source": "default",
+    "vault": "$VAULT"
+  },
+  "machine_config": "default = \"$VAULT\"\nvaults = [\"$VAULT\"]\n",
+  "vault": "vault",
+  "vault_flag": false
+}

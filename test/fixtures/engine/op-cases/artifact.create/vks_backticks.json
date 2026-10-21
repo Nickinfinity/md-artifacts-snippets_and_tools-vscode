@@ -1,0 +1,28 @@
+{
+  "expect_error": "vks.unrepresentable",
+  "expect_error_params": {
+    "reason": "backticks",
+    "var": "VK-a"
+  },
+  "expect_files": {
+    "Templates/bt.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "a <VK-a>",
+          "vars": [
+            {
+              "name": "VK-a",
+              "value": "a```b"
+            }
+          ]
+        }
+      ]
+    },
+    "path": "Templates/bt.md"
+  },
+  "vault": "vault"
+}

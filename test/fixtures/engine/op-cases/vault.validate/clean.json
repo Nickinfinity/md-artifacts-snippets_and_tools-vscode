@@ -1,0 +1,11 @@
+{
+  "expect": {
+    "errors": 0,
+    "files": 6,
+    "issues": [],
+    "truncated": false,
+    "warnings": 0
+  },
+  "params": {},
+  "vault": "vault_vars"
+}

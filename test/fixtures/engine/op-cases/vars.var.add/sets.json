@@ -1,0 +1,20 @@
+{
+  "expect": {
+    "hash": "d5c5c48550392994ca2dee3c1e1aeeed9941a665555502d2a3257ad74b35170b",
+    "path": "Variables/sets.md"
+  },
+  "expect_files": {
+    "Variables/sets.md": "---\nartifactType: Variables\ntitle: Sets\ntags:\n  - env\n  - dev\n---\n\n## Dev\nDev machine.\n\n```yaml VKs\nVK-host: localhost\nVK-new: x\n```\n\n## Prod\n\n```yaml VKs\nVK-host: example.com\n```\n"
+  },
+  "params": {
+    "expectedHash": "48798dc21208b2106ef6cbe5a81d786d111485bec7733427bafdfef6cfe990af",
+    "name": "VK-new",
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Dev",
+      "index": 0
+    },
+    "value": "x"
+  },
+  "vault": "vault"
+}

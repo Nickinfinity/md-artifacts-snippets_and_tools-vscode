@@ -1,0 +1,38 @@
+{
+  "expect": {
+    "results": [
+      {
+        "code": "file.exists",
+        "params": {
+          "actual": "a66d1d83245274487be8b44f84ec7473fe570749f520aec0dbe145e004ed483f",
+          "path": "Templates/edit.md"
+        },
+        "relPath": "edit.ts",
+        "status": "skipped"
+      },
+      {
+        "code": "file.exists",
+        "params": {
+          "actual": "add0851994c05067c8eeaefc02891beb45ba331cd0ed86414b754a120bd50f51",
+          "path": "Templates/index.md"
+        },
+        "relPath": "",
+        "status": "skipped"
+      }
+    ],
+    "skipped": 2,
+    "written": 0
+  },
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: Edit me\nlanguage: ts\n---\n\n```ts\nexport const <VK-name> = 1;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n",
+    "Templates/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\npaths: [src/components, ../escape, src/components]\n---\n\n1. [[edit]]\n2. [Widget](sub/widget.md)\n3. [[edit#Usage|again]]\n4. ![[esc]]\n5. [[../x]]\n6. [[sub/snip]]\n7. [[sub/nested-index]]\n"
+  },
+  "params": {
+    "dir": "Templates",
+    "paths": [
+      "edit.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

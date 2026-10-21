@@ -1,0 +1,14 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Templates/x/a.md": false
+  },
+  "params": {
+    "dir": "Templates/./x",
+    "paths": [
+      "a.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

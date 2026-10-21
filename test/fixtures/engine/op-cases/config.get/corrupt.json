@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "configDir": "$CONFIG",
+    "defaultError": {
+      "code": "config.invalid",
+      "params": {
+        "path": "$CONFIG/config.toml"
+      }
+    },
+    "source": "none"
+  },
+  "expect_config_files": {
+    "config.toml": "default = ["
+  },
+  "machine_config": "default = [",
+  "vault_flag": false
+}

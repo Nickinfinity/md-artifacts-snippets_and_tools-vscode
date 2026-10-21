@@ -1,0 +1,89 @@
+{
+  "engine": "0.10.0",
+  "protocol": "2.0",
+  "types": [
+    {
+      "contexts": [
+        "editor"
+      ],
+      "defaultEnabled": true,
+      "dir": "Snippets",
+      "language": {
+        "default": "",
+        "mode": "free"
+      },
+      "multiBlock": true,
+      "type": "Snippet",
+      "writesFile": false
+    },
+    {
+      "contexts": [
+        "explorer"
+      ],
+      "defaultEnabled": true,
+      "dir": "AIAgentsConf",
+      "language": {
+        "default": "",
+        "mode": "free"
+      },
+      "multiBlock": true,
+      "outputNameKey": "target",
+      "type": "AIAgentsConfig",
+      "writesFile": true
+    },
+    {
+      "contexts": [
+        "terminal"
+      ],
+      "defaultEnabled": false,
+      "dir": "Commands",
+      "language": {
+        "default": "bash",
+        "mode": "locked"
+      },
+      "multiBlock": true,
+      "type": "Command",
+      "writesFile": false
+    },
+    {
+      "contexts": [
+        "explorer"
+      ],
+      "defaultEnabled": false,
+      "dir": "Templates",
+      "language": {
+        "default": "",
+        "mode": "free"
+      },
+      "multiBlock": false,
+      "outputNameKey": "extension",
+      "type": "Template",
+      "writesFile": true
+    },
+    {
+      "contexts": [
+        "all"
+      ],
+      "defaultEnabled": false,
+      "dir": "Variables",
+      "multiBlock": true,
+      "type": "Variables",
+      "writesFile": false
+    },
+    {
+      "contexts": [
+        "editor",
+        "terminal"
+      ],
+      "defaultEnabled": true,
+      "dir": "AIPrompts",
+      "language": {
+        "default": "markdown",
+        "mode": "hidden"
+      },
+      "multiBlock": true,
+      "type": "AIPrompt",
+      "writesFile": false
+    }
+  ]
+}

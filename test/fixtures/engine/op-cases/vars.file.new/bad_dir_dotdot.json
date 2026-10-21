@@ -1,0 +1,11 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Snippets/x.md": false
+  },
+  "params": {
+    "dir": "Variables/../Snippets",
+    "title": "X"
+  },
+  "vault": "vault"
+}

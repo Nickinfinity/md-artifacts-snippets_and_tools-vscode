@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "path": "Snippets/hello.md",
+    "x": 1
+  },
+  "vault": "vault"
+}

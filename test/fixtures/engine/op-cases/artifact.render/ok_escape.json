@@ -1,0 +1,11 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "output": "printf '\u001b[31mred\u001b[0m'",
+    "warnings": []
+  },
+  "params": {
+    "path": "Templates/esc.md"
+  },
+  "vault": "vault"
+}

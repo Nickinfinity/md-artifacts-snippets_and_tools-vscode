@@ -1,0 +1,26 @@
+{
+  "expect": {
+    "blocks": [],
+    "code": "echo <VK-a>",
+    "fileName": "bad-vars",
+    "filePath": "Snippets/bad-vars.md",
+    "frontmatter": {
+      "artifactType": "Snippet",
+      "language": "bash",
+      "title": "Bad vars"
+    },
+    "hash": "eb75aaf201a5107eba9f45e58d3c91cee417c68013e7db39c001023f2918bd23",
+    "relativePath": "bad-vars.md",
+    "vars": [],
+    "varsError": {
+      "code": "vks.inline_comment",
+      "params": {
+        "line": "1"
+      }
+    }
+  },
+  "params": {
+    "path": "Snippets/bad-vars.md"
+  },
+  "vault": "vault"
+}

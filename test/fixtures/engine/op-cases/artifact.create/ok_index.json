@@ -1,0 +1,23 @@
+{
+  "expect": {
+    "hash": "527ea1325ab70cfb42cd37cd6e6b307cc1cc00cac4a19cfca26d963fbf5af3bb",
+    "path": "Templates/new-index.md"
+  },
+  "expect_files": {
+    "Templates/new-index.md": "---\nartifactType: Template\ntitle: I\nindex: true\n---\n\n```\n[[edit]]\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "[[edit]]"
+        }
+      ],
+      "index": true,
+      "title": "I"
+    },
+    "path": "Templates/new-index.md"
+  },
+  "vault": "vault"
+}

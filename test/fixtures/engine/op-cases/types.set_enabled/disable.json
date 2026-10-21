@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "created": false,
+    "enabled": false,
+    "type": "Snippet"
+  },
+  "expect_files": {
+    ".mda/config.toml": "[types.Snippet]\nenabled = false\n",
+    "Snippets/hello.md": "---\nartifactType: Snippet\ntitle: Hello\ndescription: Fixture snippet\ntags: [fixture]\n---\n\n```bash\necho <VK-greeting> <VK-name>\n```\n\nvars:\n```yaml VKs\nVK-greeting: marker-7f3a\n```\n"
+  },
+  "params": {
+    "enabled": false,
+    "type": "Snippet"
+  },
+  "vault": "vault"
+}

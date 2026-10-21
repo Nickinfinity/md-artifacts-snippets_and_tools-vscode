@@ -1,0 +1,10 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_files": {
+    "Variables/con.md": false
+  },
+  "params": {
+    "title": "CON"
+  },
+  "vault": "vault"
+}

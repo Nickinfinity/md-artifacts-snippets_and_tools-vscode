@@ -1,0 +1,12 @@
+{
+  "expect_config_files": {
+    "config.toml": "vaults = 1"
+  },
+  "expect_error": "config.invalid",
+  "machine_config": "vaults = 1",
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "vault_bare",
+  "vault_flag": false
+}

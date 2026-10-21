@@ -1,0 +1,96 @@
+{
+  "expect": {
+    "errors": 3,
+    "files": 19,
+    "issues": [
+      {
+        "code": "migrate.pending",
+        "params": {
+          "kind": "frontmatter"
+        },
+        "path": "Snippets/bom.md",
+        "severity": "warning"
+      },
+      {
+        "code": "migrate.pending",
+        "params": {
+          "kind": "frontmatter"
+        },
+        "path": "Snippets/legacy.md",
+        "severity": "warning"
+      },
+      {
+        "code": "migrate.pending",
+        "params": {
+          "kind": "frontmatter"
+        },
+        "path": "AIAgentsConf/agent.md",
+        "severity": "warning"
+      },
+      {
+        "code": "migrate.pending",
+        "params": {
+          "kind": "frontmatter"
+        },
+        "path": "Commands/latin1.md",
+        "severity": "warning"
+      },
+      {
+        "code": "vks.bad_key",
+        "params": {
+          "key": "VK-a.b",
+          "line": "1"
+        },
+        "path": "Variables/badkey.md",
+        "severity": "error"
+      },
+      {
+        "code": "vks.control_char",
+        "params": {
+          "line": "1"
+        },
+        "path": "Variables/ctrl.md",
+        "severity": "error"
+      },
+      {
+        "code": "vks.duplicate_key",
+        "params": {
+          "key": "VK-a",
+          "line": "2"
+        },
+        "path": "Variables/dup.md",
+        "severity": "error"
+      },
+      {
+        "code": "vars.fenceless_section",
+        "params": {
+          "heading": "Empty"
+        },
+        "path": "Variables/fenceless.md",
+        "severity": "warning"
+      },
+      {
+        "code": "vars.mixed_file",
+        "params": {},
+        "path": "Variables/mixed.md",
+        "severity": "warning"
+      },
+      {
+        "code": "migrate.pending",
+        "params": {
+          "kind": "frontmatter"
+        },
+        "path": "Variables/old.md",
+        "severity": "warning"
+      }
+    ],
+    "truncated": false,
+    "warnings": 7
+  },
+  "expect_files": {
+    "Commands/done.md": "---\nartifactType: Command\ntitle: Done\n---\n\n```bash\nls\n```\n",
+    "Variables/dup.md": "---\nartifactType: Variables\ntitle: D\n---\n\n```yaml VKs\nVK-a: 1\nVK-a: 2\n```\n"
+  },
+  "params": {},
+  "vault": "vault_migrate"
+}

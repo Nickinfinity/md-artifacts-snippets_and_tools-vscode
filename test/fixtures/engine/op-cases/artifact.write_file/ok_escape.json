@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "hash": "5437f05392afe9b679232673067855757eabe708b81bc9156ab659832c0d44ba",
+    "path": "Esc.sh",
+    "warnings": []
+  },
+  "expect_workspace_files": {
+    "Esc.sh": "printf '\u001b[31mred\u001b[0m'"
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/esc.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

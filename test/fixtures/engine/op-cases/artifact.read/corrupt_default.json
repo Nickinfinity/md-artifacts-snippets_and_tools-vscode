@@ -1,0 +1,12 @@
+{
+  "expect_error": "config.invalid",
+  "expect_error_params": {
+    "path": "$CONFIG/config.toml"
+  },
+  "machine_config": "default = [",
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault",
+  "vault_flag": false
+}

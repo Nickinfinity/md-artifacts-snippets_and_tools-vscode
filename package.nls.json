@@ -51,6 +51,8 @@
   "config.mdArtifacts.features.variables.description": "Enable the Variables directory (appears in all context menus).",
   "config.mdArtifacts.mainPane.previewWidthSteps.description": "How far the sidebar widens when a preview opens, counted in widen steps. This is a step count and not a width because VS Code exposes no API to set or read a view's width — the same number of narrow steps is applied when the preview ends, which restores the previous width without ever reading it. Set 0 to disable the resize.",
   "config.mdArtifacts.mainPane.variablesHeightFraction.description": "Height of the preview's variables section as a fraction of the pane height (default 0.1667 — one sixth). Minimum 0.05, maximum 0.5. Dragging the section's resize handle updates this value.",
+  "config.mdArtifacts.engine.path.description": "Absolute path to the `mda` engine binary. Leave empty to find `mda` on your PATH.",
+  "config.mdArtifacts.engine.debug.description": "Engine logging shown in the \"MD Artifacts: Engine\" output channel: off, debug, or trace. Trace output may contain secrets from your vault.",
   "config.title": "MD Artifacts: AI Snippets & Tools",
   "view.mainView.name": "Artifacts",
   "view.variablesView.name": "Variables",

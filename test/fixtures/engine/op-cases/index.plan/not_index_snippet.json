@@ -1,0 +1,10 @@
+{
+  "expect_error": "index.not_index",
+  "expect_error_params": {
+    "path": "Snippets/hello.md"
+  },
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

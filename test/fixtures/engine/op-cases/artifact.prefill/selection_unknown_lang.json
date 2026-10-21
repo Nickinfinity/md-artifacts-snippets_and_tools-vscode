@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "Snippet",
+    "blocks": [
+      {
+        "code": "x",
+        "description": "",
+        "heading": "",
+        "language": "zig",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "languageId": "zig",
+    "source": "selection",
+    "text": "x",
+    "type": "Snippet"
+  }
+}

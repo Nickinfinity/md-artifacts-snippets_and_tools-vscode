@@ -1,0 +1,37 @@
+{
+  "expect": {
+    "changes": [
+      {
+        "action": "overridden",
+        "name": "VK-host",
+        "newValue": "localhost",
+        "oldValue": "x"
+      },
+      {
+        "action": "filled",
+        "name": "VK-port",
+        "newValue": "3000",
+        "oldValue": ""
+      },
+      {
+        "action": "kept",
+        "name": "VK-zzz",
+        "newValue": "o",
+        "oldValue": "o"
+      }
+    ],
+    "values": {
+      "VK-host": "localhost",
+      "VK-port": "3000",
+      "VK-zzz": "o"
+    }
+  },
+  "params": {
+    "path": "Variables/flat.md",
+    "values": {
+      "VK-host": "x",
+      "VK-zzz": "o"
+    }
+  },
+  "vault": "vault"
+}

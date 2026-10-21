@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "57648f29a338d2db7b7ac5d00ea158d777f940858f9c4eb7cd204feb9fb1e3ac",
+    "path": "Variables/s.md"
+  },
+  "expect_files": {
+    "Variables/s.md": "---\nartifactType: Variables\ntitle: S\n---\n\n```yaml VKs\nVK-db:\n  host: h\n```\n"
+  },
+  "params": {
+    "title": "S",
+    "values": {
+      "VK-db": {
+        "host": "h"
+      }
+    }
+  },
+  "vault": "vault"
+}

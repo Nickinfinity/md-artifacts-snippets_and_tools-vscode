@@ -1,0 +1,7 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "path": "Other/x.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,16 @@
+{
+  "expect_error": "path.not_dir",
+  "expect_error_params": {
+    "path": "$WORKSPACE/out/Button.tsx"
+  },
+  "expect_workspace_files": {
+    "out/Button.tsx": "old\n"
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE/out/Button.tsx"
+  },
+  "vault": "vault",
+  "workspace": "workspace"
+}

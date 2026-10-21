@@ -1,0 +1,8 @@
+{
+  "expect": {
+    "changes": [],
+    "skipped": []
+  },
+  "params": {},
+  "vault": "vault_bare"
+}

@@ -1,0 +1,14 @@
+{
+  "expect_error": "path.not_found",
+  "expect_files": {
+    "Templates/none.md": false
+  },
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "model": {
+      "artifactType": "Template"
+    },
+    "path": "Templates/none.md"
+  },
+  "vault": "vault"
+}

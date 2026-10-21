@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "artifactType": "AIAgentsConfig",
+    "blocks": [
+      {
+        "code": "rules",
+        "description": "",
+        "heading": "",
+        "language": "markdown",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "CLAUDE.md",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "fileName": "CLAUDE.md",
+    "languageId": "markdown",
+    "source": "file",
+    "text": "rules",
+    "type": "AIAgentsConfig"
+  }
+}

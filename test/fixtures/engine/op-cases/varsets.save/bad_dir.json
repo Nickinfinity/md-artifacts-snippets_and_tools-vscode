@@ -1,0 +1,8 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "dir": "Snippets",
+    "title": "T"
+  },
+  "vault": "vault"
+}

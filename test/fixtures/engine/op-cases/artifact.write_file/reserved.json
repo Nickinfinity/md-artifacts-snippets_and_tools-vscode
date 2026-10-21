@@ -1,0 +1,17 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {},
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "fileName": "CON.txt",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

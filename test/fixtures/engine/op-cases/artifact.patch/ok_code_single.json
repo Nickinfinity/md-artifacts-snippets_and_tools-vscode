@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "f3bc80256cc5bfe488d7a54de50ba87af87093d76a8abd97f3d56a4f7de70fd4",
+    "path": "Templates/edit.md"
+  },
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: Edit me\nlanguage: ts\n---\n\n```ts\nlet z = 2;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n"
+  },
+  "params": {
+    "edit": {
+      "code": "let z = 2;",
+      "field": "code"
+    },
+    "expectedHash": "a66d1d83245274487be8b44f84ec7473fe570749f520aec0dbe145e004ed483f",
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

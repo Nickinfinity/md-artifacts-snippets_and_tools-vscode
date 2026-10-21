@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "hash": "51d19095f78d0ae1feebbfa13285608ef6890e9d5035f500ec8a82b6e67169f5",
+    "path": "out/Btn.tsx",
+    "warnings": []
+  },
+  "expect_workspace_files": {
+    "out/Btn.tsx": "export const Widget = () => <button>Click</button>;",
+    "out/Button.tsx": false
+  },
+  "params": {
+    "destDir": "out",
+    "fileName": "Btn",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

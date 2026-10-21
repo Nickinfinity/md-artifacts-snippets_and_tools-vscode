@@ -1,0 +1,8 @@
+{
+  "expect_error": "artifact.block_not_found",
+  "params": {
+    "block": 3,
+    "path": "Snippets/api.md"
+  },
+  "vault": "vault_vars"
+}

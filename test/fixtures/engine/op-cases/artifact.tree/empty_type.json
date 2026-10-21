@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "dirs": [],
+    "files": []
+  },
+  "params": {
+    "type": "Command"
+  },
+  "vault": "vault"
+}

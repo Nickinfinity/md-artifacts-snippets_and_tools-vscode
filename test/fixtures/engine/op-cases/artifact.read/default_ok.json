@@ -1,0 +1,31 @@
+{
+  "expect": {
+    "blocks": [],
+    "code": "echo <VK-greeting> <VK-name>",
+    "fileName": "hello",
+    "filePath": "Snippets/hello.md",
+    "frontmatter": {
+      "artifactType": "Snippet",
+      "description": "Fixture snippet",
+      "language": "bash",
+      "tags": [
+        "fixture"
+      ],
+      "title": "Hello"
+    },
+    "hash": "ec08b1ff85244ca852728e7bf761ccb8cfcaf796abd9ddfef6e5f8aef5082c1e",
+    "relativePath": "hello.md",
+    "vars": [
+      {
+        "defaultValue": "marker-7f3a",
+        "name": "VK-greeting"
+      }
+    ]
+  },
+  "machine_config": "default = \"$VAULT\"\nvaults = [\"$VAULT\"]\n",
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault",
+  "vault_flag": false
+}

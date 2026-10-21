@@ -1,0 +1,25 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "e145120d8c21615c0e9bf3fa891d2f31aa2fd351dac3a6f12a90337a07d8be84",
+        "path": "Templates/gen/index.md",
+        "relPath": "",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 1
+  },
+  "expect_files": {
+    "Templates/gen/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\n---\n"
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

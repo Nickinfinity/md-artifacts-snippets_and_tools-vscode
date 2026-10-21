@@ -1,0 +1,10 @@
+{
+  "expect_error": "vks.control_char",
+  "params": {
+    "path": "Variables/flat.md",
+    "values": {
+      "VK-a": "a\u0001"
+    }
+  },
+  "vault": "vault"
+}

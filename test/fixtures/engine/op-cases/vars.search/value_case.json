@@ -1,0 +1,32 @@
+{
+  "expect": {
+    "files": [
+      {
+        "name": "dev",
+        "path": "Variables/dev.md",
+        "shape": "flat",
+        "subsets": [
+          {
+            "description": "",
+            "heading": "",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "localhost",
+                "name": "VK-host"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "title": "Dev"
+      }
+    ]
+  },
+  "params": {
+    "query": "LOCALHOST"
+  },
+  "vault": "vault_vars"
+}

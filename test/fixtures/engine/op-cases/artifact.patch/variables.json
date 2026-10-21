@@ -1,0 +1,15 @@
+{
+  "expect_error": "artifact.not_serializable",
+  "expect_files": {
+    "Variables/structured.md": "---\nartifactType: Variables\ntitle: Structured\n---\n\n```yaml VKs\nVK-db:\n  zeta: z\n  alpha: a\n```\n"
+  },
+  "params": {
+    "edit": {
+      "code": "x",
+      "field": "code"
+    },
+    "expectedHash": "60c7e6b2ab3e63101d435cdb1b5020dfbcab59ac41da142cfdec679a36fa68ac",
+    "path": "Variables/structured.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,17 @@
+{
+  "expect_error": "artifact.not_serializable",
+  "expect_error_params": {
+    "reason": "flagged"
+  },
+  "expect_files": {
+    "AIPrompts/flagged.md": "---\nartifactType: AIPrompt\ntitle: Flagged\n---\n\nScratch notes.\n\n%%oa:start%%\n# Prompt\n\nReview <VK-repo>.\n%%oa:end%%\n"
+  },
+  "params": {
+    "expectedHash": "d0b0c50ea34243b69921d8cc06916326dddfc9b74e15ab30f252248b1cde4324",
+    "model": {
+      "artifactType": "AIPrompt"
+    },
+    "path": "AIPrompts/flagged.md"
+  },
+  "vault": "vault"
+}

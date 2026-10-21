@@ -1,0 +1,35 @@
+{
+  "expect": {
+    "results": [
+      {
+        "hash": "0e4a3c95c19b02db47276cacb249c1004883643816970b9212de3729111a057a",
+        "path": "Snippets/legacy.md",
+        "status": "written"
+      },
+      {
+        "hash": "3f0c9e3a6fa7890f504ac7da44f796ca224b75d245b90d12de6e68db5d0120f7",
+        "path": "AIAgentsConf/agent.md",
+        "status": "written"
+      }
+    ],
+    "skipped": 0,
+    "written": 2
+  },
+  "expect_files": {
+    "AIAgentsConf/agent.md": "---\r\nartifactType: AIAgentsConfig\r\ntarget: CLAUDE.md\r\n---\r\n\r\nBody.\r\n",
+    "Snippets/legacy.md": "---\nartifactType: Snippet\ntitle: Legacy\n---\n\n```sh\necho hi\n```\n"
+  },
+  "params": {
+    "files": [
+      {
+        "hash": "a7abd74eb92db4e8f437c783fd5c48642e25c5fbcc95ba18beef5e7134102abb",
+        "path": "Snippets/legacy.md"
+      },
+      {
+        "hash": "6a05e7ff2407fe586a3c51a685ff275f7f8a0fc19d50b1e939fe31c68c0cca9b",
+        "path": "AIAgentsConf/agent.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

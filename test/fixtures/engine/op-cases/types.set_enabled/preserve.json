@@ -1,0 +1,15 @@
+{
+  "expect": {
+    "created": true,
+    "enabled": true,
+    "type": "Template"
+  },
+  "expect_files": {
+    ".mda/config.toml": "[future]\nkeep = 1\n\n[types.Command]\nenabled = true\n\n[types.Snippet]\nenabled = false\n\n[types.Template]\nenabled = true\n"
+  },
+  "params": {
+    "enabled": true,
+    "type": "Template"
+  },
+  "vault": "vault_cfg"
+}

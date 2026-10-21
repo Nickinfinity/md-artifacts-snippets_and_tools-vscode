@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "Template",
+    "blocks": [
+      {
+        "code": "x",
+        "description": "",
+        "heading": "",
+        "language": "",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "fileName": ".gitignore",
+    "source": "file",
+    "text": "x",
+    "type": "Template"
+  }
+}

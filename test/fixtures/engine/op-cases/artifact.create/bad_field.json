@@ -1,0 +1,11 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "model": {
+      "artifactType": "Template"
+    },
+    "path": "Templates/n.md",
+    "x": 1
+  },
+  "vault": "vault"
+}

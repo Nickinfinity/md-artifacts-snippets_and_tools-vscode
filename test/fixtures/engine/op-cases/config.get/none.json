@@ -1,0 +1,6 @@
+{
+  "expect": {
+    "configDir": "$CONFIG",
+    "source": "none"
+  }
+}

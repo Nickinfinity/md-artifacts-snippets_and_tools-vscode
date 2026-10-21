@@ -1,0 +1,7 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "path": "Variables/notes.md"
+  },
+  "vault": "vault"
+}

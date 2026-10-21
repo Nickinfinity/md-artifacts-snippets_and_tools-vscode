@@ -1,0 +1,27 @@
+{
+  "expect": {
+    "dirs": [
+      "sub"
+    ],
+    "files": [
+      {
+        "name": "bad-vars",
+        "path": "Snippets/bad-vars.md",
+        "title": "Bad vars"
+      },
+      {
+        "description": "Fixture snippet",
+        "name": "hello",
+        "path": "Snippets/hello.md",
+        "tags": [
+          "fixture"
+        ],
+        "title": "Hello"
+      }
+    ]
+  },
+  "params": {
+    "type": "Snippet"
+  },
+  "vault": "vault"
+}

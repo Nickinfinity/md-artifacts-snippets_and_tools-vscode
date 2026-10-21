@@ -1,0 +1,83 @@
+{
+  "expect": {
+    "artifactVars": [
+      "VK-host",
+      "VK-port",
+      "VK-path"
+    ],
+    "matches": [
+      {
+        "extraVars": [],
+        "label": "Dev",
+        "matchRatio": 0.6666666666666666,
+        "matchedVars": [
+          "VK-host",
+          "VK-port"
+        ],
+        "pathIndex": 0,
+        "score": 0.7666666666666666,
+        "subset": {
+          "heading": "",
+          "index": 0
+        },
+        "tagMatches": 1
+      },
+      {
+        "extraVars": [
+          "VK-user"
+        ],
+        "label": "Ops",
+        "matchRatio": 0.0,
+        "matchedVars": [],
+        "pathIndex": 2,
+        "score": 0.3,
+        "subset": {
+          "heading": "",
+          "index": 0
+        },
+        "tagMatches": 1
+      },
+      {
+        "extraVars": [],
+        "label": "Stage",
+        "matchRatio": 0.3333333333333333,
+        "matchedVars": [
+          "VK-host"
+        ],
+        "pathIndex": 1,
+        "score": 0.2333333333333333,
+        "subset": {
+          "heading": "Stage",
+          "index": 0
+        },
+        "tagMatches": 0
+      },
+      {
+        "extraVars": [
+          "VK-db"
+        ],
+        "label": "Prod",
+        "matchRatio": 0.3333333333333333,
+        "matchedVars": [
+          "VK-host"
+        ],
+        "pathIndex": 1,
+        "score": 0.2333333333333333,
+        "subset": {
+          "heading": "Prod",
+          "index": 1
+        },
+        "tagMatches": 0
+      }
+    ],
+    "paths": [
+      "Variables/dev.md",
+      "Variables/envs.md",
+      "Variables/team/ops.md"
+    ]
+  },
+  "params": {
+    "path": "Snippets/api.md"
+  },
+  "vault": "vault_vars"
+}

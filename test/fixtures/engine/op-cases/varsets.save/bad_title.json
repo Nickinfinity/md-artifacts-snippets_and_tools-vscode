@@ -1,0 +1,7 @@
+{
+  "expect_error": "vars.bad_title",
+  "params": {
+    "title": "  "
+  },
+  "vault": "vault"
+}

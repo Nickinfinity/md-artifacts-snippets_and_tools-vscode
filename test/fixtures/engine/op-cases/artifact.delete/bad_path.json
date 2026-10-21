@@ -1,0 +1,11 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Templates/edit.md": "---\nartifactType: Template\ntitle: Edit me\nlanguage: ts\n---\n\n```ts\nexport const <VK-name> = 1;\n```\n\nvars:\n```yaml VKs\nVK-name: widget\n```\n"
+  },
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Templates/edit.md.txt"
+  },
+  "vault": "vault"
+}

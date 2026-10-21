@@ -1,0 +1,14 @@
+{
+  "expect_error": "file.conflict",
+  "expect_workspace_files": {
+    "out/Button.tsx": "old\n"
+  },
+  "params": {
+    "destDir": "out",
+    "expectedHash": "deadbeef",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault",
+  "workspace": "workspace"
+}

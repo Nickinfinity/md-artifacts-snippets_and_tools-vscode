@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "AIPrompt",
+    "blocks": [
+      {
+        "code": "hi",
+        "description": "",
+        "heading": "",
+        "language": "markdown",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "languageId": "typescript",
+    "source": "selection",
+    "text": "hi",
+    "type": "AIPrompt"
+  }
+}

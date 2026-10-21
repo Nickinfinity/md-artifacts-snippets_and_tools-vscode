@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "echo marker-7f3a <VK-name>",
+    "warnings": [
+      {
+        "code": "render.unknown_var",
+        "params": {
+          "line": "1",
+          "name": "VK-name"
+        }
+      }
+    ]
+  },
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,12 @@
+{
+  "expect_error": "naming.path_injection",
+  "expect_error_params": {
+    "field": "fileName"
+  },
+  "params": {
+    "fileName": "../../etc/passwd",
+    "source": "file",
+    "text": "x",
+    "type": "Snippet"
+  }
+}

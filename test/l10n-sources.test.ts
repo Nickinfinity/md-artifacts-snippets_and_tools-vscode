@@ -313,6 +313,18 @@ suite('l10n sources — src/services', () => {
     });
 });
 
+// src/engine/ sits outside the three scans above, so a raw-literal toast there
+// would pass the gate. errors.ts owns every code → message literal; the edge
+// (engine.vscode.ts) shows them through an injected showError the patterns
+// cannot see, which is why its own strings must be literal vscode.l10n.t calls.
+suite('l10n sources — src/engine', () => {
+    test('every .ts under src/engine routes its user-facing strings through vscode.l10n.t', () => {
+        for (const file of collectTsFiles(path.join(srcRoot, 'engine'))) {
+            assertLocalised(file);
+        }
+    });
+});
+
 suite('l10n sources — src/ui', () => {
     test('every .ts under src/ui routes its host-side user-facing strings through vscode.l10n.t', () => {
         for (const file of collectTsFiles(path.join(srcRoot, 'ui'))) {

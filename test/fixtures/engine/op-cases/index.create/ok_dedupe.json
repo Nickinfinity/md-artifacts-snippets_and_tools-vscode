@@ -1,0 +1,56 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "ad057991c9a9843a78982851bb6703ad8b7d72c023eb125dc55b3b6f81021bc9",
+        "path": "Templates/d/a.md",
+        "relPath": "a.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "a08d9b423261b2a2c74e8075b62506f2f6e65c6934882f95eed7be83c38a3303",
+        "path": "Templates/d/a-2.md",
+        "relPath": "a.md",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "0ab9c09586b00619a4af018133d8f71b4cd3569a877c6dd267d1ddc8062b1a96",
+        "path": "Templates/d/a-2-2.md",
+        "relPath": "a-2.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "aeee256618ebb4ea172d38ff2691291392dcd951a5533ea37528aeb1a2e0593d",
+        "path": "Templates/d/index.md",
+        "relPath": "",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 4
+  },
+  "expect_files": {
+    "Templates/d/a-2-2.md": "---\nartifactType: Template\ntitle: a-2-2\nextension: ts\n---\n",
+    "Templates/d/a-2.md": "---\nartifactType: Template\ntitle: a-2\nextension: md\n---\n",
+    "Templates/d/a.md": "---\nartifactType: Template\ntitle: a\nextension: ts\n---\n",
+    "Templates/d/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\n---\n\n```\n1. [[a]]\n2. [[a-2]]\n3. [[a-2-2]]\n```\n"
+  },
+  "params": {
+    "dir": "Templates/d",
+    "paths": [
+      "a.ts",
+      "a.md",
+      "a-2.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,12 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "description": "d",
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Dev",
+      "index": 0
+    }
+  }
+}

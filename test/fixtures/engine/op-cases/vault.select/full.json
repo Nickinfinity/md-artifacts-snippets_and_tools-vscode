@@ -1,0 +1,12 @@
+{
+  "expect_config_files": {
+    "config.toml": "vaults = [\"/other0\", \"/other1\", \"/other2\", \"/other3\", \"/other4\", \"/other5\", \"/other6\", \"/other7\", \"/other8\", \"/other9\", \"/other10\", \"/other11\", \"/other12\", \"/other13\", \"/other14\", \"/other15\", \"/other16\", \"/other17\", \"/other18\", \"/other19\", \"/other20\", \"/other21\", \"/other22\", \"/other23\", \"/other24\", \"/other25\", \"/other26\", \"/other27\", \"/other28\", \"/other29\", \"/other30\", \"/other31\", \"/other32\", \"/other33\", \"/other34\", \"/other35\", \"/other36\", \"/other37\", \"/other38\", \"/other39\", \"/other40\", \"/other41\", \"/other42\", \"/other43\", \"/other44\", \"/other45\", \"/other46\", \"/other47\", \"/other48\", \"/other49\", \"/other50\", \"/other51\", \"/other52\", \"/other53\", \"/other54\", \"/other55\", \"/other56\", \"/other57\", \"/other58\", \"/other59\", \"/other60\", \"/other61\", \"/other62\", \"/other63\"]\n"
+  },
+  "expect_error": "config.invalid",
+  "machine_config": "vaults = [\"/other0\", \"/other1\", \"/other2\", \"/other3\", \"/other4\", \"/other5\", \"/other6\", \"/other7\", \"/other8\", \"/other9\", \"/other10\", \"/other11\", \"/other12\", \"/other13\", \"/other14\", \"/other15\", \"/other16\", \"/other17\", \"/other18\", \"/other19\", \"/other20\", \"/other21\", \"/other22\", \"/other23\", \"/other24\", \"/other25\", \"/other26\", \"/other27\", \"/other28\", \"/other29\", \"/other30\", \"/other31\", \"/other32\", \"/other33\", \"/other34\", \"/other35\", \"/other36\", \"/other37\", \"/other38\", \"/other39\", \"/other40\", \"/other41\", \"/other42\", \"/other43\", \"/other44\", \"/other45\", \"/other46\", \"/other47\", \"/other48\", \"/other49\", \"/other50\", \"/other51\", \"/other52\", \"/other53\", \"/other54\", \"/other55\", \"/other56\", \"/other57\", \"/other58\", \"/other59\", \"/other60\", \"/other61\", \"/other62\", \"/other63\"]\n",
+  "params": {
+    "path": "$VAULT"
+  },
+  "vault": "vault_bare",
+  "vault_flag": false
+}

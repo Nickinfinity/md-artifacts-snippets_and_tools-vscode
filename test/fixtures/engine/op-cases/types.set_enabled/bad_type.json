@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "enabled": true,
+    "type": "snippet"
+  },
+  "vault": "vault"
+}

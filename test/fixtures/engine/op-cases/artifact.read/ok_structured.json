@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "blocks": [],
+    "code": "VK-db:\n  zeta: z\n  alpha: a",
+    "fileName": "structured",
+    "filePath": "Variables/structured.md",
+    "frontmatter": {
+      "artifactType": "Variables",
+      "language": "yaml VKs",
+      "title": "Structured"
+    },
+    "hash": "60c7e6b2ab3e63101d435cdb1b5020dfbcab59ac41da142cfdec679a36fa68ac",
+    "relativePath": "structured.md",
+    "vars": [
+      {
+        "defaultValue": "",
+        "name": "VK-db",
+        "value": {
+          "alpha": "a",
+          "zeta": "z"
+        }
+      }
+    ]
+  },
+  "params": {
+    "path": "Variables/structured.md"
+  },
+  "vault": "vault"
+}

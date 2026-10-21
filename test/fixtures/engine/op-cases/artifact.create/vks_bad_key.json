@@ -1,0 +1,29 @@
+{
+  "expect_error": "vks.bad_key",
+  "expect_error_params": {
+    "key": "bad key",
+    "line": "0",
+    "var": "bad key"
+  },
+  "expect_files": {
+    "Templates/bk.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "a",
+          "vars": [
+            {
+              "name": "bad key",
+              "value": "a"
+            }
+          ]
+        }
+      ]
+    },
+    "path": "Templates/bk.md"
+  },
+  "vault": "vault"
+}

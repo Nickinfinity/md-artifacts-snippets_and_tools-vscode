@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "nope": 1,
+    "path": "Templates/index.md"
+  },
+  "vault": "vault"
+}

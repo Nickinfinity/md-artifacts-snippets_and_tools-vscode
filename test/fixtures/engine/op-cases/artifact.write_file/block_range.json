@@ -1,0 +1,13 @@
+{
+  "expect_error": "artifact.block_not_found",
+  "expect_workspace_files": {
+    "out/Button.tsx": false
+  },
+  "params": {
+    "block": 3,
+    "destDir": "out",
+    "path": "Templates/component.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

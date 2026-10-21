@@ -1,0 +1,13 @@
+{
+  "expect": {
+    "path": "Templates/edit.md"
+  },
+  "expect_files": {
+    "Templates/edit.md": false
+  },
+  "params": {
+    "expectedHash": "a66d1d83245274487be8b44f84ec7473fe570749f520aec0dbe145e004ed483f",
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

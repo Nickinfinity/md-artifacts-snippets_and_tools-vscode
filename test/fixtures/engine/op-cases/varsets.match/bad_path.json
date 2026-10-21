@@ -1,0 +1,7 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "path": "Nope/x.md"
+  },
+  "vault": "vault_vars"
+}

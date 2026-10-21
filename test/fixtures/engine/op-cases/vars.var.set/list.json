@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "hash": "530812ecceb081096f433c40c91ddd3a251505078f8a490f7a2790301f3e95b4",
+    "path": "Variables/flat.md"
+  },
+  "expect_files": {
+    "Variables/flat.md": "---\nartifactType: Variables\ntitle: Flat\n---\n\n```yaml VKs\nVK-host:\n  - dev\n  - prod\nVK-port: '3000'\n```\n"
+  },
+  "params": {
+    "expectedHash": "c42fac55361cbad76ff13f44e1429d039493ed1d46e60598e4774ba30b03b0cb",
+    "name": "VK-host",
+    "path": "Variables/flat.md",
+    "value": [
+      "dev",
+      "prod"
+    ]
+  },
+  "vault": "vault"
+}

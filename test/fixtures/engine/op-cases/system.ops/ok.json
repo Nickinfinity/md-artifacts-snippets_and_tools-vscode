@@ -1,0 +1,166 @@
+{
+  "expect": {
+    "ops": [
+      {
+        "name": "artifact.create",
+        "summary": "Create an artifact file from a model"
+      },
+      {
+        "name": "artifact.delete",
+        "summary": "Delete an artifact file"
+      },
+      {
+        "name": "artifact.patch",
+        "summary": "Edit a title, description or block code in place"
+      },
+      {
+        "name": "artifact.prefill",
+        "summary": "Build an artifact model from editor, file or terminal text"
+      },
+      {
+        "name": "artifact.read",
+        "summary": "Parse one artifact file"
+      },
+      {
+        "name": "artifact.render",
+        "summary": "Render a block with variable values"
+      },
+      {
+        "name": "artifact.tree",
+        "summary": "List one level of a type directory"
+      },
+      {
+        "name": "artifact.update",
+        "summary": "Rewrite an artifact file from a model"
+      },
+      {
+        "name": "artifact.write_file",
+        "summary": "Render a whole-file artifact into a workspace file"
+      },
+      {
+        "name": "config.get",
+        "summary": "The session vault, its source and the config dir"
+      },
+      {
+        "name": "index.create",
+        "summary": "Scaffold sibling artifacts and an index linking them"
+      },
+      {
+        "name": "index.plan",
+        "summary": "Resolve a template index into steps"
+      },
+      {
+        "name": "index.run",
+        "summary": "Write every step of a template index into a workspace"
+      },
+      {
+        "name": "migrate.frontmatter.apply",
+        "summary": "Rewrite planned files: type: \u2192 artifactType:"
+      },
+      {
+        "name": "migrate.frontmatter.plan",
+        "summary": "List files whose frontmatter type: needs migrating"
+      },
+      {
+        "name": "render.text",
+        "summary": "Fill tokens in text with values (no artifact)"
+      },
+      {
+        "name": "system.ops",
+        "summary": "List every registered operation"
+      },
+      {
+        "name": "system.version",
+        "summary": "Engine and protocol versions"
+      },
+      {
+        "name": "types.list",
+        "summary": "Each artifact type: dir, enabled, dir exists"
+      },
+      {
+        "name": "types.set_enabled",
+        "summary": "Enable or disable a type in the current vault"
+      },
+      {
+        "name": "vars.file.new",
+        "summary": "Create a blank Variables file"
+      },
+      {
+        "name": "vars.list",
+        "summary": "List Variables files with their sub-sets and variables"
+      },
+      {
+        "name": "vars.meta.tags",
+        "summary": "Replace a Variables file's tags"
+      },
+      {
+        "name": "vars.search",
+        "summary": "Search Variables files, sub-sets and variables"
+      },
+      {
+        "name": "vars.subset.add",
+        "summary": "Add an empty sub-set"
+      },
+      {
+        "name": "vars.subset.delete",
+        "summary": "Delete a sub-set"
+      },
+      {
+        "name": "vars.subset.describe",
+        "summary": "Set a sub-set's description"
+      },
+      {
+        "name": "vars.subset.rename",
+        "summary": "Rename a sub-set"
+      },
+      {
+        "name": "vars.var.add",
+        "summary": "Add a variable"
+      },
+      {
+        "name": "vars.var.delete",
+        "summary": "Delete a variable"
+      },
+      {
+        "name": "vars.var.rename",
+        "summary": "Rename a variable"
+      },
+      {
+        "name": "vars.var.set",
+        "summary": "Set a variable's value"
+      },
+      {
+        "name": "varsets.apply",
+        "summary": "Merge a sub-set's values over the client's"
+      },
+      {
+        "name": "varsets.match",
+        "summary": "Rank variable sub-sets against an artifact"
+      },
+      {
+        "name": "varsets.save",
+        "summary": "Save values as a new Variables file"
+      },
+      {
+        "name": "vault.inspect",
+        "summary": "Inspect a folder as a vault (reads only)"
+      },
+      {
+        "name": "vault.list",
+        "summary": "Known vaults and the default"
+      },
+      {
+        "name": "vault.select",
+        "summary": "Validate, prepare, remember and use a vault"
+      },
+      {
+        "name": "vault.use",
+        "summary": "Make a known vault the default and use it"
+      },
+      {
+        "name": "vault.validate",
+        "summary": "Check every artifact file; report errors and pending migrations"
+      }
+    ]
+  }
+}

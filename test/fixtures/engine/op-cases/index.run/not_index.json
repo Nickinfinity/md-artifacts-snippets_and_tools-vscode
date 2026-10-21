@@ -1,0 +1,9 @@
+{
+  "expect_error": "index.not_index",
+  "params": {
+    "path": "Templates/edit.md",
+    "steps": [],
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

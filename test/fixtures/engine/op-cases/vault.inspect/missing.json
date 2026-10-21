@@ -1,0 +1,11 @@
+{
+  "expect_config_files": {
+    "config.toml": false
+  },
+  "expect_error": "path.not_found",
+  "params": {
+    "path": "/nonexistent-mda-w4a"
+  },
+  "vault": "vault",
+  "vault_flag": false
+}

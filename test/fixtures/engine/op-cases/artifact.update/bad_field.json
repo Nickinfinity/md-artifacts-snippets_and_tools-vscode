@@ -1,0 +1,12 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "expectedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "model": {
+      "artifactType": "Template"
+    },
+    "path": "Templates/edit.md",
+    "x": 1
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,67 @@
+{
+  "expect": {
+    "changes": [
+      {
+        "artifactType": "Snippet",
+        "hash": "b94089d244728cb68c4e0750969c76c0198e0aef601e5d85478286a8b464c019",
+        "newLine": "artifactType: Snippet",
+        "normalises": [
+          "bom"
+        ],
+        "oldLine": "type: snippet",
+        "path": "Snippets/bom.md"
+      },
+      {
+        "artifactType": "Snippet",
+        "hash": "a7abd74eb92db4e8f437c783fd5c48642e25c5fbcc95ba18beef5e7134102abb",
+        "newLine": "artifactType: Snippet",
+        "oldLine": "type: snippet",
+        "path": "Snippets/legacy.md"
+      },
+      {
+        "artifactType": "AIAgentsConfig",
+        "hash": "6a05e7ff2407fe586a3c51a685ff275f7f8a0fc19d50b1e939fe31c68c0cca9b",
+        "newLine": "artifactType: AIAgentsConfig",
+        "oldLine": "type: agent",
+        "path": "AIAgentsConf/agent.md"
+      },
+      {
+        "artifactType": "Command",
+        "hash": "5c14d681b051518f4867510a22d050fb0f798f966da9f9b38c083edcd5adad86",
+        "newLine": "artifactType: Command",
+        "normalises": [
+          "encoding"
+        ],
+        "oldLine": "type: command",
+        "path": "Commands/latin1.md"
+      },
+      {
+        "artifactType": "Variables",
+        "hash": "979fd1e2df95c5ab744072b73c96d7957dab3b908d0a3e147b30741737964f0f",
+        "newLine": "artifactType: Variables",
+        "oldLine": "type: variables",
+        "path": "Variables/old.md"
+      }
+    ],
+    "skipped": [
+      {
+        "code": "migrate.leading_blank",
+        "params": {},
+        "path": "Commands/blank.md"
+      },
+      {
+        "code": "migrate.quoted_type",
+        "params": {
+          "value": "\"template\""
+        },
+        "path": "Templates/quoted.md"
+      }
+    ]
+  },
+  "expect_files": {
+    "AIAgentsConf/agent.md": "---\r\ntype: agent\r\ntarget: CLAUDE.md\r\n---\r\n\r\nBody.\r\n",
+    "Snippets/legacy.md": "---\ntype: snippet\ntitle: Legacy\n---\n\n```sh\necho hi\n```\n"
+  },
+  "params": {},
+  "vault": "vault_migrate"
+}

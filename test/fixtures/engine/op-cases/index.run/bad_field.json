@@ -1,0 +1,13 @@
+{
+  "expect_error": "op.bad_request",
+  "expect_workspace_files": {
+    "Edit me.ts": false
+  },
+  "params": {
+    "nope": 1,
+    "path": "Templates/index.md",
+    "steps": [],
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

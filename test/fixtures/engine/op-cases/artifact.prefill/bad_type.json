@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "source": "selection",
+    "text": "x",
+    "type": "Nope"
+  }
+}

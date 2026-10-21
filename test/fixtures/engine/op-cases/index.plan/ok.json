@@ -1,0 +1,71 @@
+{
+  "expect": {
+    "rejected": [
+      {
+        "code": "path.parent_segment",
+        "raw": "../x"
+      }
+    ],
+    "steps": [
+      {
+        "candidates": [
+          "",
+          "src/components"
+        ],
+        "raw": "edit",
+        "relDir": "",
+        "relPath": "edit.md"
+      },
+      {
+        "candidates": [
+          "sub",
+          "src/components"
+        ],
+        "raw": "sub/widget.md",
+        "relDir": "sub",
+        "relPath": "sub/widget.md"
+      },
+      {
+        "candidates": [
+          "",
+          "src/components"
+        ],
+        "raw": "edit",
+        "relDir": "",
+        "relPath": "edit.md"
+      },
+      {
+        "candidates": [
+          "sub",
+          "src/components"
+        ],
+        "raw": "sub/snip",
+        "relDir": "sub",
+        "relPath": "sub/snip.md",
+        "skip": {
+          "code": "artifact.not_whole_file",
+          "params": {
+            "type": "Snippet"
+          }
+        }
+      },
+      {
+        "candidates": [
+          "sub",
+          "src/components"
+        ],
+        "raw": "sub/nested-index",
+        "relDir": "sub",
+        "relPath": "sub/nested-index.md",
+        "skip": {
+          "code": "artifact.is_index",
+          "params": {}
+        }
+      }
+    ]
+  },
+  "params": {
+    "path": "Templates/index.md"
+  },
+  "vault": "vault"
+}

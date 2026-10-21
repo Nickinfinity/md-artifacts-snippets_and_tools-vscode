@@ -1,0 +1,34 @@
+{
+  "expect": {
+    "blocks": [],
+    "code": "# Prompt\n\nReview <VK-repo>.",
+    "fileName": "flagged",
+    "filePath": "AIPrompts/flagged.md",
+    "frontmatter": {
+      "artifactType": "AIPrompt",
+      "language": "markdown",
+      "title": "Flagged"
+    },
+    "hash": "d0b0c50ea34243b69921d8cc06916326dddfc9b74e15ab30f252248b1cde4324",
+    "layout": {
+      "payload": "flags",
+      "regions": [
+        {
+          "name": "",
+          "notes": "Scratch notes."
+        }
+      ]
+    },
+    "relativePath": "flagged.md",
+    "vars": [
+      {
+        "defaultValue": "",
+        "name": "VK-repo"
+      }
+    ]
+  },
+  "params": {
+    "path": "AIPrompts/flagged.md"
+  },
+  "vault": "vault"
+}

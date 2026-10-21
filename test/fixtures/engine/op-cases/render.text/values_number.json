@@ -1,0 +1,9 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "text": "<VK-a>",
+    "values": {
+      "VK-a": 1
+    }
+  }
+}

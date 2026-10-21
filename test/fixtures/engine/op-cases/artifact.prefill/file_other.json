@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "artifactType": "Snippet",
+    "blocks": [
+      {
+        "code": "x",
+        "description": "",
+        "heading": "",
+        "language": "typescript",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": "",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "fileName": "a.ts",
+    "languageId": "typescript",
+    "source": "file",
+    "text": "x",
+    "type": "Snippet"
+  }
+}

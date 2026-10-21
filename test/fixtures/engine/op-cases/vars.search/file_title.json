@@ -1,0 +1,49 @@
+{
+  "expect": {
+    "files": [
+      {
+        "description": "Deploy targets",
+        "name": "envs",
+        "path": "Variables/envs.md",
+        "shape": "sets",
+        "subsets": [
+          {
+            "description": "Staging box.",
+            "heading": "Stage",
+            "index": 0,
+            "vars": [
+              {
+                "defaultValue": "stage.example.com",
+                "name": "VK-host"
+              }
+            ]
+          },
+          {
+            "description": "",
+            "heading": "Prod",
+            "index": 1,
+            "vars": [
+              {
+                "defaultValue": "example.com",
+                "name": "VK-host"
+              },
+              {
+                "defaultValue": "",
+                "name": "VK-db",
+                "value": {
+                  "user": "admin",
+                  "zone": "eu-west"
+                }
+              }
+            ]
+          }
+        ],
+        "title": "Envs"
+      }
+    ]
+  },
+  "params": {
+    "query": "envs"
+  },
+  "vault": "vault_vars"
+}

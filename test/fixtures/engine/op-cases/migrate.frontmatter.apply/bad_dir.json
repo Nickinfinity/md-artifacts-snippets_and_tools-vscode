@@ -1,0 +1,12 @@
+{
+  "expect_error": "artifact.bad_path",
+  "params": {
+    "files": [
+      {
+        "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "path": "Notes/x.md"
+      }
+    ]
+  },
+  "vault": "vault_migrate"
+}

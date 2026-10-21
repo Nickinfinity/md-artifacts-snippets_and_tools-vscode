@@ -1,0 +1,14 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_files": {
+    "Snippets/x.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Template",
+      "title": "x"
+    },
+    "path": "Snippets/x.md"
+  },
+  "vault": "vault"
+}

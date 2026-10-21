@@ -1,0 +1,11 @@
+{
+  "expect": {
+    "results": [],
+    "skipped": 0,
+    "written": 0
+  },
+  "params": {
+    "files": []
+  },
+  "vault": "vault_migrate"
+}

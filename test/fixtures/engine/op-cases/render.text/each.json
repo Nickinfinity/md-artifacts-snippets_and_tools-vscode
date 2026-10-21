@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "a, b",
+    "warnings": []
+  },
+  "params": {
+    "text": "<VK-each:u:\", \"><VK-u><VK-end:u>",
+    "values": {
+      "VK-u": [
+        "a",
+        "b"
+      ]
+    }
+  }
+}

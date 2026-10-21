@@ -1,0 +1,18 @@
+{
+  "expect_error": "artifact.multi_block",
+  "expect_error_params": {
+    "count": "2"
+  },
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "AIAgentsConf/multi.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}

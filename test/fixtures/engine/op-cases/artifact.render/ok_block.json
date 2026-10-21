@@ -1,0 +1,12 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "echo two",
+    "warnings": []
+  },
+  "params": {
+    "block": 1,
+    "path": "AIAgentsConf/multi.md"
+  },
+  "vault": "vault"
+}

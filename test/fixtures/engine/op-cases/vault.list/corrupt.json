@@ -1,0 +1,7 @@
+{
+  "expect_error": "config.invalid",
+  "machine_config": "default = [",
+  "params": {},
+  "vault": "vault",
+  "vault_flag": false
+}

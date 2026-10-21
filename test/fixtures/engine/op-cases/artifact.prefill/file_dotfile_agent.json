@@ -1,0 +1,29 @@
+{
+  "expect": {
+    "artifactType": "AIAgentsConfig",
+    "blocks": [
+      {
+        "code": "x",
+        "description": "",
+        "heading": "",
+        "language": "",
+        "vars": []
+      }
+    ],
+    "description": "",
+    "env": "",
+    "extension": "",
+    "model": "",
+    "provider": "",
+    "tags": [],
+    "target": ".cursorrules",
+    "title": "",
+    "version": ""
+  },
+  "params": {
+    "fileName": ".cursorrules",
+    "source": "file",
+    "text": "x",
+    "type": "AIAgentsConfig"
+  }
+}

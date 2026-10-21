@@ -1,0 +1,23 @@
+{
+  "expect": {
+    "changes": [
+      {
+        "action": "filled",
+        "name": "VK-host",
+        "newValue": "localhost",
+        "oldValue": ""
+      }
+    ],
+    "values": {
+      "VK-host": "localhost"
+    }
+  },
+  "params": {
+    "path": "Variables/sets.md",
+    "subset": {
+      "heading": "Dev",
+      "index": 0
+    }
+  },
+  "vault": "vault"
+}

@@ -22,6 +22,7 @@ import { SCRATCH_SUBDIR as FORM_BLOCK_SUBDIR } from './ui/panels/artifactForm/bl
 import { BLOCK_EDIT_SUBDIR } from './ui/panels/artifactPicker/blockEditor.js';
 import { ARTIFACTS } from './types/constants.js';
 import { CONFIG_SECTION, getVaultPath } from './services/config.service.js';
+import { startEngine, requestOrNotify } from './engine/engine.vscode.js';
 
 /**
  * Called by VS Code when the extension is first activated.
@@ -33,6 +34,11 @@ import { CONFIG_SECTION, getVaultPath } from './services/config.service.js';
  * @param {vscode.ExtensionContext} context - Extension context provided by VS Code
  */
 export async function activate(context: vscode.ExtensionContext) {
+	// The engine supervisor is lazy; the version probe makes a missing or
+	// incompatible `mda` visible at startup instead of on the first click.
+	context.subscriptions.push(startEngine());
+	void requestOrNotify('system.version', {});
+
 	// Register commands first so executeCommand calls below resolve correctly
 	registerOpenSettingsCommand(context);
 	registerInsertCommands(context);

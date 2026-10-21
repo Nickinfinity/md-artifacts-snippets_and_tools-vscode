@@ -1,0 +1,21 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "run db on <VK-port>",
+    "warnings": [
+      {
+        "code": "render.unknown_var",
+        "params": {
+          "line": "1",
+          "name": "VK-port"
+        }
+      }
+    ]
+  },
+  "params": {
+    "text": "run <VK-host></VK-host> on <VK-port>",
+    "values": {
+      "VK-host": "db"
+    }
+  }
+}

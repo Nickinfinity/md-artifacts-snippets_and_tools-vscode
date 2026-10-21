@@ -1,0 +1,15 @@
+{
+  "expect_error": "naming.path_injection",
+  "expect_workspace_files": {
+    "Btn": false,
+    "CON.txt": false,
+    "out": false,
+    "x": false
+  },
+  "params": {
+    "destDir": "",
+    "path": "Templates/hostile.md",
+    "workspaceRoot": "$WORKSPACE"
+  },
+  "vault": "vault"
+}
