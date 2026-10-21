@@ -26,6 +26,7 @@ import { planLegacyImport } from './engine/legacy-import.js';
 import type { EngineResult } from './types/engine.types.js';
 import { getSessionVault, onVaultChanged, setSessionVault } from './services/vault-watch.service.js';
 import { getVarSetScanner } from './ui/panels/varsetPicker.panel.js';
+import { getEntry } from './services/artifact-type-config.service.js';
 
 /**
  * Called by VS Code when the extension is first activated.
@@ -125,6 +126,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		void sweepOrphans(storageUri, subdir);
 	}
 
+	// The engine sends no change notifications: the vault watcher invalidates caches.
+	// Subscribed before the session vault is set, so the first vault event is never missed.
+	context.subscriptions.push(onVaultChanged(() => getVarSetScanner().invalidate()));
+
 	// The engine owns the vault choice (E-8): its session vault replaces the old
 	// `vaultPath` setting. Awaited here, after registration, inside its own catch —
 	// `requestOrNotify` rethrows non-engine errors and activation must not fail.
@@ -133,17 +138,19 @@ export async function activate(context: vscode.ExtensionContext) {
 	setSessionVault(cfg?.vault);
 	if (cfg) { await importLegacySettings(context, cfg); }
 
-	// The engine sends no change notifications: the vault watcher invalidates caches.
-	context.subscriptions.push(onVaultChanged(() => getVarSetScanner().invalidate()));
-
 	// Await context key setup — ensures menus reflect vault state before first user interaction.
 	// Without await the keys land asynchronously and the first right-click may show no items.
 	await refreshVaultContext();
 
 	// Auto-open Settings on first use — checked after the import, which may have selected one.
-	if (!getSessionVault()) {
+	const vault = getSessionVault();
+	if (!vault) {
 		void vscode.commands.executeCommand('md-artifacts.settings');
+		return;
 	}
+	// Warm the Variables listing (one vars.list) so the pane opens filled instead of
+	// loading on first reveal. Same Uri the pane passes, so it lands in the same cache slot.
+	void getVarSetScanner().scan(vscode.Uri.joinPath(vscode.Uri.file(vault), getEntry('Variables').dir));
 }
 
 /** `globalState` key recording that the legacy `vaultPath` / `features.*` import reached a final outcome. */
