@@ -1,19 +1,21 @@
 import * as vscode from 'vscode';
 import type { BlockRef } from '../../../services/artifact-patcher.service.js';
 import { confirmModal } from '../../../services/confirm.service.js';
+import { engineMeta } from '../../../engine/model.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { out } from './shared.js';
 import { persistBlockCode } from './preview.helpers.js';
+import { rereadBlock } from './preview.reread.js';
 import type { BlockEditController } from './blockEditor.js';
 
 /** Callback bag for {@link StagedEdit}; the controller keeps the state it reads. */
 export interface StagedEditCallbacks {
-    rootFs: string;
     blockEdit: BlockEditController;
     getCurrentArtifact: () => ParsedArtifactFile | undefined;
     /** Which fence in the source `.md` the preview's code belongs to. */
     getBlockRef: () => BlockRef;
     setCache: (uri: vscode.Uri, parsed: ParsedArtifactFile) => void;
+    setCurrentArtifact: (a: ParsedArtifactFile) => void;
     postMessage: (msg: { command: string; [key: string]: unknown }) => void;
 }
 
@@ -32,7 +34,7 @@ export class StagedEdit {
      * @param cb - Callback bag onto the owning controller's state.
      *
      * @example
-     * new StagedEdit({ rootFs, blockEdit, getCurrentArtifact, getBlockRef, setCache, postMessage });
+     * new StagedEdit({ blockEdit, getCurrentArtifact, getBlockRef, setCache, setCurrentArtifact, postMessage });
      */
     constructor(private readonly cb: StagedEditCallbacks) {}
 
@@ -108,21 +110,27 @@ export class StagedEdit {
         if (!ok) { return; }
 
         const sourceUri = vscode.Uri.file(artifact.filePath);
-        const updated = await persistBlockCode({
-            sourceUri,
-            blockRef: this.cb.getBlockRef(),
-            newCode:  code,
-            rootFs:   this.cb.rootFs,
+        const blockRef = this.cb.getBlockRef();
+        const done = await persistBlockCode({
+            artifact, blockRef, newCode: code,
+            onReload: () => this.reload(sourceUri, artifact, blockRef),
         });
-        if (!updated) {
-            // Also answered when the patch was a no-op: "nothing changed", not a failure.
-            vscode.window.showWarningMessage(vscode.l10n.t('Nothing was written — the code is unchanged, or the block could not be located in the file.'));
-            return;
-        }
-
-        this.cb.setCache(sourceUri, updated);
+        if (!done) { return; } // a conflict modal or toast already told the user
+        this.cb.setCache(sourceUri, done.file);
+        this.cb.setCurrentArtifact(done.current);
         this.stagedCode = undefined;
         this.cb.postMessage({ command: 'overwriteDone' });
         out.appendLine(`[pane] overwrite → ${artifact.fileName}`);
+    }
+
+    /** Conflict "Reload": adopt the on-disk file and drop the stale staged edit. */
+    private async reload(uri: vscode.Uri, artifact: ParsedArtifactFile, ref: BlockRef): Promise<void> {
+        const rel = engineMeta(artifact)?.relPath;
+        const fresh = rel === undefined ? undefined : await rereadBlock(rel, ref);
+        if (!fresh) { return; }
+        this.cb.setCache(uri, fresh.file);
+        this.cb.setCurrentArtifact(fresh.current);
+        this.stagedCode = undefined;
+        this.cb.postMessage({ command: 'fileUpdated', artifact: fresh.current });
     }
 }

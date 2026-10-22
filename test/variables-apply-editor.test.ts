@@ -1,12 +1,10 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { fillVarTokens, handleApplyToEditor, type ApplyDeps } from '../src/commands/variables-apply.command.js';
 import { onPreviewTargetChanged, setPreviewTarget, type PreviewVarTarget } from '../src/services/preview-target.service.js';
 import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import type { VariableNode } from '../src/ui/views/variablesView.provider.js';
+import { useVarsEngine, VAULT } from './vars-engine.js';
 
 /**
  * The Variables pane's two apply buttons: "Fill Variables in Editor" (fills
@@ -38,6 +36,7 @@ suite('fillVarTokens', () => {
 });
 
 suite('handleApplyToEditor', () => {
+    const eng = useVarsEngine();
     const model = {
         artifactType: 'Variables' as const, title: 'Users', description: '', tags: [],
         blocks: [{ heading: '', description: '', language: '', code: '', vars: [
@@ -47,11 +46,8 @@ suite('handleApplyToEditor', () => {
     };
 
     function vault(): { root: vscode.Uri; node: VariableNode } {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vars-editor-'));
-        fs.mkdirSync(path.join(dir, 'Variables'));
-        const file = path.join(dir, 'Variables', 'users.md');
-        fs.writeFileSync(file, renderVariablesFile(model), 'utf8');
-        return { root: vscode.Uri.file(dir), node: { id: file, parentId: null, kind: 'file', label: 'Users', shape: 'flat' } };
+        const file = eng().serve('Variables/users.md', renderVariablesFile(model));
+        return { root: VAULT, node: { id: file, parentId: null, kind: 'file', label: 'Users', shape: 'flat' } };
     }
 
     async function editorWith(text: string): Promise<vscode.TextEditor> {

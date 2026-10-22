@@ -17,8 +17,8 @@ const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
 export interface VarSetFormCallbacks {
     /** Checks a payload before writing; `ok: false` carries the failure reason to show the user. */
     validate(payload: VarSetFormPayload): { ok: true } | { ok: false; reason: string };
-    /** Writes the validated payload to `Variables/<slug>.md`. */
-    write(payload: VarSetFormPayload): Promise<void>;
+    /** Writes the validated payload to `Variables/<slug>.md`; `false` (conflict, refused, exists) keeps the form open. */
+    write(payload: VarSetFormPayload): Promise<boolean>;
     /** Posts a message back into the form webview. */
     post(msg: Record<string, unknown>): void;
     /** Closes the form (disposes the panel). */
@@ -35,7 +35,7 @@ export interface VarSetFormCallbacks {
      * also makes the "missing writer" test unwritable, since the bag lacking
      * this member would not be constructible.
      */
-    writeEdit?(payload: VarsEditPayload): Promise<void>;
+    writeEdit?(payload: VarsEditPayload, disposePanel?: () => void): Promise<boolean>;
 }
 
 /**
@@ -92,8 +92,8 @@ export async function handleVarSetFormMessage(
         return;
     }
 
-    await cb.write(payload);
-    cb.close();
+    // Close only on success: a refused write keeps the user's edits on screen.
+    if (await cb.write(payload)) { cb.close(); }
 }
 
 /**
@@ -170,8 +170,7 @@ async function handleEditSave(
         subSets:     wire.pairs.map((pairs, i) => ({ heading: headings[i], description: descriptions[i], pairs })),
     };
 
-    await cb.writeEdit?.(payload);
-    cb.close();
+    if (await cb.writeEdit?.(payload)) { cb.close(); }
 }
 
 /**
@@ -206,8 +205,8 @@ export interface OpenVarSetFormOpts {
  * form has no block-expand or storage need beyond it.
  *
  * **Edit mode refuses to open without a writer.** `handleVarSetFormMessage`'s
- * edit-save branch ends `await cb.writeEdit?.(payload); cb.close();` — an
- * absent `writeEdit` would silently close the tab having written nothing. This
+ * edit-save branch closes on a `true` from `cb.writeEdit?.(payload)` — an
+ * absent `writeEdit` would otherwise be a dead Save button. This
  * function throws *before* `vscode.window.createWebviewPanel` is called, so no
  * panel is ever created for a bag that cannot honour a save.
  *
@@ -268,6 +267,8 @@ export function openVarSetFormPanel(
         ...cb,
         post: (msg) => { void panel.webview.postMessage(msg); },
         close: () => { panel.dispose(); cb.close(); },
+        // The writer may need to drop the form without a save (conflict ⇒ Reload).
+        ...(cb.writeEdit ? { writeEdit: (p: VarsEditPayload) => cb.writeEdit!(p, () => panel.dispose()) } : {}),
     };
 
     const editBase = opts.mode === 'edit' ? opts.payload : undefined;

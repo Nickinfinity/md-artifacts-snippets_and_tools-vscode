@@ -1,165 +1,69 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
 import { runCreateIndex } from '../src/ui/views/createIndexRunner.js';
-import type { CreateIndexCallbacks } from '../src/ui/views/createIndexRunner.js';
-import { buildIndexArtifactPlan } from '../src/services/create-index.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
-import type { WriteArgs, WriteResult } from '../src/services/artifact-writer.service.js';
+import { loadOpCases } from './fake-engine.js';
+import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
- * T12 — `runCreateIndex`, driven entirely through its callback bag: a fake
- * `pickDest` and a fake `writeArtifact` that never touch disk. Mirrors the
- * fake style `multi-index-runner.test.ts` (T6) already established for its
- * sibling runner.
+ * T3.9 — `runCreateIndex` sends ONE `index.create` (the engine writes siblings + index, dedupes names,
+ * and reports exists as per-step skips). Driven through the fake engine seeded from the op cases.
  */
 
-const VAULT_ROOT = vscode.Uri.file('/vault');
-
-/** Records every `writeArtifact` call and returns a scripted outcome per call index (default: success). */
-class WriteSpy {
-    calls: WriteArgs[] = [];
-    outcomes = new Map<number, WriteResult['kind']>();
-
-    readonly writeArtifact: CreateIndexCallbacks['writeArtifact'] = async (args) => {
-        const i = this.calls.length;
-        this.calls.push(args);
-        const kind = this.outcomes.get(i) ?? 'success';
-        if (kind === 'success') { return { kind: 'success', filePath: `${args.chosenDir.fsPath}/${args.fileName}.md` }; }
-        if (kind === 'collision') { return { kind: 'collision', filePath: `${args.chosenDir.fsPath}/${args.fileName}.md` }; }
-        return { kind: 'error', message: 'boom' };
-    };
-}
+const opCase = (name: string) => {
+    const c = loadOpCases().find(x => x.method === 'index.create' && x.name === name);
+    assert.ok(c, `op case index.create/${name}`);
+    return c;
+};
 
 suite('runCreateIndex', () => {
+    let eng: VarsEngine;
+    setup(() => { eng = startVarsEngine(); });
+    teardown(() => eng.dispose());
 
-    test('cancelled pickDest — aborted, nothing written, writeArtifact never called', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
+    const run = (pick: () => Promise<vscode.Uri | undefined>, paths = ['a.ts', 'sub/b.ts']) =>
+        runCreateIndex({ type: 'Template', paths }, { vaultRoot: VAULT, pickDest: pick });
 
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => undefined,
-        });
+    test('one index.create with the vault-relative dir; tally from the Batch', async () => {
+        const c = opCase('ok');
+        eng.fake.on('index.create', () => ({ result: c.expect }));
+        const p = c.params as { dir: string; paths: string[]; type: 'Template' };
+        const { tally, message } = await run(async () => vscode.Uri.joinPath(VAULT, p.dir), p.paths);
+        assert.deepStrictEqual(eng.calls('index.create').map(r => r.params), [p]);
+        assert.strictEqual(eng.calls('index.create').length, 1);
+        assert.deepStrictEqual(tally, { written: 5, skipped: 0, aborted: false });
+        assert.ok(message.startsWith('Create index:'), message);
+    });
 
+    test('cancelled pick — aborted, zero requests', async () => {
+        const { tally } = await run(async () => undefined);
         assert.deepStrictEqual(tally, { written: 0, skipped: 0, aborted: true });
-        assert.strictEqual(spy.calls.length, 0);
+        assert.strictEqual(eng.fake.received.filter(r => r.method === 'index.create').length, 0);
     });
 
-    test('pickDest result outside vaultRoot — aborted before any write (the one containment assertion this runner owns)', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts'], 'Template');
-        const spy = new WriteSpy();
-        const outside = vscode.Uri.file('/somewhere-else');
-
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => outside,
-        });
-
+    test('pick outside the vault — aborted, zero requests', async () => {
+        const { tally } = await run(async () => vscode.Uri.file('/somewhere-else'));
         assert.deepStrictEqual(tally, { written: 0, skipped: 0, aborted: true });
-        assert.strictEqual(spy.calls.length, 0);
+        assert.strictEqual(eng.fake.received.filter(r => r.method === 'index.create').length, 0);
     });
 
-    test('happy path — every sibling then the index is written, in order, never with force', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
-        const chosenDir = vscode.Uri.joinPath(VAULT_ROOT, 'Templates');
-
-        const { tally, message } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => chosenDir,
-        });
-
-        assert.deepStrictEqual(tally, { written: 3, skipped: 0, aborted: false });
-        assert.strictEqual(spy.calls.length, 3, '2 siblings + 1 index');
-        assert.ok(message.startsWith('Create index:'), `expected the 'Create index' label, got: ${message}`);
-
-        // Sibling filenames are the plan's links verbatim — extension-less, directory preserved.
-        assert.strictEqual(spy.calls[0].fileName, 'a');
-        assert.strictEqual(spy.calls[1].fileName, 'sub/b');
-        assert.ok(spy.calls.every(c => c.force === undefined), 'force must never be set — collisions are a batch skip, not an overwrite');
-        assert.ok(spy.calls.every(c => c.chosenDir === chosenDir));
+    test('vault root picked — dir is empty string', async () => {
+        eng.fake.on('index.create', () => ({ result: { results: [], written: 0, skipped: 0 } }));
+        await run(async () => VAULT);
+        assert.strictEqual((eng.calls('index.create')[0].params as { dir: string }).dir, '');
     });
 
-    test('the written index content round-trips through parseFromContent with index === true', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
-
-        await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => vscode.Uri.joinPath(VAULT_ROOT, 'Templates'),
-        });
-
-        const indexCall = spy.calls[spy.calls.length - 1];
-        assert.strictEqual(indexCall.fileName, 'index');
-
-        const parsed = parseFromContent(indexCall.content, '/vault/Templates/index.md', '/vault/Templates');
-        assert.strictEqual(parsed.frontmatter.index, true);
+    test('collision result — one summary, skipped 2', async () => {
+        const c = opCase('collision');
+        eng.fake.on('index.create', () => ({ result: c.expect }));
+        const { tally } = await run(async () => vscode.Uri.joinPath(VAULT, 'Templates'), ['edit.ts']);
+        assert.deepStrictEqual(tally, { written: 0, skipped: 2, aborted: false });
+        assert.strictEqual(eng.calls('index.create').length, 1);
     });
 
-    test('a sibling collision degrades to a skip; the run continues and the index still writes', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
-        spy.outcomes.set(0, 'collision');
-
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => vscode.Uri.joinPath(VAULT_ROOT, 'Templates'),
-        });
-
-        assert.deepStrictEqual(tally, { written: 2, skipped: 1, aborted: false });
-        assert.strictEqual(spy.calls.length, 3, 'the collision does not stop the sibling loop or the index write');
-    });
-
-    test('a sibling write error degrades to a skip, same as a collision', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
-        spy.outcomes.set(1, 'error');
-
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => vscode.Uri.joinPath(VAULT_ROOT, 'Templates'),
-        });
-
-        assert.deepStrictEqual(tally, { written: 2, skipped: 1, aborted: false });
-    });
-
-    // ── Review round 1 fixes ─────────────────────────────────────────────────
-
-    test('a selection containing "index.ts" writes both the sibling and the index, under distinct names', async () => {
-        // T11 derives the sole sibling's link as 'index' (slugify('index') === 'index'),
-        // the same name the index's own title ('Index') would naively produce —
-        // without a bump, the index write collides with the sibling and is silently skipped.
-        const plan = buildIndexArtifactPlan(['index.ts'], 'Template');
-        assert.deepStrictEqual(plan.links, ['index']);
-        const spy = new WriteSpy();
-
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => vscode.Uri.joinPath(VAULT_ROOT, 'Templates'),
-        });
-
-        assert.deepStrictEqual(tally, { written: 2, skipped: 0, aborted: false });
-        assert.deepStrictEqual(spy.calls.map(c => c.fileName), ['index', 'index-2']);
-    });
-
-    test('an index write collision degrades to a skip — the trailing branch is not silently "written"', async () => {
-        const plan = buildIndexArtifactPlan(['a.ts', 'sub/b.ts'], 'Template');
-        const spy = new WriteSpy();
-        spy.outcomes.set(2, 'collision'); // 2 siblings (calls 0,1) then the index (call 2)
-
-        const { tally } = await runCreateIndex(plan, {
-            vaultRoot: VAULT_ROOT,
-            writeArtifact: spy.writeArtifact,
-            pickDest: async () => vscode.Uri.joinPath(VAULT_ROOT, 'Templates'),
-        });
-
-        assert.deepStrictEqual(tally, { written: 2, skipped: 1, aborted: false });
+    test('engine error — toast, nothing counted as written', async () => {
+        eng.fake.on('index.create', () => ({ error: { code: 'path.bad_dir', params: { path: 'x' } } }));
+        const { tally } = await run(async () => vscode.Uri.joinPath(VAULT, 'Templates'));
+        assert.deepStrictEqual(tally, { written: 0, skipped: 0, aborted: true });
+        assert.strictEqual(eng.toasts.length, 1);
     });
 });

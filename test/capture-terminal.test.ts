@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import { captureTerminal, type TerminalCaptureBag } from '../src/commands/capture/terminal.capture.js';
-import { getDefaultLanguage, getLanguageMode } from '../src/services/artifact-type-config.service.js';
+import type { PrefillFn } from '../src/commands/capture/editor.capture.js';
+import type { EngineModel } from '../src/types/engine.types.js';
 
 /**
  * Unit tests for `captureTerminal` (VSX-210). Pure over an injected bag — no
@@ -34,6 +35,10 @@ function makeFakeBag(opts: {
     return bag;
 }
 
+const model = (code: string, language = ''): EngineModel => ({ artifactType: 'Command', blocks: [{ code, language }] });
+/** Echoes the sent text back as the engine's model (language rules are engine-owned: op cases `terminal`, `terminal_hidden`). */
+const echo: PrefillFn = async p => model(p.text);
+
 suite('captureTerminal', () => {
     test('clipboard changed by copySelection → source selection, clipboard restored', async () => {
         const bag = {
@@ -44,21 +49,18 @@ suite('captureTerminal', () => {
             hasActiveTerminal: () => true,
         };
 
-        assert.deepStrictEqual(await captureTerminal(bag, 'Command'), {
-            prefill: { blocks: [{ heading: '', description: '', language: '', code: 'git status', vars: [] }] },
-            source: 'selection',
-        });
+        const result = await captureTerminal(bag, 'Command', echo);
+        assert.strictEqual(result?.source, 'selection');
+        assert.strictEqual(result?.prefill.blocks?.[0]?.code, 'git status');
         assert.strictEqual(bag.clipboard, 'user-had-this');
     });
 
     test('clipboard unchanged by copySelection → source clipboard (user’s own content)', async () => {
         const bag = makeFakeBag({ clipboard: 'echo hi' }); // copySelection is a no-op here
 
-        const result = await captureTerminal(bag, 'Command');
-        assert.deepStrictEqual(result, {
-            prefill: { blocks: [{ heading: '', description: '', language: '', code: 'echo hi', vars: [] }] },
-            source: 'clipboard',
-        });
+        const result = await captureTerminal(bag, 'Command', echo);
+        assert.strictEqual(result?.source, 'clipboard');
+        assert.strictEqual(result?.prefill.blocks?.[0]?.code, 'echo hi');
         assert.strictEqual(bag.clipboard, 'echo hi');
     });
 
@@ -70,29 +72,29 @@ suite('captureTerminal', () => {
             onCopySelection: () => { copyCalled = true; },
         });
 
-        const result = await captureTerminal(bag, 'Command');
+        const result = await captureTerminal(bag, 'Command', echo);
         assert.strictEqual(copyCalled, false);
         assert.strictEqual(result?.source, 'clipboard');
     });
 
     test('nothing to capture → undefined', async () => {
         const bag = makeFakeBag({ clipboard: '', hasActiveTerminal: false });
-        assert.strictEqual(await captureTerminal(bag, 'Command'), undefined);
+        assert.strictEqual(await captureTerminal(bag, 'Command', echo), undefined);
     });
 
-    test('language is table-driven via getLanguageMode/getDefaultLanguage, not a type literal', async () => {
-        // Command: hidden-mode types are not this — language stays the
-        // buildCommandPrefill default ('').
-        assert.strictEqual(getLanguageMode('Command'), 'locked');
-        const cmdBag = makeFakeBag({ clipboard: 'git status', hasActiveTerminal: false });
-        const cmdResult = await captureTerminal(cmdBag, 'Command');
-        assert.strictEqual(cmdResult?.prefill.blocks?.[0]?.language, '');
+    test('sends exactly {source:terminal, type, text}', async () => {
+        const sent: unknown[] = [];
+        const bag = makeFakeBag({ clipboard: 'ls', hasActiveTerminal: false });
+        await captureTerminal(bag, 'AIPrompt', async p => { sent.push(p); return model('ls', 'markdown'); });
+        assert.deepStrictEqual(sent, [{ source: 'terminal', type: 'AIPrompt', text: 'ls' }]);
+    });
 
-        // AIPrompt: hidden mode — language comes from the table, not a literal.
-        assert.strictEqual(getLanguageMode('AIPrompt'), 'hidden');
-        const promptBag = makeFakeBag({ clipboard: 'Review <VK-repo>.', hasActiveTerminal: false });
-        const promptResult = await captureTerminal(promptBag, 'AIPrompt');
-        assert.strictEqual(promptResult?.prefill.blocks?.[0]?.language, getDefaultLanguage('AIPrompt'));
+    test('clipboard restored even when prefill fails (throws or refuses)', async () => {
+        const bag = makeFakeBag({ clipboard: 'user-had-this', hasActiveTerminal: true, onCopySelection: () => { bag.clipboard = 'sel'; } });
+        await assert.rejects(() => captureTerminal(bag, 'Command', async () => { throw new Error('engine down'); }), /engine down/);
+        assert.strictEqual(bag.clipboard, 'user-had-this');
+        assert.strictEqual(await captureTerminal(bag, 'Command', async () => undefined), undefined);
+        assert.strictEqual(bag.clipboard, 'user-had-this');
     });
 
     test('clipboard restored even when copySelection throws', async () => {
@@ -104,7 +106,7 @@ suite('captureTerminal', () => {
             hasActiveTerminal: () => true,
         };
 
-        await assert.rejects(() => captureTerminal(bag, 'Command'), /boom/);
+        await assert.rejects(() => captureTerminal(bag, 'Command', echo), /boom/);
         assert.strictEqual(bag.clipboard, 'user-had-this');
     });
 });

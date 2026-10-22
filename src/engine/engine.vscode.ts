@@ -153,13 +153,27 @@ export async function requestOrNotify<M extends EngineMethod>(method: M, params:
         return await getEngine().request(method, params);
     } catch (e) {
         if (!(e instanceof EngineRequestError)) { throw e; }
-        const { code } = e.data;
-        const base = engineErrorMessage(e.data);
-        const hint = code === 'client.not_found' || code === 'client.invalid_path';
-        const msg = hint ? vscode.l10n.t('{0} Install: {1}', base, installHint(process.platform)) : base;
-        const restart = vscode.l10n.t('Restart engine');
-        const pick = await showErrorSink(msg, ...(code === 'client.unavailable' ? [restart] : []));
-        if (pick === restart) { engine?.restart(); }
+        await notifyEngineError(e, engine);
         return undefined;
     }
+}
+
+/**
+ * Shows an engine error the W1 way: localised message, install hint for a missing binary, Restart when unavailable.
+ * Every caller that catches an `EngineRequestError` itself (the write path) reports through this, never its own toast.
+ *
+ * @param e      - The engine error.
+ * @param engine - The supervisor that was asked (Restart targets it); defaults to the current one.
+ * @returns Resolves once the user dismissed the message.
+ * @example
+ * try { await getEngine().request('artifact.update', p); } catch (e) { if (e instanceof EngineRequestError) { await notifyEngineError(e); } }
+ */
+export async function notifyEngineError(e: EngineRequestError, engine: EngineSupervisor | undefined = sup): Promise<void> {
+    const { code } = e.data;
+    const base = engineErrorMessage(e.data);
+    const hint = code === 'client.not_found' || code === 'client.invalid_path';
+    const msg = hint ? vscode.l10n.t('{0} Install: {1}', base, installHint(process.platform)) : base;
+    const restart = vscode.l10n.t('Restart engine');
+    const pick = await showErrorSink(msg, ...(code === 'client.unavailable' ? [restart] : []));
+    if (pick === restart) { engine?.restart(); }
 }

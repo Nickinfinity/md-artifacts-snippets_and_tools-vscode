@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { artifactToFormModel, unsupportedEditReason } from '../src/commands/create-prefill.helpers.js';
 import { parseFromContent } from '../src/services/parser.service.js';
 import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
+import type { Layout } from '../src/types/engine.types.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 /**
@@ -151,6 +152,10 @@ suite('edit mode — wiring', () => {
         path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactForm', 'panel.ts'),
         'utf8',
     );
+    const helperSource = fs.readFileSync(
+        path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactForm', 'panel.helpers.ts'),
+        'utf8',
+    );
     const previewSource = fs.readFileSync(
         path.join(__dirname, '..', '..', 'src', 'ui', 'panels', 'artifactPicker', 'preview.ts'),
         'utf8',
@@ -180,17 +185,12 @@ suite('edit mode — wiring', () => {
     });
 
     test('edit mode saves in place — no folder picker, no filename prompt', () => {
-        assert.ok(
-            panelSource.includes("this.opts.mode === 'edit' && this.opts.sourceUri"),
-            'save path does not branch on edit mode, so an edit would be saved as a new file',
-        );
-        const saveInPlaceAt = panelSource.indexOf('private async saveInPlace');
-        const pickDestAt    = panelSource.indexOf('await pickDestFolder');
-        assert.ok(saveInPlaceAt > 0, 'saveInPlace missing');
-        assert.ok(
-            panelSource.indexOf("mode === 'edit'") < pickDestAt,
-            'the edit branch must come before the destination picker',
-        );
+        // The engine half moved into `saveToEngine` (panel.helpers.ts); `saveInPlace` is gone with it.
+        const saveAt   = helperSource.indexOf('export async function saveToEngine');
+        const editAt   = helperSource.indexOf("opts.mode === 'edit'", saveAt);
+        const pickDestAt = helperSource.indexOf('io.pickDir(', saveAt);
+        assert.ok(saveAt > 0 && editAt > saveAt, 'save path does not branch on edit mode, so an edit would be saved as a new file');
+        assert.ok(pickDestAt > editAt, 'the edit branch must come before the destination picker');
     });
 });
 
@@ -213,11 +213,11 @@ suite('delete artifact', () => {
         'utf8',
     );
 
-    test('the delete goes to the trash, never a hard unlink', () => {
-        assert.ok(
-            helperSource.includes('useTrash: true'),
-            'artifact delete is unrecoverable — it must go to the OS trash',
-        );
+    test('the delete is an engine artifact.delete (permanent), never workspace.fs', () => {
+        // W3-b: the engine has no trash; the confirm text says so. Behaviour is in artifact-form-engine.test.ts.
+        assert.ok(helperSource.includes("'artifact.delete'"), 'the delete does not go through the engine');
+        assert.ok(!helperSource.includes('workspace.fs'), 'the delete still touches the workspace filesystem');
+        assert.ok(helperSource.includes('cannot be undone'), 'the confirm does not say the delete is permanent');
     });
 
     test('deletion is gated on a modal confirmation', () => {
@@ -229,14 +229,12 @@ suite('delete artifact', () => {
         );
         assert.ok(confirmSource.includes('modal: true'), 'the shared confirm helper is not modal');
         assert.ok(helperSource.includes('confirmModal('), 'delete does not route through the confirm helper');
-        // The confirm must be awaited *before* the delete call, not after.
-        const confirmAt = helperSource.indexOf('async function confirmDeleteFile');
-        const deleteAt  = helperSource.indexOf('async function deleteArtifactFile');
-        assert.ok(confirmAt > 0 && deleteAt > 0, 'delete helpers missing');
-        assert.ok(
-            panelSource.indexOf('confirmDeleteFile(sourceUri)') < panelSource.indexOf('deleteArtifactFile(sourceUri)'),
-            'the file is deleted before the user confirms',
-        );
+        // The confirm must be awaited *before* the engine delete, inside deleteWithConfirm.
+        const fnAt = helperSource.indexOf('export async function deleteWithConfirm');
+        assert.ok(fnAt > 0, 'deleteWithConfirm missing');
+        const confirmAt = helperSource.indexOf('confirmDeleteFile(', fnAt);
+        const deleteAt  = helperSource.indexOf("'artifact.delete'", fnAt);
+        assert.ok(confirmAt > fnAt && deleteAt > confirmAt, 'the file is deleted before the user confirms');
     });
 
     test('a cancelled confirmation deletes nothing and leaves the form open', () => {
@@ -244,9 +242,9 @@ suite('delete artifact', () => {
         // close the form even when the user pressed Cancel.
         const handlerAt = panelSource.indexOf('private async handleDeleteEntire');
         const handler   = panelSource.slice(handlerAt, handlerAt + 900);
-        assert.ok(handler.includes('if (!confirmed)'), 'no cancel branch in the delete handler');
+        assert.ok(handler.includes('if (!done)'), 'no cancel branch in the delete handler');
         assert.ok(
-            handler.indexOf('if (!confirmed)') < handler.indexOf('this.dispose()'),
+            handler.indexOf('if (!done)') < handler.indexOf('this.dispose()'),
             'the form disposes before the confirmation is checked',
         );
     });
@@ -273,10 +271,10 @@ suite('delete artifact', () => {
  */
 suite('edit mode — refuses what the form cannot round-trip', () => {
 
-    function parseMd(md: string) {
+    function parseMd(md: string, layout?: Layout) {
         const parsed = parseFromContent(md, '/v/AIPrompts/demo.md', '/v');
         assert.ok(parsed, 'fixture failed to parse');
-        return parsed;
+        return { ...parsed, relPath: 'AIPrompts/demo.md', hash: 'h', ...(layout ? { layout } : {}) };
     }
 
     test('a flagged artifact is refused, not silently reduced to a fence', () => {
@@ -295,8 +293,8 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
             '%%oa:end%%',
             '',
         ].join('\n');
-        const parsed = parseMd(md);
-        const reason = unsupportedEditReason(parsed, md);
+        const parsed = parseMd(md, { payload: 'flags' });
+        const reason = unsupportedEditReason(parsed);
         assert.ok(reason, 'a flagged artifact was accepted for editing');
         assert.match(reason, /flags/i);
     });
@@ -314,7 +312,7 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
             '```',
             '',
         ].join('\n');
-        const reason = unsupportedEditReason(parseMd(md), md);
+        const reason = unsupportedEditReason(parseMd(md));
         assert.ok(reason, 'an index artifact was accepted for editing');
         assert.match(reason, /index/i);
     });
@@ -337,7 +335,7 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
         // line, so the key now survives a form round trip. The refusal existed
         // only because it did not.
         assert.strictEqual(
-            unsupportedEditReason(parseMd(md), md),
+            unsupportedEditReason(parseMd(md)),
             undefined,
             'an env-carrying artifact is refused although the model now carries env'
         );
@@ -356,7 +354,7 @@ suite('edit mode — refuses what the form cannot round-trip', () => {
             '```',
             '',
         ].join('\n');
-        assert.strictEqual(unsupportedEditReason(parseMd(md), md), undefined);
+        assert.strictEqual(unsupportedEditReason(parseMd(md)), undefined);
     });
 });
 
@@ -370,11 +368,11 @@ suite('edit command — boundaries', () => {
     test('SEC: the path is contained to the vault before it is read', () => {
         // The command is callable by any extension, and the path it is given is
         // later written by save-in-place and trash-deleted by Delete Artifact.
-        assert.ok(commandSource.includes('isPathWithin('), 'no containment check on the edit path');
-        assert.ok(
-            commandSource.indexOf('isPathWithin(') < commandSource.indexOf('parseArtifactFile('),
-            'the file is read before containment is checked',
-        );
+        const guardAt = commandSource.indexOf('toVaultPath(');
+        const readAt  = commandSource.indexOf("'artifact.read'");
+        assert.ok(guardAt > 0, 'no containment check on the edit path');
+        assert.ok(readAt > 0, 'the edit command no longer reads through the engine');
+        assert.ok(guardAt < readAt, 'the file is read before containment is checked');
     });
 
     test('a non-create-form type is rejected with a message, not a thrown command', () => {

@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
-import { readFileSync } from 'node:fs';
-import { parseArtifactFile } from '../services/parser.service.js';
+import { requestOrNotify } from '../engine/engine.vscode.js';
+import { toParsedArtifactFile, toVaultPath } from '../engine/adapt.js';
 import { artifactToFormModel } from './create-prefill.helpers.js';
 import { openArtifactFormPanel } from '../ui/panels/artifactForm/panel.js';
 import { getVaultRootUri } from '../services/config.service.js';
-import { isPathWithin } from '../utils/path-containment.js';
 import { getCreateFormTypes } from '../services/artifact-type-config.service.js';
 import { unsupportedEditReason } from './create-prefill.helpers.js';
 
@@ -27,7 +26,7 @@ export const EDIT_ARTIFACT_COMMAND_ID = 'md-artifacts.editArtifact';
  * context.subscriptions.push(registerEditArtifactCommand(context));
  */
 export function registerEditArtifactCommand(context: vscode.ExtensionContext): vscode.Disposable {
-    return vscode.commands.registerCommand(EDIT_ARTIFACT_COMMAND_ID, (filePath: unknown) => {
+    return vscode.commands.registerCommand(EDIT_ARTIFACT_COMMAND_ID, async (filePath: unknown) => {
         if (typeof filePath !== 'string' || filePath.length === 0) {
             return;
         }
@@ -37,22 +36,19 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
             return;
         }
         // The path arrives from a registered command, so any extension can call
-        // this with any path. It is subsequently written by the form's
-        // save-in-place and trash-deleted by Delete Artifact, so containment is
-        // checked here, before the read — the same rule every other write in
-        // this repo routes through. Rejected, never sanitised.
-        if (!isPathWithin(vaultRoot.fsPath, filePath)) {
+        // this with any path. It is subsequently written and deleted by the form
+        // through the engine, so containment is checked here, before the read.
+        // `toVaultPath` answers `undefined` for outside-the-vault; rejected, never sanitised.
+        const rel = toVaultPath(filePath, vaultRoot.fsPath);
+        if (rel === undefined) {
             vscode.window.showErrorMessage(vscode.l10n.t('Refusing to edit a file outside the configured vault.'));
             return;
         }
 
-        // `parseArtifactFile` answers null for an unreadable or malformed file
-        // rather than throwing, so this is the only failure branch to handle.
-        const parsed = parseArtifactFile(filePath, vaultRoot.fsPath);
-        if (!parsed) {
-            vscode.window.showErrorMessage(vscode.l10n.t('Could not read artifact: {0}', filePath));
-            return;
-        }
+        // `requestOrNotify` toasts an engine failure and answers `undefined`.
+        const read = await requestOrNotify('artifact.read', { path: rel });
+        if (!read) { return; }
+        const parsed = toParsedArtifactFile(read, vaultRoot.fsPath);
         const prefill = artifactToFormModel(parsed);
         const type = prefill.artifactType;
         if (!type) {
@@ -67,7 +63,7 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
             return;
         }
         // Refuse rather than silently drop content the form cannot round-trip.
-        const blocked = unsupportedEditReason(parsed, readFileSync(filePath, 'utf-8'));
+        const blocked = unsupportedEditReason(parsed);
         if (blocked) {
             vscode.window.showWarningMessage(blocked);
             return;
@@ -77,6 +73,7 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
             type,
             prefill,
             sourceUri: vscode.Uri.file(filePath),
+            read:      parsed,
         });
     });
 }

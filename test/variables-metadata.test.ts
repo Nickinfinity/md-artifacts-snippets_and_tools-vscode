@@ -1,12 +1,10 @@
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
-import { handleAddVar } from '../src/commands/variables.command.js';
+import { useVarsEngine, VAULT } from './vars-engine.js';
 import { handleEditDescription, handleEditTags, parseTagList } from '../src/commands/variables-meta.command.js';
 import type { CommandIO } from '../src/commands/variables.command.helpers.js';
-import { parseFromContent, parseArtifactFile } from '../src/services/parser.service.js';
+import { parseFromContent } from '../src/services/parser.service.js';
 import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
 import { variablesFileToEditPayload, editPayloadToModel } from '../src/services/varset.service.js';
 import { validateSubSetDescriptions } from '../src/services/varset-form.service.js';
@@ -74,8 +72,8 @@ suite('Variables metadata — editor round trip', () => {
         let got: VarsEditPayload | undefined;
         const posted: Record<string, unknown>[] = [];
         const cb: VarSetFormCallbacks = {
-            validate: () => ({ ok: true }), write: async () => { /* create only */ },
-            post: m => { posted.push(m); }, close: () => { /* noop */ }, writeEdit: async p => { got = p; },
+            validate: () => ({ ok: true }), write: async () => true,
+            post: m => { posted.push(m); }, close: () => { /* noop */ }, writeEdit: async p => { got = p; return true; },
         };
         const wire = (descriptions: string[]) => ({ command: 'save', payload: {
             title: 't', description: '', tags: [], pairs: [[['VK-a', '1']], [['VK-a', '2']]], headings: ['A', 'B'], descriptions,
@@ -120,15 +118,8 @@ suite('Variables metadata — pane display and search', () => {
     });
 });
 
-suite('Variables metadata — pane editing keeps and changes it', () => {
-    function vault(content: string): { root: vscode.Uri; file: string; dir: string } {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vars-meta-'));
-        const dir = path.join(root, 'Variables');
-        fs.mkdirSync(dir);
-        const file = path.join(dir, 'x.md');
-        fs.writeFileSync(file, content, 'utf8');
-        return { root: vscode.Uri.file(root), file, dir };
-    }
+suite('Variables metadata — pane editing goes through the engine', () => {
+    const eng = useVarsEngine();
     function io(inputs: (string | undefined)[]): { io: CommandIO; errors: string[] } {
         const errors: string[] = [];
         return { errors, io: {
@@ -141,44 +132,41 @@ suite('Variables metadata — pane editing keeps and changes it', () => {
     const fileRow = (file: string): VariableNode => ({ id: file, parentId: null, kind: 'file', label: 'x', shape: 'sets' });
     const subsetRow = (file: string, i: number): VariableNode => ({ id: `${file}::subset:${i}`, parentId: file, kind: 'subset', label: 's' });
 
-    test('adding a variable keeps env, tags, the set description and every sub-set description', async () => {
-        const { root, file, dir } = vault(SOURCE.replace('tags: [', 'env: staging\ntags: ['));
-        await handleAddVar(subsetRow(file, 0), new VariablesViewProvider(), io(['extra', 'x']).io, root);
-        const after = parseArtifactFile(file, dir)!;
-        const before = parse(SOURCE);
-        assert.strictEqual(after.frontmatter.env, 'staging', 'env: was dropped');
-        assert.deepStrictEqual(after.frontmatter.tags, before.frontmatter.tags);
-        assert.strictEqual(after.frontmatter.description, before.frontmatter.description);
-        assert.deepStrictEqual(after.blocks.map(b => b.description), before.blocks.map(b => b.description));
+    test('Edit Description… on a sub-set row sends vars.subset.describe with the sub-set ref', async () => {
+        const file = eng().serve('Variables/x.md', SOURCE);
+        const heading = parse(SOURCE).blocks[1].heading;
+        await handleEditDescription(subsetRow(file, 1), new VariablesViewProvider(), io(['Catalogue by `category`.']).io, VAULT);
+        assert.deepStrictEqual(eng().calls('vars.subset.describe').map(c => c.params), [{
+            path: 'Variables/x.md', expectedHash: eng().hashOf(SOURCE),
+            subset: { index: 1, heading }, description: 'Catalogue by `category`.',
+        }]);
     });
 
-    test('Edit Description… on a sub-set row changes only that sub-set\'s prose', async () => {
-        const { root, file, dir } = vault(SOURCE);
-        await handleEditDescription(subsetRow(file, 1), new VariablesViewProvider(), io(['Catalogue by `category`.']).io, root);
-        const blocks = parseArtifactFile(file, dir)!.blocks;
-        assert.strictEqual(blocks[1].description, 'Catalogue by `category`.');
-        assert.strictEqual(blocks[0].description, parse(SOURCE).blocks[0].description);
+    test('Edit Description… on a file row sends artifact.patch description', async () => {
+        const file = eng().serve('Variables/x.md', SOURCE);
+        eng().fake.on('artifact.patch', p => ({ result: { path: (p as { path: string }).path, hash: 'after' } }));
+        await handleEditDescription(fileRow(file), new VariablesViewProvider(), io(['Short.']).io, VAULT);
+        assert.deepStrictEqual(eng().calls('artifact.patch').map(c => c.params), [{
+            path: 'Variables/x.md', expectedHash: eng().hashOf(SOURCE), edit: { field: 'description', value: 'Short.' },
+        }]);
     });
 
-    test('Edit Description… on a file row changes the frontmatter description', async () => {
-        const { root, file, dir } = vault(SOURCE);
-        await handleEditDescription(fileRow(file), new VariablesViewProvider(), io(['Short.']).io, root);
-        assert.strictEqual(parseArtifactFile(file, dir)!.frontmatter.description, 'Short.');
-    });
-
-    test('a multi-line sub-set description is refused in the pane, file untouched', async () => {
-        const { root, file } = vault(SOURCE.replace('works for filter', 'works for\nfilter'));
-        const before = fs.readFileSync(file, 'utf8');
+    test('a multi-line sub-set description is refused in the pane, zero write requests', async () => {
+        const src = SOURCE.replace('works for filter', 'works for\nfilter');
+        const file = eng().serve('Variables/x.md', src);
         const { io: bag, errors } = io(['flattened']);
-        await handleEditDescription(subsetRow(file, 0), new VariablesViewProvider(), bag, root);
-        assert.strictEqual(fs.readFileSync(file, 'utf8'), before);
+        await handleEditDescription(subsetRow(file, 0), new VariablesViewProvider(), bag, VAULT);
         assert.strictEqual(errors.length, 1);
+        assert.strictEqual(eng().calls('vars.subset.describe').length, 0);
+        assert.strictEqual(eng().calls('artifact.patch').length, 0);
     });
 
-    test('Edit Tags… replaces the tag list', async () => {
-        const { root, file, dir } = vault(SOURCE);
-        await handleEditTags(fileRow(file), new VariablesViewProvider(), io(['#js, arrays  arrays']).io, root);
-        assert.deepStrictEqual(parseArtifactFile(file, dir)!.frontmatter.tags, ['js', 'arrays']);
+    test('Edit Tags… parses the input and sends vars.meta.tags', async () => {
+        const file = eng().serve('Variables/x.md', SOURCE);
+        await handleEditTags(fileRow(file), new VariablesViewProvider(), io(['#js, arrays  arrays']).io, VAULT);
+        assert.deepStrictEqual(eng().calls('vars.meta.tags').map(c => c.params), [{
+            path: 'Variables/x.md', expectedHash: eng().hashOf(SOURCE), tags: ['js', 'arrays'],
+        }]);
     });
 
     test('parseTagList: commas or spaces, leading # dropped, de-duplicated', () => {

@@ -106,7 +106,7 @@ suite('handleVarSetFormMessage — callback-bag contract', () => {
         const calls = { write: [] as unknown[], post: [] as unknown[], closed: false };
         const bag: VarSetFormCallbacks = {
             validate: () => ({ ok: true }),
-            write: async (p) => { calls.write.push(p); },
+            write: async (p) => { calls.write.push(p); return true; },
             post: (msg) => { calls.post.push(msg); },
             close: () => { calls.closed = true; },
             ...overrides,

@@ -1,12 +1,11 @@
 import * as vscode from 'vscode';
 import { getVaultRootUri } from '../services/config.service.js';
-import { setSubSetDescription } from '../services/variables-crud.service.js';
+import { sendWrite } from '../services/conflict.service.js';
 import { validateSubSetDescriptions } from '../services/varset-form.service.js';
 import {
     EDIT_DESCRIPTION_COMMAND_ID, EDIT_TAGS_COMMAND_ID,
-    resolveTarget, commitWrite, errMessage, defaultIO, type CommandIO, type ResolvedTarget,
+    resolveTarget, sendVarsEdit, defaultIO, type CommandIO, type ResolvedTarget,
 } from './variables.command.helpers.js';
-import type { ArtifactFormModel } from '../types/artifact-form.types.js';
 import type { VariableNode, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
 
 /**
@@ -24,26 +23,6 @@ import type { VariableNode, VariablesViewProvider } from '../ui/views/variablesV
 export function parseTagList(text: string): string[] {
     const tags = text.split(/[,\s]+/).map(t => t.replace(/^#+/, '').trim()).filter(Boolean);
     return [...new Set(tags)];
-}
-
-/**
- * Writes `model` when it differs from the target's; a no-op otherwise.
- *
- * @param target   - Resolved file.
- * @param model    - The edited model.
- * @param provider - Tree provider to refresh on success.
- * @param io       - Interaction bag.
- * @returns Resolves once written or refused (toast shown).
- *
- * @example
- * await write(target, { ...target.model, tags: ['api'] }, provider, io);
- */
-async function write(target: ResolvedTarget, model: ArtifactFormModel, provider: VariablesViewProvider, io: CommandIO): Promise<void> {
-    try {
-        await commitWrite(target.vaultRoot, target.filePath, model, provider, io);
-    } catch (err) {
-        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
-    }
 }
 
 /**
@@ -101,22 +80,21 @@ export async function handleEditDescription(
     if (!isSubSet) {
         const text = await promptDescription(io, target.model.description);
         if (text === undefined) { return; }
-        await write(target, { ...target.model, description: text }, provider, io);
+        const done = await sendWrite('artifact.patch', {
+            path: target.relPath, expectedHash: target.hash, edit: { field: 'description', value: text },
+        }, { onReload: () => provider.refresh() });
+        if (done !== undefined) { provider.refresh(); }
         return;
     }
 
     const block = target.model.blocks[target.subIdx ?? -1];
-    if (!block) {
+    if (!block || !target.subset) {
         io.showError(vscode.l10n.t('MD Artifacts: sub-set not found — refresh the tree and retry.'));
         return;
     }
     const text = await promptDescription(io, block.description);
     if (text === undefined) { return; }
-    try {
-        await write(target, setSubSetDescription(target.model, target.subIdx ?? -1, text), provider, io);
-    } catch (err) {
-        io.showError(vscode.l10n.t('MD Artifacts: {0}', errMessage(err)));
-    }
+    await sendVarsEdit(target, 'vars.subset.describe', { subset: target.subset, description: text }, provider);
 }
 
 /**
@@ -147,7 +125,7 @@ export async function handleEditTags(
     if (text === undefined) { return; }
     const tags = parseTagList(text);
     if (tags.join('\n') === target.model.tags.join('\n')) { return; }
-    await write(target, { ...target.model, tags }, provider, io);
+    await sendVarsEdit(target, 'vars.meta.tags', { tags }, provider);
 }
 
 /**

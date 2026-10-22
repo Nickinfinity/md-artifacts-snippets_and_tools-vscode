@@ -75,11 +75,11 @@ export class PreviewPanelController {
             onCodeStaged:        code => { this.staged.stageCode(code); },
         });
         this.staged = new StagedEdit({
-            rootFs:             cb.rootFs,
             blockEdit:          this.blockEdit,
             getCurrentArtifact: () => this.currentArtifact,
             getBlockRef:        () => this.currentBlockRef,
             setCache:           cb.setCache,
+            setCurrentArtifact: a => { this.currentArtifact = a; },
             postMessage:        msg => { this.postToWebview(msg); },
         });
         this.actions = new PreviewActions({
@@ -90,6 +90,7 @@ export class PreviewPanelController {
             batch:              this.batch,
             getCurrentArtifact: () => this.currentArtifact,
             setCurrentArtifact: a => { this.currentArtifact = a; },
+            getBlockRef:        () => this.currentBlockRef,
             getModeController:  () => this.modeController,
             setCache:           cb.setCache,
             post:               msg => { cb.host.post(msg); },
@@ -345,7 +346,6 @@ export class PreviewPanelController {
         else if (cmd === 'quickEdit')     { this.modeController?.enterQuickEdit(); }
         else if (cmd === 'backToPreview') { this.modeController?.enterPreview(); }
         else if (cmd === 'fullEdit')      { this.handleFullEdit(); }
-        else if (cmd === 'saveSection')   { await this.actions.handleSaveSection(msg); }
         else if (cmd === 'insert')        { this.actions.handleInsert(msg); }
         else if (cmd === 'copy')          { this.actions.handleCopy(msg); }
         else if (cmd === 'editBlock')     { await this.staged.handleEditBlock(); }

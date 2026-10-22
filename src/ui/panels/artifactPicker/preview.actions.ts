@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { parseFromContent, resolveVars } from '../../../services/parser.service.js';
 import { writesWholeFile } from '../../../services/artifact-type-config.service.js';
-import { patchFrontmatterField, patchVarDefaults } from '../../../services/artifact-patcher.service.js';
-import type { PreviewModeController, SectionKey } from '../../../services/preview-mode.service.js';
+import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { PreviewModeController } from '../../../services/preview-mode.service.js';
 import { isIndexArtifact } from '../../../services/multi-index.service.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { performInsert, type InvocationSurface } from './preview.helpers.js';
@@ -20,6 +20,7 @@ export interface PreviewActionsCallbacks {
     batch: BatchGate;
     getCurrentArtifact: () => ParsedArtifactFile | undefined;
     setCurrentArtifact: (a: ParsedArtifactFile) => void;
+    getBlockRef: () => BlockRef;
     getModeController: () => PreviewModeController | undefined;
     setCache: (uri: vscode.Uri, parsed: ParsedArtifactFile) => void;
     post: (msg: HostMessage) => void;
@@ -29,10 +30,10 @@ export interface PreviewActionsCallbacks {
 }
 
 /**
- * The preview's user actions: save a section, Insert, Copy, Create File.
+ * The preview's user actions: Insert, Copy, Create File.
  *
  * @example
- * await new PreviewActions(bag).handleSaveSection({ section: 'title', value: 'x' });
+ * new PreviewActions(bag).handleCopy({ code: 'x', vars: {} });
  */
 export class PreviewActions {
     /**
@@ -42,42 +43,6 @@ export class PreviewActions {
      * new PreviewActions(bag);
      */
     constructor(private readonly cb: PreviewActionsCallbacks) {}
-
-    /**
-     * Patches one frontmatter field (or the var defaults) into the `.md`.
-     *
-     * @param msg - Webview message carrying `section` and `value`.
-     * @returns Resolves once written and acknowledged.
-     *
-     * @example
-     * await actions.handleSaveSection({ section: 'title', value: 'x' });
-     */
-    async handleSaveSection(msg: Record<string, unknown>): Promise<void> {
-        const artifact = this.cb.getCurrentArtifact();
-        if (!artifact) { return; }
-        const fileUri = vscode.Uri.file(artifact.filePath);
-        const section = msg.section as string;
-        try {
-            const bytes = await vscode.workspace.fs.readFile(fileUri);
-            let content = new TextDecoder().decode(bytes);
-            if (section === 'varDefaults') {
-                content = patchVarDefaults(content, msg.value as Record<string, string>);
-            } else {
-                content = patchFrontmatterField(content, section, msg.value as string);
-            }
-            await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(content));
-            const updated = parseFromContent(content, fileUri.fsPath, this.cb.rootFs);
-            this.cb.setCache(fileUri, updated);
-            this.cb.setCurrentArtifact(updated);
-            this.cb.getModeController()?.stopEditingSection(section as SectionKey);
-            // sectionSaved before fileUpdated so the webview exits edit mode first,
-            // then fileUpdated can safely update all non-editing sections.
-            this.cb.post({ command: 'sectionSaved', section, success: true });
-            this.cb.post({ command: 'fileUpdated', artifact: updated });
-        } catch {
-            this.cb.post({ command: 'sectionSaved', section, success: false });
-        }
-    }
 
     handleInsert(msg: Record<string, unknown>): void {
         const artifact = this.cb.getCurrentArtifact();
@@ -130,6 +95,7 @@ export class PreviewActions {
         const result = await runCreateFileFlow({
             artifact, code, vars, destDir: this.cb.batch.destDir,
             destUri: this.cb.destUri, openAfterWrite: !this.cb.batch.isArmed,
+            blockRef: this.cb.getBlockRef(),
         });
         if (this.cb.batch.isArmed) { this.cb.batch.settle(toBatchOutcome(result, vars)); return; }
         if (result.kind === 'written') { this.cb.dispose(); this.cb.closePicker(); }

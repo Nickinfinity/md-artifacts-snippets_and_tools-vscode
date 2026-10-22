@@ -1,96 +1,94 @@
 import * as assert from 'node:assert';
-import { captureExplorerFile, fileNameForType } from '../src/commands/capture/explorer.capture.js';
+import * as fs from 'node:fs';
+import { captureExplorerFile } from '../src/commands/capture/explorer.capture.js';
+import type { PrefillFn } from '../src/commands/capture/editor.capture.js';
+import { createFakeEngine, loadOpCases } from './fake-engine.js';
+import { requestOrNotify, startEngine } from '../src/engine/engine.vscode.js';
+import type { EngineModel } from '../src/types/engine.types.js';
 
 /**
- * Unit tests for `captureExplorerFile` / `fileNameForType` (VSX-212, T10).
- *
- * 🔒 Security-critical: a workspace file name — authored by whoever owns the
- * workspace, not this extension — becomes vault frontmatter (`target:` /
- * `extension:`) and, downstream, an actual filename on disk. Every hostile
- * shape must be *rejected* (`undefined`), never trimmed into an accepted one.
+ * 🔒 A workspace file name becomes `target:` / `extension:` and, downstream, a file on disk. The engine
+ * rejects hostile names (op cases `file_injection`, `file_subpath`: `naming.path_injection`); the capture
+ * must send them untrimmed and return `undefined` on refusal. Removed with the TS validator
+ * (`fileNameForType`), now engine-held: ../ traversal, absolute, sub/b.ts, drive-letter, NUL, control char,
+ * `./x`, `x/` -> `file_injection` + `file_subpath`.
  */
 
-suite('fileNameForType', () => {
-    test('plain basename is accepted unchanged', () => {
-        assert.strictEqual(fileNameForType('CLAUDE.md', 'AIAgentsConfig'), 'CLAUDE.md');
-    });
-
-    test('rejects a ../ traversal', () => {
-        assert.strictEqual(fileNameForType('../../etc/passwd', 'AIAgentsConfig'), undefined);
-    });
-
-    test('rejects an absolute path', () => {
-        assert.strictEqual(fileNameForType('/etc/passwd', 'AIAgentsConfig'), undefined);
-    });
-
-    test('rejects a clean relative path with a separator (safeRelPath-clean, not a basename)', () => {
-        assert.strictEqual(fileNameForType('sub/b.ts', 'Template'), undefined);
-    });
-
-    test('rejects a Windows backslash/drive-letter form', () => {
-        assert.strictEqual(fileNameForType('C:\\Windows\\System32\\evil.txt', 'AIAgentsConfig'), undefined);
-    });
-
-    test('rejects a NUL character', () => {
-        assert.strictEqual(fileNameForType('evil\x00.txt', 'AIAgentsConfig'), undefined);
-    });
-
-    test('rejects a control character', () => {
-        assert.strictEqual(fileNameForType('evil\x01name.txt', 'Template'), undefined);
-    });
-
-    test('rejects a leading-./-normalised name (safeRelPath strips "./" — raw is not a plain basename)', () => {
-        assert.strictEqual(fileNameForType('./CLAUDE.md', 'AIAgentsConfig'), undefined);
-    });
-
-    test('rejects a trailing-slash name (safeRelPath strips it — raw is not a plain basename)', () => {
-        assert.strictEqual(fileNameForType('CLAUDE.md/', 'Template'), undefined);
-    });
-});
+const reply = (name: string): EngineModel =>
+    loadOpCases().find(c => c.method === 'artifact.prefill' && c.name === name)!.expect as EngineModel;
 
 suite('captureExplorerFile', () => {
-    test('AIAgentsConfig: builds target from a verbatim basename via buildFilePrefill', () => {
-        const result = captureExplorerFile(
-            { fileName: 'CLAUDE.md', contents: '# hi', languageId: 'markdown' },
-            'AIAgentsConfig',
+    const handles: { dispose(): void }[] = [];
+    teardown(() => handles.splice(0).forEach(h => h.dispose()));
+
+    test('AIAgentsConfig: sends the verbatim name; target comes from the reply', async () => {
+        const sent: unknown[] = [];
+        const result = await captureExplorerFile(
+            { fileName: 'CLAUDE.md', contents: 'rules', languageId: 'markdown' }, 'AIAgentsConfig',
+            async p => { sent.push(p); return reply('file_agent'); },
         );
+        assert.deepStrictEqual(sent, [{ source: 'file', type: 'AIAgentsConfig', text: 'rules', languageId: 'markdown', fileName: 'CLAUDE.md' }]);
         assert.strictEqual(result?.source, 'file');
         assert.strictEqual(result?.prefill.target, 'CLAUDE.md');
-        assert.deepStrictEqual(result?.prefill.blocks?.[0], {
-            heading: '', description: '', language: 'markdown', code: '# hi', vars: [],
-        });
     });
 
-    test('Template: builds extension from the file extension via buildFilePrefill', () => {
-        const result = captureExplorerFile(
-            { fileName: 'Button.tsx', contents: 'const x = 1;', languageId: 'typescriptreact' },
-            'Template',
+    test('Template: extension comes from the reply', async () => {
+        const result = await captureExplorerFile(
+            { fileName: 'Button.tsx', contents: 'x', languageId: 'typescriptreact' }, 'Template',
+            async () => reply('file_template'),
         );
-        assert.strictEqual(result?.source, 'file');
         assert.strictEqual(result?.prefill.extension, 'tsx');
         assert.strictEqual(result?.prefill.blocks?.[0]?.language, 'tsx');
     });
 
-    test('rejects a hostile fileName before it ever reaches buildFilePrefill (never trimmed to "passwd")', () => {
-        const result = captureExplorerFile(
-            { fileName: '../../etc/passwd', contents: 'x', languageId: 'plaintext' },
-            'AIAgentsConfig',
+    test('hostile name: engine answers naming.path_injection -> undefined, one toast, name sent untrimmed', async () => {
+        const fake = createFakeEngine();
+        fake.on('artifact.prefill', () => ({ error: { code: 'naming.path_injection', params: { field: 'fileName' } } }));
+        const toasts: string[] = [];
+        handles.push(startEngine({ spawn: () => fake, enginePath: process.execPath, showError: async m => { toasts.push(m); return undefined; } }));
+        const result = await captureExplorerFile(
+            { fileName: '../../etc/passwd', contents: 'x', languageId: 'plaintext' }, 'AIAgentsConfig',
+            p => requestOrNotify('artifact.prefill', p),
         );
         assert.strictEqual(result, undefined);
+        assert.strictEqual(toasts.length, 1);
+        const sent = fake.received.filter(r => r.method === 'artifact.prefill');
+        assert.strictEqual(sent.length, 1);
+        assert.strictEqual((sent[0]!.params as { fileName: string }).fileName, '../../etc/passwd');
     });
 
-    test('rejects an oversized file (> 512 KiB)', () => {
-        const result = captureExplorerFile(
-            { fileName: 'CLAUDE.md', contents: 'a'.repeat(512 * 1024 + 1), languageId: 'markdown' },
-            'AIAgentsConfig',
+    test('captureExplorerUri no longer toasts a second "cannot be used as an artifact filename" and awaits the capture', () => {
+        const src = fs.readFileSync(`${__dirname}/../../src/commands/create-from-surface.command.ts`, 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        assert.ok(!src.includes('cannot be used as an artifact filename'));
+        assert.ok(!/const captured\s*=\s*captureExplorerFile/.test(src));
+    });
+
+    // H3.0f (W3): only a refused EXPLORER capture skips the form — an empty selection or terminal
+    // still opens an empty form (HEAD behaviour), never a silent dead click.
+    test('a refused explorer capture opens no form; editor/terminal still open one', () => {
+        const src = fs.readFileSync(`${__dirname}/../../src/commands/create-from-surface.command.ts`, 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        const open = src.indexOf("openArtifactFormPanel(context, { mode: 'create'");
+        const guard = src.indexOf("if (!result && surface === 'explorer')");
+        assert.ok(open > 0 && guard > 0 && guard < open, "if (!result && surface === 'explorer') { return; } must precede openArtifactFormPanel");
+        assert.ok(!/if \(!result\)\s*\{\s*return;\s*\}/.test(src), 'an unscoped guard silences empty editor/terminal captures');
+    });
+
+    test('rejects an oversized file (> 512 KiB) with no request', async () => {
+        let sent = 0;
+        const result = await captureExplorerFile(
+            { fileName: 'CLAUDE.md', contents: 'a'.repeat(512 * 1024 + 1), languageId: 'markdown' }, 'AIAgentsConfig',
+            async () => { sent++; return reply('file_agent'); },
         );
         assert.strictEqual(result, undefined);
+        assert.strictEqual(sent, 0);
     });
 
-    test('accepts a file at exactly the 512 KiB boundary', () => {
-        const result = captureExplorerFile(
-            { fileName: 'CLAUDE.md', contents: 'a'.repeat(512 * 1024), languageId: 'markdown' },
-            'AIAgentsConfig',
+    test('accepts a file at exactly the 512 KiB boundary', async () => {
+        const result = await captureExplorerFile(
+            { fileName: 'CLAUDE.md', contents: 'a'.repeat(512 * 1024), languageId: 'markdown' }, 'AIAgentsConfig',
+            async () => reply('file_agent'),
         );
         assert.strictEqual(result?.source, 'file');
     });

@@ -1,7 +1,7 @@
-import { buildCommandPrefill } from '../create-prefill.helpers.js';
-import { getDefaultLanguage, getLanguageMode } from '../../services/artifact-type-config.service.js';
+import { fromEngineModel } from '../../engine/model.js';
+import type { PrefillFn } from './editor.capture.js';
 import type { ArtifactType } from '../../types/parsed-artifact.types.js';
-import type { ArtifactFormModel, CaptureResult } from '../../types/artifact-form.types.js';
+import type { CaptureResult } from '../../types/artifact-form.types.js';
 
 /**
  * Everything `captureTerminal` needs from the outside world, injected so the
@@ -28,34 +28,6 @@ export interface TerminalCaptureBag {
 }
 
 /**
- * Builds the prefill block for captured terminal text via
- * `buildCommandPrefill` (empty-language block), then — same shape as T7's
- * `captureEditor` — overrides the language with `getDefaultLanguage(type)`
- * when the type's form config is `hidden` mode (e.g. `AIPrompt`, whose
- * language is fixed to `markdown` in `ARTIFACTS`, never picked). The mode is
- * always read through `getLanguageMode`/`getDefaultLanguage` — never a
- * `type === 'AIPrompt'` literal — so a future hidden-mode type needs no
- * change here. The override is non-mutating: a fresh block object into a
- * fresh `blocks` array, `buildCommandPrefill`'s return is never edited in place.
- *
- * @param type - Target artifact type.
- * @param text - Captured text.
- * @returns Partial model with a single prefilled block.
- */
-function buildPrefill(type: ArtifactType, text: string): Partial<ArtifactFormModel> {
-    const prefill = buildCommandPrefill(text);
-
-    if (getLanguageMode(type) === 'hidden') {
-        const [block] = prefill.blocks ?? [];
-        if (block) {
-            prefill.blocks = [{ ...block, language: getDefaultLanguage(type) }];
-        }
-    }
-
-    return prefill;
-}
-
-/**
  * Captures terminal text for the create-form: tries a terminal selection
  * first (via a copy-to-clipboard round trip, since VS Code exposes no direct
  * selection read), falls back to whatever the clipboard already held, and
@@ -69,16 +41,18 @@ function buildPrefill(type: ArtifactType, text: string): Partial<ArtifactFormMod
  * every path, including a throw from `copySelection`/`readClipboard`.
  *
  * @param bag  - Injected I/O, see `TerminalCaptureBag`.
- * @param type - Target artifact type; only `AIPrompt` changes the prefilled language.
+ * @param type - Target artifact type.
+ * @param prefill - Injected engine call (language rules live in the engine).
  * @returns The capture result, or `undefined` when there was nothing to capture.
  *
  * @example
- * const result = await captureTerminal(realBag, 'Command');
+ * const result = await captureTerminal(realBag, 'Command', prefill);
  * // result?.source === 'selection' | 'clipboard' | undefined
  */
 export async function captureTerminal(
     bag: TerminalCaptureBag,
     type: ArtifactType,
+    prefill: PrefillFn,
 ): Promise<CaptureResult | undefined> {
     const saved = await bag.readClipboard();
 
@@ -99,7 +73,8 @@ export async function captureTerminal(
             return undefined;
         }
 
-        return { prefill: buildPrefill(type, text), source };
+        const m = await prefill({ source: 'terminal', type, text });
+        return m && { prefill: fromEngineModel(m), source };
     } finally {
         await bag.writeClipboard(saved);
     }

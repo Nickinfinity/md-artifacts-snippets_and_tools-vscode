@@ -2,9 +2,9 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-// ponytail: tenth copy of the comment stripper in test/ (precedent l10n-ui.test.ts:21); a shared
-// test helper is the upgrade if an eleventh appears.
-const stripComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+// ponytail: tenth copy of the comment stripper in test/ (precedent l10n-ui.test.ts:21); exported so
+// write-path-guard.test.ts (W3/H3.2) reuses it instead of becoming the eleventh.
+export const stripComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 
 /** The W2 read-path files — each now reads the vault only through the engine. */
 const READ_PATH_FILES = [

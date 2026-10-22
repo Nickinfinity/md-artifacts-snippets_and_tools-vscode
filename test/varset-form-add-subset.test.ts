@@ -21,10 +21,10 @@ const headingless: VarsEditPayload = { ...base, subSets: [{ heading: '', pairs: 
 function bag(onWrite: (p: VarsEditPayload) => void, posted: Record<string, unknown>[] = []): VarSetFormCallbacks {
     return {
         validate: () => ({ ok: true }),
-        write: async () => { /* create only */ },
+        write: async () => true,
         post: (m) => { posted.push(m); },
         close: () => { /* noop */ },
-        writeEdit: async (p) => { onWrite(p); },
+        writeEdit: async (p) => { onWrite(p); return true; },
     };
 }
 

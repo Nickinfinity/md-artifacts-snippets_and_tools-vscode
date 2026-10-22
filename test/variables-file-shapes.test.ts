@@ -11,6 +11,7 @@ import { getVarsFileShape } from '../src/services/varset.service.js';
 import { parseArtifactFile } from '../src/services/parser.service.js';
 import { VariablesViewProvider, buildVariableNodes, type VariableNode } from '../src/ui/views/variablesView.provider.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
+import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
  * The three Variables file shapes — blank, flat (one untitled block), sets
@@ -75,45 +76,44 @@ suite('Variables file shapes — classification and pane rows', () => {
     });
 });
 
-suite('Variables file shapes — transitions from the pane', () => {
-    test('blank → flat: Add… → Variable writes an untitled block', async () => {
-        const { root, file, dir } = vaultWith(HEADER);
+suite('Variables file shapes — transitions from the pane (requests; the shape change itself is the engine\'s)', () => {
+    let eng: VarsEngine;
+    setup(() => { eng = startVarsEngine(); });
+    teardown(() => eng.dispose());
+    const sent = (m: string): unknown[] => eng.calls(m).map(c => c.params);
+
+    test('blank → flat: Add… → Variable sends vars.var.add with no subset', async () => {
+        const file = eng.serve('Variables/local.md', HEADER);
         const { io: bag, errors } = io(['host', 'localhost'], 0);
-        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), bag, root);
+        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), bag, VAULT);
         assert.deepStrictEqual(errors, []);
-        const text = fs.readFileSync(file, 'utf8');
-        assert.ok(!text.includes('## '), `a one-block file gained a heading:\n${text}`);
-        assert.deepStrictEqual(rows(file, dir), [['file', 'Local Dev'], ['var', 'VK-host = localhost']]);
+        assert.deepStrictEqual(sent('vars.var.add'), [{ path: 'Variables/local.md', expectedHash: eng.hashOf(HEADER), name: 'VK-host', value: 'localhost' }]);
     });
 
-    test('blank → sets: Add… → Sub-set creates a titled sub-set, name pre-filled with the set title', async () => {
-        const { root, file, dir } = vaultWith(HEADER);
+    test('blank → sets: Add… → Sub-set sends vars.subset.add, name pre-filled with the set title', async () => {
+        const file = eng.serve('Variables/local.md', HEADER);
         const { io: bag, errors } = io(['Local Dev'], 1);
-        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), bag, root);
+        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), bag, VAULT);
         assert.deepStrictEqual(errors, []);
-        assert.deepStrictEqual(rows(file, dir), [['file', 'Local Dev'], ['subset', 'Local Dev']]);
+        assert.deepStrictEqual(sent('vars.subset.add'), [{ path: 'Variables/local.md', expectedHash: eng.hashOf(HEADER), heading: 'Local Dev' }]);
     });
 
-    test('blank: cancelling the Add… pick writes nothing', async () => {
-        const { root, file } = vaultWith(HEADER);
-        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), io([]).io, root);
-        assert.strictEqual(fs.readFileSync(file, 'utf8'), HEADER);
+    test('blank: cancelling the Add… pick sends nothing', async () => {
+        const file = eng.serve('Variables/local.md', HEADER);
+        await handleAddToBlank(fileNode(file, 'blank'), new VariablesViewProvider(), io([]).io, VAULT);
+        assert.strictEqual(eng.fake.received.filter(r => r.method.startsWith('vars.')).length, 0);
     });
 
-    test('flat stays flat: adding a variable from the file row writes no heading', async () => {
-        // The bug this redesign started from: the set title leaked in as `## Local Dev`.
-        const { root, file, dir } = vaultWith(FLAT);
-        await handleAddVar(fileNode(file, 'flat'), new VariablesViewProvider(), io(['port', '80']).io, root);
-        assert.ok(!fs.readFileSync(file, 'utf8').includes('## '));
-        assert.deepStrictEqual(rows(file, dir).map(r => r[0]), ['file', 'var', 'var']);
+    test('flat stays flat: adding a variable from the file row sends no subset (the engine writes no heading)', async () => {
+        const file = eng.serve('Variables/local.md', FLAT);
+        await handleAddVar(fileNode(file, 'flat'), new VariablesViewProvider(), io(['port', '80']).io, VAULT);
+        assert.deepStrictEqual(sent('vars.var.add'), [{ path: 'Variables/local.md', expectedHash: eng.hashOf(FLAT), name: 'VK-port', value: '80' }]);
     });
 
-    test('flat → sets: New sub-set names the untitled block "Default" and lists both', async () => {
-        const { root, file, dir } = vaultWith(FLAT);
-        await handleNewSubSet(fileNode(file, 'flat'), new VariablesViewProvider(), io(['Prod']).io, root);
-        assert.deepStrictEqual(rows(file, dir), [
-            ['file', 'Local Dev'], ['subset', DEFAULT_SUBSET_NAME], ['var', 'VK-host = localhost'], ['subset', 'Prod'],
-        ]);
+    test('flat → sets: New sub-set sends only the heading; the engine names the untitled block "Default" (vars.subset.add/flat_default)', async () => {
+        const file = eng.serve('Variables/local.md', FLAT);
+        await handleNewSubSet(fileNode(file, 'flat'), new VariablesViewProvider(), io(['Prod']).io, VAULT);
+        assert.deepStrictEqual(sent('vars.subset.add'), [{ path: 'Variables/local.md', expectedHash: eng.hashOf(FLAT), heading: 'Prod' }]);
     });
 });
 

@@ -7,9 +7,13 @@ import { openArtifactFormPanel } from '../ui/panels/artifactForm/panel.js';
 import type { ArtifactContext } from '../types/artifact.types.js';
 import type { ArtifactType } from '../types/parsed-artifact.types.js';
 import type { CaptureResult } from '../types/artifact-form.types.js';
-import { captureEditor } from './capture/editor.capture.js';
+import { requestOrNotify } from '../engine/engine.vscode.js';
+import { captureEditor, type PrefillFn } from './capture/editor.capture.js';
 import { captureTerminal } from './capture/terminal.capture.js';
 import { captureExplorerFile } from './capture/explorer.capture.js';
+
+/** Engine prefill as a user action (toasts on error). */
+const prefill: PrefillFn = p => requestOrNotify('artifact.prefill', p);
 
 /** Byte ceiling for an Explorer capture — refused before the file is read. */
 const MAX_CAPTURE_BYTES = 512 * 1024;
@@ -233,6 +237,10 @@ async function runCapture(
         );
     }
 
+    // A refused explorer capture was already reported (engine toast or size check): no empty form.
+    // An empty selection or terminal still opens one, as before — never a silent dead click (H3.0f).
+    if (!result && surface === 'explorer') { return; }
+
     openArtifactFormPanel(context, { mode: 'create', type, prefill: result?.prefill });
 }
 
@@ -258,6 +266,7 @@ async function resolveCapture(
         return captureEditor(
             { text: editor.document.getText(editor.selection), languageId: editor.document.languageId },
             type,
+            prefill,
         );
     }
 
@@ -269,7 +278,7 @@ async function resolveCapture(
             // selection into the clipboard, which the capture then restores.
             copySelection:    async () => { await vscode.commands.executeCommand('workbench.action.terminal.copySelection'); },
             hasActiveTerminal: () => vscode.window.activeTerminal !== undefined,
-        }, type);
+        }, type, prefill);
     }
 
     if (surface === 'explorer') {
@@ -315,15 +324,10 @@ async function captureExplorerUri(
     }
 
     const doc = await vscode.workspace.openTextDocument(uri);
-    const captured = captureExplorerFile(
+    // Hostile name: the engine rejects (naming.path_injection) and toasts once; no second toast here.
+    return captureExplorerFile(
         { fileName: path.basename(uri.fsPath), contents: doc.getText(), languageId: doc.languageId },
         type,
+        prefill,
     );
-
-    if (!captured) {
-        void vscode.window.showWarningMessage(
-            vscode.l10n.t('"{0}" cannot be used as an artifact filename — it must be a plain file name.', path.basename(uri.fsPath)),
-        );
-    }
-    return captured;
 }

@@ -2,18 +2,17 @@ import * as vscode from 'vscode';
 import { buildFormHtml } from './form.html.js';
 import { FORM_CLIENT_JS } from './form.clientJs.js';
 import { defaultModel } from './form.helpers.js';
-import { pruneVarsForSave, confirmDeleteFile, confirmDiscardDraft, deleteArtifactFile } from './panel.helpers.js';
+import { pruneVarsForSave, confirmDiscardDraft, deleteWithConfirm, saveToEngine } from './panel.helpers.js';
+// Import cycle with editArtifact.command.ts is safe: the constant is read only at call time, never at module load.
+import { EDIT_ARTIFACT_COMMAND_ID } from '../../../commands/editArtifact.command.js';
 import { FormBlockExpandController } from './blockExpand.js';
-import { serializeArtifact } from '../../../services/artifact-serializer.service.js';
-import { writeArtifact } from '../../../services/artifact-writer.service.js';
-import { pickDestFolder } from '../destFolderPicker.panel.js';
-import { validateArtifactFilename, deriveFileName } from '../../../services/filename.service.js';
 import { extractVars } from '../../../services/parser.service.js';
+import { validateArtifactFilename } from '../../../services/filename.service.js';
 import { getNonce } from '../../../utils/helpers.js';
 import { getEntry, getTypeSingular } from '../../../services/artifact-type-config.service.js';
-import { getVaultRootUri } from '../../../services/config.service.js';
 import { renderCodeRowsHtml } from '../../../services/render.service.js';
 import { buildCodeBlockHtml } from '../artifactPicker/codeBlock.js';
+import type { EngineRead } from '../../../engine/model.js';
 import type { ArtifactType } from '../../../types/parsed-artifact.types.js';
 import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 
@@ -36,6 +35,8 @@ export interface OpenFormOpts {
     prefill?: Partial<ArtifactFormModel>;
     /** Edit-mode seam — source file URI. Not used in create mode. */
     sourceUri?: vscode.Uri;
+    /** Edit mode: the engine read that opened the form (path, hash, layout) — the write is made against its hash. */
+    read?: EngineRead;
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
@@ -392,24 +393,16 @@ class ArtifactFormController {
      * remove it, while in **create** mode nothing has been written yet, so the
      * only thing to delete is the draft.
      *
-     * The file deletion goes to the OS trash rather than being unlinked — this
-     * is the user's vault, and a recoverable delete is worth the one extra
-     * modal it costs nothing to make honest about.
+     * The file deletion goes through the engine and is permanent; the confirm says so.
      *
      * @returns Resolves once the user has answered and any deletion is done.
      */
     private async handleDeleteEntire(): Promise<void> {
         const sourceUri = this.opts.mode === 'edit' ? this.opts.sourceUri : undefined;
-        const confirmed = sourceUri
-            ? await confirmDeleteFile(sourceUri)
+        const done = sourceUri
+            ? await deleteWithConfirm(sourceUri, this.opts.read)
             : await confirmDiscardDraft(getTypeSingular(this.opts.type));
-
-        if (!confirmed) {
-            this.post({ command: 'deleteEntireConfirmed', confirmed: false });
-            return;
-        }
-
-        if (sourceUri && !await deleteArtifactFile(sourceUri)) {
+        if (!done) {
             this.post({ command: 'deleteEntireConfirmed', confirmed: false });
             return;
         }
@@ -434,115 +427,14 @@ class ArtifactFormController {
     // ── Atomic save flow (§4.5) ───────────────────────────────────────────────
 
     private async handleSave(model: ArtifactFormModel): Promise<void> {
-        const vaultRoot = getVaultRootUri();
-        if (!vaultRoot) {
-            this.post({ command: 'saveResult', ok: false, error: 'Vault not configured.' });
-            return;
-        }
-
-        // `model` crosses the webview boundary, so its type is untrusted here —
-        // unlike opts.type elsewhere in this file. getEntry throws on an
-        // unrecognised type; convert that into the user-facing save error.
-        let baseDirName: string;
-        try {
-            baseDirName = getEntry(model.artifactType).dir;
-        } catch {
-            this.post({ command: 'saveResult', ok: false, error: 'Unknown artifact type.' });
-            return;
-        }
-
-        // Edit mode writes back to the file it was opened from: the destination
-        // is already known, so the folder picker and filename prompt — both of
-        // which exist to *choose* a location — would be asking a question that
-        // has an answer. Saving an edit is one click, as it is in any editor.
-        if (this.opts.mode === 'edit' && this.opts.sourceUri) {
-            await this.saveInPlace(model, this.opts.sourceUri);
-            return;
-        }
-
-        const baseDir = vscode.Uri.joinPath(vaultRoot, baseDirName);
-
-        // Step 1: destination folder
-        const chosenDir = await pickDestFolder(baseDir);
-        if (!chosenDir) { return; }  // Escaped — return focus to form
-
-        // Step 2: filename prompt
-        const defaultName = deriveFileName(model.title);
-        const fileName    = await vscode.window.showInputBox({
-            title:          vscode.l10n.t('Save artifact as'),
-            value:          defaultName,
-            prompt:         vscode.l10n.t('File name (without .md extension)'),
-            ignoreFocusOut: true,
-            validateInput:  v => {
-                const r = validateArtifactFilename(v);
-                return r.ok ? undefined : r.reason;
-            },
-        });
-        if (!fileName) { return; }  // Escaped — return focus to form
-
-        // Step 3: serialize + write (with collision loop)
-        const pruned  = { ...model, blocks: pruneVarsForSave(model.blocks) };
-        const content = serializeArtifact(pruned);
-        await this.writeWithCollision(vaultRoot, model.artifactType, chosenDir, fileName, content);
-    }
-
-    /**
-     * Writes an edited artifact back over its source file.
-     *
-     * Bypasses `writeArtifact`'s collision check on purpose: that check exists
-     * to stop a *new* file clobbering an existing one, and here the existing
-     * file is the intended target — prompting "already exists, overwrite?" for
-     * the file the user just opened for editing would be noise.
-     *
-     * @param model     - The edited model from the webview.
-     * @param sourceUri - File the form was opened from.
-     * @returns Resolves once the file is written and the panel closed.
-     *
-     * @example
-     * await this.saveInPlace(model, vscode.Uri.file('/v/Snippets/demo.md'));
-     */
-    private async saveInPlace(model: ArtifactFormModel, sourceUri: vscode.Uri): Promise<void> {
-        const pruned  = { ...model, blocks: pruneVarsForSave(model.blocks) };
-        const content = serializeArtifact(pruned);
-        try {
-            await vscode.workspace.fs.writeFile(sourceUri, Buffer.from(content, 'utf8'));
-        } catch (err) {
-            this.post({ command: 'saveResult', ok: false, error: `Could not save: ${(err as Error).message}` });
-            return;
-        }
-        this.dispose();
-    }
-
-    private async writeWithCollision(
-        vaultRoot: vscode.Uri,
-        type:      ArtifactType,
-        chosenDir: vscode.Uri,
-        fileName:  string,
-        content:   string,
-        force      = false,
-    ): Promise<void> {
-        const result = await writeArtifact({ vaultRoot, type, chosenDir, fileName, content, force });
-
-        if (result.kind === 'success') {
+        const pruned = { ...model, blocks: pruneVarsForSave(model.blocks) };
+        const { sourceUri } = this.opts;
+        const reload = () => {
             this.dispose();
-            return;
-        }
-
-        if (result.kind === 'collision') {
-            const overwriteAction = vscode.l10n.t('Overwrite');
-            const answer = await vscode.window.showWarningMessage(
-                vscode.l10n.t('"{0}" already exists. Overwrite?', result.filePath),
-                { modal: true },
-                overwriteAction,
-            );
-            if (answer === overwriteAction) {
-                await this.writeWithCollision(vaultRoot, type, chosenDir, fileName, content, true);
-            }
-            // Cancel from collision → return focus to form (panel stays open)
-            return;
-        }
-
-        // Error
-        this.post({ command: 'saveResult', ok: false, error: result.message });
+            if (sourceUri) { void vscode.commands.executeCommand(EDIT_ARTIFACT_COMMAND_ID, sourceUri.fsPath); }
+        };
+        if (await saveToEngine(pruned, this.opts, reload)) { this.dispose(); return; }
+        // No `error`: the engine path already told the user (modal / toast); this only re-enables Save.
+        this.post({ command: 'saveResult', ok: false });
     }
 }

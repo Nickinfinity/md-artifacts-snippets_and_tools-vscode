@@ -1,15 +1,15 @@
-import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { requestOrNotify } from '../engine/engine.vscode.js';
+import { toParsedArtifactFile, toVaultPath } from '../engine/adapt.js';
+import { engineMeta } from '../engine/model.js';
+import { sendWrite, type WriteMethod } from '../services/conflict.service.js';
 import { getEntry } from '../services/artifact-type-config.service.js';
-import { parseArtifactFile } from '../services/parser.service.js';
 import { extractSubSets, getVarsFileShape } from '../services/varset.service.js';
-import { writeVariablesFile } from '../services/variables-writer.service.js';
-import type { WriteResult } from '../services/artifact-writer.service.js';
+import type { EngineParams, SubsetRef } from '../types/engine.types.js';
 import type { VarSubSet } from '../types/varset.types.js';
 import type { ParsedArtifactFile, ParsedVar } from '../types/parsed-artifact.types.js';
 import type { ArtifactFormModel, ArtifactFormBlock } from '../types/artifact-form.types.js';
 import type { VariableNode, VariableNodeKind, VariablesViewProvider } from '../ui/views/variablesView.provider.js';
-import { isPathWithin } from '../utils/path-containment.js';
 import { confirmTextFor } from './variables.confirm.helpers.js';
 
 /**
@@ -278,7 +278,16 @@ export interface ResolvedTarget {
     subIdx?: number;
     /** Var ordinal from the node's id, when the node is a `var`. */
     varIdx?: number;
+    /** Vault-relative POSIX path — what every `vars.*` op is addressed by. */
+    relPath: string;
+    /** Content hash of the read the user is looking at (`expectedHash`). */
+    hash: string;
+    /** Engine sub-set ref for var ops; `undefined` on flat/blank files (a flat file's pseudo-row has no engine heading). */
+    subset?: SubsetRef;
 }
+
+/** The nine `vars.*` edit ops that take `{path, expectedHash}`. */
+type VarsEditMethod = Extract<WriteMethod, `vars.${'meta' | 'subset' | 'var'}.${string}`>;
 
 /**
  * Resolves a `view/item/context` node into everything a handler needs,
@@ -326,77 +335,57 @@ export async function resolveTarget(
         return undefined;
     }
     const filePath = fileNodePath(node);
-    const rootDir = vscode.Uri.joinPath(vaultRoot, getEntry('Variables').dir).fsPath;
-    if (!isPathWithin(rootDir, filePath)) {
+    // Containment before the request: only files under `Variables/` are read.
+    const relPath = toVaultPath(filePath, vaultRoot.fsPath);
+    if (relPath === undefined || !relPath.startsWith(`${getEntry('Variables').dir}/`)) {
         io.showError(vscode.l10n.t('MD Artifacts: "{0}" is outside the Variables directory.', filePath));
         return undefined;
     }
-    const parsed = parseArtifactFile(filePath, rootDir);
-    if (!parsed) {
+    const read = await requestOrNotify('artifact.read', { path: relPath });
+    if (!read) { return undefined; }
+    const parsed = toParsedArtifactFile(read, vaultRoot.fsPath);
+    const meta = engineMeta(parsed);
+    if (!meta) {
         io.showError(vscode.l10n.t('MD Artifacts: could not read "{0}".', filePath));
         return undefined;
     }
+    const subSets = extractSubSets(parsed, { includeEmpty: true });
+    const subIdx = lone ? 0 : subsetIndex(node);
+    // Flat files: the pane's "sub-set 0" heading is the file title, which the engine does not know.
+    const heading = at(subSets, subIdx)?.heading;
+    const subset = getVarsFileShape(parsed) === 'sets' && subIdx !== undefined && heading !== undefined
+        ? { index: subIdx, heading } : undefined;
     return {
-        vaultRoot,
-        filePath,
-        parsed,
-        model: toFormModel(parsed),
-        subSets: extractSubSets(parsed, { includeEmpty: true }),
-        subIdx: lone ? 0 : subsetIndex(node),
-        varIdx: varIndex(node),
+        vaultRoot, filePath, parsed, model: toFormModel(parsed), subSets, subIdx, varIdx: varIndex(node),
+        relPath: meta.relPath, hash: meta.hash, ...(subset ? { subset } : {}),
     };
 }
 
 /**
- * Writes a mutated model back to its source file, in place — the writer's
- * `chosenDir`/`fileName` are derived from `filePath` itself so an edit never
- * moves or renames the file.
+ * Sends one `vars.*` edit against the hash `resolveTarget` read; refreshes the pane on success.
+ * Conflict ⇒ the shared modal (Reload refreshes the pane); other engine errors ⇒ the W1 toast.
  *
- * @param vaultRoot - Vault root, for the writer's containment checks.
- * @param filePath  - Absolute path of the file being edited.
- * @param model     - Mutated model to render and write.
- * @returns The writer's `WriteResult`.
- *
- * @example
- * await writeBack(vaultRoot, '/vault/Variables/a.md', newModel);
- */
-export async function writeBack(vaultRoot: vscode.Uri, filePath: string, model: ArtifactFormModel): Promise<WriteResult> {
-    return writeVariablesFile({
-        vaultRoot,
-        chosenDir: vscode.Uri.file(path.dirname(filePath)),
-        fileName: path.basename(filePath, '.md'),
-        model,
-    });
-}
-
-/**
- * Shared write → refresh → report tail for every mutating command: writes
- * the model back, refreshes the tree on success, toasts on failure.
- *
- * @param vaultRoot - Vault root, for the writer's containment checks.
- * @param filePath  - Absolute path of the file being edited.
- * @param model     - Mutated model to write.
- * @param provider  - Tree provider to refresh on a successful write.
- * @param io        - Interaction bag; defaults to the real `vscode.window`-backed one.
- * @returns void
+ * @param target   - Resolved file (path + hash).
+ * @param method   - The `vars.*` op.
+ * @param extra    - The op's own params.
+ * @param provider - Tree provider to refresh.
+ * @returns `true` when the engine wrote; `false` when the user was told or declined.
  *
  * @example
- * await commitWrite(vaultRoot, filePath, newModel, provider);
+ * await sendVarsEdit(target, 'vars.var.set', { name: 'VK-host', value: 'x' }, provider);
  */
-export async function commitWrite(
-    vaultRoot: vscode.Uri,
-    filePath: string,
-    model: ArtifactFormModel,
+export async function sendVarsEdit<M extends VarsEditMethod>(
+    target: ResolvedTarget,
+    method: M,
+    extra: Omit<EngineParams<M>, 'path' | 'expectedHash'>,
     provider: VariablesViewProvider,
-    io: CommandIO = defaultIO,
-): Promise<void> {
-    const result = await writeBack(vaultRoot, filePath, model);
-    if (result.kind === 'success') {
-        provider.refresh();
-        return;
-    }
-    const message = result.kind === 'error' ? result.message : vscode.l10n.t('"{0}" already exists.', filePath);
-    io.showError(vscode.l10n.t('MD Artifacts: {0}', message));
+): Promise<boolean> {
+    // narrowing: spread of generic Omit<> is not assignable to EngineParams<M> inside the body
+    const params = { path: target.relPath, expectedHash: target.hash, ...extra } as EngineParams<M>;
+    const done = await sendWrite(method, params, { onReload: () => provider.refresh() });
+    if (done === undefined) { return false; }
+    provider.refresh();
+    return true;
 }
 
 /**

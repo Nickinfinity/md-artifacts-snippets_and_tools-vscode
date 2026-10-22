@@ -2,6 +2,14 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { confirmModal } from '../../../services/confirm.service.js';
 import type { ArtifactFormBlock, ArtifactFormModel } from '../../../types/artifact-form.types.js';
+import { pickDestFolder } from '../destFolderPicker.panel.js';
+import { sendWrite } from '../../../services/conflict.service.js';
+import { toEngineModel, type EngineRead } from '../../../engine/model.js';
+import { toVaultPath } from '../../../engine/adapt.js';
+import { getEntry } from '../../../services/artifact-type-config.service.js';
+import { getVaultRootUri } from '../../../services/config.service.js';
+import { deriveFileName, validateArtifactFilename } from '../../../services/filename.service.js';
+import type { OpenFormOpts } from './panel.js';
 import type { ParsedVar } from '../../../types/parsed-artifact.types.js';
 
 // ── mergeBlockVars ────────────────────────────────────────────────────────────
@@ -151,7 +159,7 @@ export async function confirmDeleteFile(uri: vscode.Uri): Promise<boolean> {
     const DELETE_ACTION = vscode.l10n.t('Delete');
     return confirmModal({
         message: vscode.l10n.t('Delete "{0}"?', path.basename(uri.fsPath)),
-        detail:  vscode.l10n.t('The file is moved to the trash and can be restored from there.'),
+        detail:  vscode.l10n.t('The file is permanently deleted and cannot be undone.'),
         action:  DELETE_ACTION,
     });
 }
@@ -175,24 +183,80 @@ export async function confirmDiscardDraft(singular: string): Promise<boolean> {
 }
 
 /**
- * Deletes an artifact file to the OS trash.
+ * Confirms, then permanently deletes an artifact through the engine (no trash: W3-b).
+ * Declining, a missing read, a conflict and an engine error all send nothing further and answer `false`.
  *
- * `useTrash` keeps the delete recoverable — the vault is the user's own notes,
- * and an unrecoverable unlink is not a reasonable default for a button click.
- *
- * @param uri - File to delete.
- * @returns `true` on success; `false` after showing the error, so the caller
- *          can leave the form open rather than closing over a failed delete.
+ * @param sourceUri - File the form was opened from (names the confirm).
+ * @param read      - The engine read that opened the form; carries the path and hash to delete against.
+ * @returns `true` only when the engine deleted the file.
  *
  * @example
- * if (!await deleteArtifactFile(uri)) { return; }
+ * if (!await deleteWithConfirm(uri, opts.read)) { return; }
  */
-export async function deleteArtifactFile(uri: vscode.Uri): Promise<boolean> {
+export async function deleteWithConfirm(sourceUri: vscode.Uri, read: EngineRead | undefined): Promise<boolean> {
+    if (!read || !await confirmDeleteFile(sourceUri)) { return false; }
+    return await sendWrite('artifact.delete', { path: read.relPath, expectedHash: read.hash }) !== undefined;
+}
+
+/** Create-mode prompts; a seam so tests never open a real QuickPick or input box. */
+export interface SaveIO {
+    readonly pickDir: (root: vscode.Uri) => Thenable<vscode.Uri | undefined>;
+    readonly promptName: (title: string) => Thenable<string | undefined>;
+    readonly notify: (message: string) => void;
+}
+
+const REAL_IO: SaveIO = {
+    notify: m => { void vscode.window.showErrorMessage(m); },
+    pickDir: pickDestFolder,
+    promptName: title => vscode.window.showInputBox({
+        title:          vscode.l10n.t('Save artifact as'),
+        value:          deriveFileName(title),
+        prompt:         vscode.l10n.t('File name (without .md extension)'),
+        ignoreFocusOut: true,
+        validateInput:  v => {
+            const r = validateArtifactFilename(v);
+            return r.ok ? undefined : r.reason;
+        },
+    }),
+};
+
+/**
+ * The engine half of the form's Save. Edit: one `artifact.update` against the hash the form was opened from.
+ * Create: destination folder, file name, then `artifact.create` (exists ⇒ T3.2's overwrite confirm).
+ * `model` crosses the webview boundary, so its type is only checked, never trusted: the path is built from `opts.type`.
+ *
+ * @param webviewModel - The webview's model after `pruneVarsForSave` (untrusted).
+ * @param opts     - How the form was opened.
+ * @param onReload - Runs when the user picks Reload after a conflict.
+ * @param io       - Create-mode prompts (tests inject).
+ * @returns `true` when the engine wrote the file; `false` when nothing was written (cancelled, refused or told).
+ *
+ * @example
+ * if (await saveToEngine(pruned, opts, reopen)) { panel.dispose(); }
+ */
+export async function saveToEngine(webviewModel: ArtifactFormModel, opts: OpenFormOpts, onReload: () => void, io: SaveIO = REAL_IO): Promise<boolean> {
     try {
-        await vscode.workspace.fs.delete(uri, { useTrash: true });
-        return true;
-    } catch (err) {
-        vscode.window.showErrorMessage(vscode.l10n.t('Could not delete artifact: {0}', (err as Error).message));
+        getEntry(webviewModel.artifactType);
+    } catch {
+        io.notify(vscode.l10n.t('Unknown artifact type.'));
         return false;
     }
+    // The webview's type is never what the engine is told: a form opened for opts.type cannot retype the file.
+    const pruned = { ...webviewModel, artifactType: opts.type };
+    const { read } = opts;
+    if (opts.mode === 'edit') {
+        if (!read) { return false; }
+        return await sendWrite('artifact.update',
+            { path: read.relPath, expectedHash: read.hash, model: toEngineModel(pruned, read) }, { onReload }) !== undefined;
+    }
+    const vaultRoot = getVaultRootUri();
+    if (!vaultRoot) { io.notify(vscode.l10n.t('Vault not configured.')); return false; }
+    const chosenDir = await io.pickDir(vscode.Uri.joinPath(vaultRoot, getEntry(opts.type).dir));
+    if (!chosenDir) { return false; }
+    const dirRel = chosenDir.fsPath === vaultRoot.fsPath ? '' : toVaultPath(chosenDir.fsPath, vaultRoot.fsPath);
+    if (dirRel === undefined) { io.notify(vscode.l10n.t('The destination folder is outside the vault.')); return false; }
+    const fileName = await io.promptName(pruned.title);
+    if (!fileName) { return false; }
+    const path = dirRel === '' ? `${fileName}.md` : `${dirRel}/${fileName}.md`;
+    return await sendWrite('artifact.create', { path, model: toEngineModel(pruned) }) !== undefined;
 }

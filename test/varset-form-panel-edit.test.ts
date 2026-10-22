@@ -21,7 +21,7 @@ function fakeBag(overrides: Partial<VarSetFormCallbacks> = {}): VarSetFormCallba
     let closeCalls = 0;
     return {
         validate: () => ({ ok: true }),
-        write: async () => { /* create-mode write; unused here */ },
+        write: async () => true,
         post: () => { /* no-op */ },
         close: () => { closeCalls++; },
         get writeCalls() { return writeCalls; },
@@ -45,7 +45,7 @@ suite('varset form panel — open-time writer guard (edit mode)', () => {
         assert.throws(() => {
             openVarSetFormPanel(
                 vscode.Uri.file('/ext'),
-                { validate: () => ({ ok: true }), write: async () => { /* noop */ }, post: () => { /* noop */ }, close: () => { /* noop */ } },
+                { validate: () => ({ ok: true }), write: async () => true, post: () => { /* noop */ }, close: () => { /* noop */ } },
                 { mode: 'edit', payload: basePayload, sourceUri: vscode.Uri.file('/v/Variables/bundles.md') },
             );
         }, /writeEdit/);
@@ -58,7 +58,7 @@ suite('varset form panel — open-time writer guard (edit mode)', () => {
     test('edit mode with cb.writeEdit present opens without throwing', () => {
         const panel = openVarSetFormPanel(
             vscode.Uri.file('/ext'),
-            fakeBag({ writeEdit: async () => { /* noop */ } }),
+            fakeBag({ writeEdit: async () => true }),
             { mode: 'edit', payload: basePayload, sourceUri: vscode.Uri.file('/v/Variables/bundles.md') },
         );
         assert.strictEqual(panel, undefined); // void return; reaching here is the assertion
@@ -73,8 +73,8 @@ suite('varset form panel — mode keys the branch, not callback presence', () =>
         const cb = fakeBag({
             // A bag that happens to carry writeEdit — must not flip a
             // create-mode message onto the edit save path.
-            writeEdit: async () => { editCalled = true; },
-            write: async () => { createCalled = true; },
+            writeEdit: async () => { editCalled = true; return true; },
+            write: async () => { createCalled = true; return true; },
         });
 
         await handleVarSetFormMessage(
@@ -92,7 +92,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
 
     test('a malformed payload never reaches writeEdit', async () => {
         let called = false;
-        const cb = fakeBag({ writeEdit: async () => { called = true; } });
+        const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
         await handleVarSetFormMessage(
             { command: 'save', payload: { title: 'x' /* missing pairs/subSets shape */ } },
@@ -106,7 +106,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
 
     test('a name containing "=" is rejected and never reaches writeEdit', async () => {
         let called = false;
-        const cb = fakeBag({ writeEdit: async () => { called = true; } });
+        const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
         await handleVarSetFormMessage(
             {
@@ -126,7 +126,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
 
     test('a value containing a newline is rejected and never reaches writeEdit', async () => {
         let called = false;
-        const cb = fakeBag({ writeEdit: async () => { called = true; } });
+        const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
         await handleVarSetFormMessage(
             {
@@ -146,7 +146,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
 
     test('a value containing a backtick is rejected and never reaches writeEdit', async () => {
         let called = false;
-        const cb = fakeBag({ writeEdit: async () => { called = true; } });
+        const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
         await handleVarSetFormMessage(
             {
@@ -166,7 +166,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
 
     test('a valid single-sub-set grouped payload survives the guard and reaches writeEdit', async () => {
         let received: VarsEditPayload | undefined;
-        const cb = fakeBag({ writeEdit: async (payload) => { received = payload; } });
+        const cb = fakeBag({ writeEdit: async (payload) => { received = payload; return true; } });
 
         await handleVarSetFormMessage(
             {

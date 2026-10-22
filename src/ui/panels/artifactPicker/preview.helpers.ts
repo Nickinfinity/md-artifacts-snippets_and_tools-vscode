@@ -1,7 +1,14 @@
 import * as vscode from 'vscode';
-import { resolveVars, parseFromContent } from '../../../services/parser.service.js';
-import { patchBlockCode, type BlockRef } from '../../../services/artifact-patcher.service.js';
+import { resolveVars } from '../../../services/parser.service.js';
+import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import { getEngine } from '../../../engine/engine.vscode.js';
+import { engineMeta, toEngineModel } from '../../../engine/model.js';
+import { EngineRequestError } from '../../../engine/request-error.js';
+import { handleWriteError, sendWrite } from '../../../services/conflict.service.js';
+import { artifactToFormModel } from '../../../commands/create-prefill.helpers.js';
+import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
 import { out } from './shared.js';
+import { rereadBlock } from './preview.reread.js';
 import { getEntry } from '../../../services/artifact-type-config.service.js';
 import type { ArtifactContext } from '../../../types/artifact.types.js';
 import type { ArtifactType, ParsedArtifactFile, ParsedBlock } from '../../../types/parsed-artifact.types.js';
@@ -325,41 +332,38 @@ export async function performInsert(
 }
 
 /**
- * Writes new code for one block back into its source `.md`.
+ * THE block-code persist path: `artifact.patch` under the hash of the read being previewed; a flagged
+ * file (`not_serializable{flagged}`) falls back to `artifact.update` from a fresh read, one block swapped.
+ * Conflict ⇒ modal, other errors ⇒ toast; both give `undefined`.
  *
- * **THE** block-code persist path. Both routes that make an edit permanent —
- * the preview's Overwrite button and anything else that needs to commit a
- * block — go through here, so the patch/write/re-parse sequence and its
- * "block not found" guard exist once. `patchBlockCode` remains the only thing
- * that understands fence structure; this adds the I/O around it.
- *
- * @param opts - `sourceUri` of the `.md`, the `blockRef` identifying the fence,
- *               the `newCode`, and `rootFs` for re-parsing.
- * @returns The re-parsed artifact on success; `undefined` when the block could
- *          not be located or the write failed (both already logged).
- *
+ * @param opts - Previewed `artifact` (needs engine meta), `blockRef`, `newCode`, `onReload` for the modal.
+ * @returns `file` = whole re-read, `current` = what the preview shows; `undefined` if nothing was written.
  * @example
- * const updated = await persistBlockCode({ sourceUri, blockRef, newCode, rootFs });
- * if (updated) { setCache(sourceUri, updated); }
+ * const r = await persistBlockCode({ artifact, blockRef, newCode });
  */
 export async function persistBlockCode(opts: {
-    sourceUri: vscode.Uri;
-    blockRef:  BlockRef;
-    newCode:   string;
-    rootFs:    string;
-}): Promise<ParsedArtifactFile | undefined> {
+    artifact: ParsedArtifactFile; blockRef: BlockRef; newCode: string; onReload?: () => unknown;
+}): Promise<{ file: ParsedArtifactFile; current: ParsedArtifactFile } | undefined> {
+    const meta = engineMeta(opts.artifact);
+    if (!meta) { out.appendLine('[persistBlockCode] artifact carries no engine hash'); return undefined; }
+    const { relPath: path, hash: expectedHash } = meta, { blockRef, newCode: code, onReload } = opts;
     try {
-        const bytes   = await vscode.workspace.fs.readFile(opts.sourceUri);
-        const content = new TextDecoder().decode(bytes);
-        const patched = patchBlockCode(content, opts.blockRef, opts.newCode);
-        if (patched === content) {
-            out.appendLine('[persistBlockCode] no change (block not found?)');
-            return undefined;
+        const before = await rereadBlock(path, blockRef);
+        if (!before) { out.appendLine('[persistBlockCode] block not found'); return undefined; }
+        const loc = blockRef.kind === 'single' ? {} : { block: before.index, heading: blockRef.heading };
+        try {
+            await getEngine().request('artifact.patch', { path, expectedHash, edit: { field: 'code', ...loc, code } });
+        } catch (e) {
+            if (!(e instanceof EngineRequestError) || e.data.code !== 'artifact.not_serializable' || e.data.params['reason'] !== 'flagged') { throw e; }
+            const form = artifactToFormModel(before.file);
+            const blocks = (form.blocks ?? []).map((b, i) => (i === before.index ? { ...b, code } : b));
+            const model = toEngineModel({ ...form, blocks } as ArtifactFormModel, before.file); // narrowing: artifactToFormModel fills every field the model needs
+            if (!await sendWrite('artifact.update', { path, expectedHash, model }, { onReload })) { return undefined; }
         }
-        await vscode.workspace.fs.writeFile(opts.sourceUri, new TextEncoder().encode(patched));
-        return parseFromContent(patched, opts.sourceUri.fsPath, opts.rootFs);
+        const after = await rereadBlock(path, blockRef);
+        return after && { file: after.file, current: after.current };
     } catch (e) {
-        out.appendLine(`[persistBlockCode] failed: ${(e as Error).message}`);
+        try { await handleWriteError(e, { onReload }); } catch (x) { out.appendLine(`[persistBlockCode] failed: ${(x as Error).message}`); }
         return undefined;
     }
 }

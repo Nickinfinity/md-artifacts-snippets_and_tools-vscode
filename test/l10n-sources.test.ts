@@ -230,7 +230,7 @@ suite('l10n sources — src/commands', () => {
 });
 
 /**
- * T5.2's twelve owned services, listed **literally** (`vault-watch.service.ts` joined in W2/H2.1).
+ * T5.2's thirteen owned services, listed **literally** (`vault-watch.service.ts` joined in W2/H2.1, `conflict.service.ts` in W3/H3.0b).
  *
  * 🔴 Never `readdirSync(servicesDir)` here. `create-index.service.ts:177`
  * carries `title: 'Index'`, a guard-visible P2 hit in a **`vscode`-free**
@@ -253,6 +253,7 @@ const T52_OWNS: readonly string[] = [
     'scratch-file.service.ts',
     'varset.service.ts',
     'vault-watch.service.ts',
+    'conflict.service.ts',
 ];
 
 /**
@@ -305,7 +306,7 @@ suite('l10n sources — src/services', () => {
             'a service entered or left the vscode-free set — localise at the caller, not here');
     });
 
-    test("T5.2's twelve owned services are exactly the vscode-coupled ones", () => {
+    test("T5.2's thirteen owned services are exactly the vscode-coupled ones", () => {
         const coupled = fs.readdirSync(servicesDir)
             .filter(f => f.endsWith('.ts') && fs.readFileSync(path.join(servicesDir, f), 'utf8').includes("from 'vscode'"))
             .sort();
@@ -331,5 +332,15 @@ suite('l10n sources — src/ui', () => {
         for (const file of collectTsFiles(path.join(srcRoot, 'ui'))) {
             assertLocalised(file);
         }
+    });
+});
+
+// H3.0g (W3): the create form's save-path toasts go through an injected `notify`, which the
+// `showXMessage(` scan above cannot see — so a plain English literal there shipped unlocalised.
+suite('l10n sources — injected notify sinks', () => {
+    test('panel.helpers.ts passes every io.notify message through vscode.l10n.t', () => {
+        const src = readStripped(path.join(srcRoot, 'ui', 'panels', 'artifactForm', 'panel.helpers.ts'));
+        const raw = [...src.matchAll(/\bnotify\(\s*['"`]/g)].map(m => m.index);
+        assert.deepStrictEqual(raw, [], 'io.notify called with a plain string literal — wrap it in vscode.l10n.t');
     });
 });

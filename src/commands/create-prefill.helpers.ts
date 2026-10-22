@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { mapLanguageId } from '../services/language-map.service.js';
-import { extractFlaggedRegions } from '../services/flags.service.js';
+import type { EngineRead } from '../engine/model.js';
 import { getFilenameField } from '../services/artifact-type-config.service.js';
 import type { ArtifactType, ParsedArtifactFile } from '../types/parsed-artifact.types.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
@@ -176,16 +176,15 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
  * and `serializeFrontmatter` an emit line for it. It now survives an edit, so
  * refusing one would be refusing a file the form handles correctly.
  *
- * @param parsed - The parsed artifact.
- * @param body   - Raw file content, needed because flags are a body-level syntax.
+ * @param parsed - The engine read; `layout.payload` says whether the body uses flags.
  * @returns A human-readable reason, or `undefined` when editing is safe.
  *
  * @example
- * const reason = unsupportedEditReason(parsed, content);
+ * const reason = unsupportedEditReason(parsed);
  * if (reason) { vscode.window.showWarningMessage(reason); return; }
  */
-export function unsupportedEditReason(parsed: ParsedArtifactFile, body: string): string | undefined {
-    if (extractFlaggedRegions(body).length > 0) {
+export function unsupportedEditReason(parsed: EngineRead): string | undefined {
+    if (parsed.layout?.payload === 'flags') {
         return vscode.l10n.t('This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.');
     }
     if (parsed.frontmatter.index === true || (parsed.frontmatter.paths?.length ?? 0) > 0) {

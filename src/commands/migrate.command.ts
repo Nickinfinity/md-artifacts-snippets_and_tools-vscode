@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
-import { getVaultPath } from '../services/config.service.js';
-import { validateObsidianVault } from '../services/vault.service.js';
-import { applyMigration, planMigration, type MigrationPlan } from '../services/frontmatter-migration.service.js';
+import { requestOrNotify } from '../engine/engine.vscode.js';
+import { engineErrorMessage } from '../engine/errors.js';
+import { confirmModal } from '../services/confirm.service.js';
+import { sendWrite } from '../services/conflict.service.js';
+import type { EngineResult } from '../types/engine.types.js';
 
 /** Lazily-created singleton so re-running the command reuses one panel instead of stacking new ones. */
 let migrationChannel: vscode.OutputChannel | undefined;
@@ -20,29 +22,77 @@ function getMigrationChannel(): vscode.OutputChannel {
     return migrationChannel;
 }
 
+type Plan = EngineResult<'migrate.frontmatter.plan'>;
+
+/** Appends one line to the migration channel. */
+const channelLog = (line: string): void => getMigrationChannel().appendLine(line);
+
 /**
  * Prints the dry-run report — one line per file — to the migration output channel.
  *
- * @param plan - The plan just computed by `planMigration`.
+ * @param plan - The plan the engine just returned.
+ * @param log  - Line sink (the channel by default).
  * @returns void
  *
  * @example
- * printDryRunReport(planMigration(vaultPath));
+ * printDryRunReport(plan, channelLog);
  */
-function printDryRunReport(plan: MigrationPlan): void {
-    const channel = getMigrationChannel();
-    channel.clear();
-    channel.appendLine(`MD Artifacts: Migrate Vault Frontmatter — dry run (${plan.changes.length} file(s) would change)`);
+function printDryRunReport(plan: Plan, log: (line: string) => void): void {
+    log(`MD Artifacts: Migrate Vault Frontmatter — dry run (${plan.changes.length} file(s) would change)`);
+    // path is vault-relative POSIX: printed, never resolved to disk
     for (const change of plan.changes) {
-        channel.appendLine(`  ${change.relativePath}: "${change.oldLine}" -> "${change.newLine}"`);
+        log(`  ${change.path}: "${change.oldLine}" -> "${change.newLine}"`);
     }
     if (plan.skipped.length > 0) {
-        channel.appendLine(`Could not understand ${plan.skipped.length} file(s) — left untouched:`);
+        log(`Could not understand ${plan.skipped.length} file(s) — left untouched:`);
         for (const skip of plan.skipped) {
-            channel.appendLine(`  ${skip.relativePath}: ${skip.reason}`);
+            log(`  ${skip.path}: ${engineErrorMessage(skip)}`);
         }
     }
-    channel.show(true);
+}
+
+/**
+ * Plans a frontmatter migration through the engine, asks `confirm`, then applies exactly the planned files.
+ *
+ * @param confirm - Resolves true to apply `n` files.
+ * @param log     - Report line sink; defaults to the migration output channel (cleared and shown first).
+ * @returns Resolves once done or declined.
+ *
+ * @example
+ * await runMigrateFrontmatter(async n => n > 0);
+ */
+export async function runMigrateFrontmatter(confirm: (n: number) => Promise<boolean>, log?: (line: string) => void): Promise<void> {
+    if (!log) {
+        getMigrationChannel().clear();
+        getMigrationChannel().show(true);
+    }
+    const out = log ?? channelLog;
+    const plan = await requestOrNotify('migrate.frontmatter.plan', {});
+    if (!plan) { return; }
+    if (plan.changes.length === 0 && plan.skipped.length === 0) {
+        const msg = vscode.l10n.t('MD Artifacts: vault frontmatter is already up to date — nothing to migrate.');
+        out(msg);
+        void vscode.window.showInformationMessage(msg);
+        return;
+    }
+    printDryRunReport(plan, out);
+    if (plan.changes.length === 0) {
+        void vscode.window.showWarningMessage(
+            vscode.l10n.t('MD Artifacts: found {0} file(s) with unrecognised frontmatter — nothing to apply. See the "MD Artifacts: Migration" output panel.', plan.skipped.length),
+        );
+        return;
+    }
+    if (!await confirm(plan.changes.length)) { return; }
+
+    const result = await sendWrite('migrate.frontmatter.apply', { files: plan.changes.map(({ path, hash }) => ({ path, hash })) });
+    if (!result) { return; }
+    for (const r of result.results) {
+        if (r.status === 'skipped') { out(`  skipped ${r.path}: ${engineErrorMessage(r)}`); }
+    }
+    out(`Applied: ${result.written} file(s) rewritten, ${result.skipped} skipped.`);
+    void vscode.window.showInformationMessage(
+        vscode.l10n.t('MD Artifacts: migrated {0} file(s). See the output panel for details.', result.written),
+    );
 }
 
 /**
@@ -64,44 +114,9 @@ function printDryRunReport(plan: MigrationPlan): void {
  * registerMigrateCommand(context);
  */
 export function registerMigrateCommand(context: vscode.ExtensionContext): void {
-    const disposable = vscode.commands.registerCommand('md-artifacts.migrateFrontmatter', async () => {
-        const vaultPath = getVaultPath();
-        if (!vaultPath) {
-            void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: No vault configured. Open Settings to select your vault.'));
-            return;
-        }
-        if (!validateObsidianVault(vaultPath)) { return; }
-
-        const plan = planMigration(vaultPath);
-        if (plan.changes.length === 0 && plan.skipped.length === 0) {
-            void vscode.window.showInformationMessage(
-                vscode.l10n.t('MD Artifacts: vault frontmatter is already up to date — nothing to migrate.'),
-            );
-            return;
-        }
-
-        printDryRunReport(plan);
-
-        if (plan.changes.length === 0) {
-            void vscode.window.showWarningMessage(
-                vscode.l10n.t('MD Artifacts: found {0} file(s) with unrecognised frontmatter — nothing to apply. See the "MD Artifacts: Migration" output panel.', plan.skipped.length),
-            );
-            return;
-        }
-
-        const confirmLabel = vscode.l10n.t('Apply Migration');
-        const confirmed = await vscode.window.showWarningMessage(
-            vscode.l10n.t('MD Artifacts: rewrite frontmatter in {0} vault file(s)? See the "MD Artifacts: Migration" output panel for the full dry-run report.', plan.changes.length),
-            { modal: true },
-            confirmLabel,
-        );
-        if (confirmed !== confirmLabel) { return; }
-
-        const result = applyMigration(plan);
-        getMigrationChannel().appendLine(`Applied: ${result.changedFiles.length} file(s) rewritten.`);
-        void vscode.window.showInformationMessage(
-            vscode.l10n.t('MD Artifacts: migrated {0} file(s). See the output panel for details.', result.changedFiles.length),
-        );
-    });
+    const disposable = vscode.commands.registerCommand('md-artifacts.migrateFrontmatter', () => runMigrateFrontmatter(n => confirmModal({
+        message: vscode.l10n.t('MD Artifacts: rewrite frontmatter in {0} vault file(s)? See the "MD Artifacts: Migration" output panel for the full dry-run report.', n),
+        action: vscode.l10n.t('Apply Migration'),
+    })));
     context.subscriptions.push(disposable);
 }

@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import * as path from 'node:path';
 import { getVaultRootUri } from '../services/config.service.js';
 import { validateVarSetForm } from '../services/varset-form.service.js';
-import { writeVariablesFile } from '../services/variables-writer.service.js';
+import { engineMeta, toEngineModel } from '../engine/model.js';
+import { sendWrite } from '../services/conflict.service.js';
 import { variablesFileToEditPayload, editPayloadToModel } from '../services/varset.service.js';
 import { openVarSetFormPanel } from '../ui/panels/varsetForm/varsetForm.panel.js';
+import type { VarsEditPayload } from '../types/varset.types.js';
 import type { ParsedArtifactFile } from '../types/parsed-artifact.types.js';
 
 /**
@@ -53,17 +54,36 @@ export async function openVarsEditForm(
         // members are required and making them optional would retype the
         // create path (varSetController.ts's handleSaveAsVarSet).
         validate: validateVarSetForm,
-        write:    async () => { /* unreachable in edit mode */ },
+        write:    async () => false, // unreachable in edit mode
         post:     () => {},
         close:    () => {},
-        writeEdit: async p => {
-            await writeVariablesFile({
-                vaultRoot,
-                chosenDir: vscode.Uri.joinPath(fileUri, '..'),
-                fileName:  path.basename(artifact.filePath, '.md'),
-                model:     editPayloadToModel(p, artifact),
-            });
-            onSaved?.();
+        writeEdit: async (p, disposePanel) => {
+            // Reload: drop the stale form (its hash would conflict forever) and refresh; the next open reads fresh.
+            const ok = await saveVarsEdit(artifact, p, () => { disposePanel?.(); onSaved?.(); });
+            if (ok) { onSaved?.(); }
+            return ok;
         },
     }, { mode: 'edit', payload, sourceUri: fileUri });
+}
+
+/**
+ * Saves an edit-form payload over the file it was read from, through the engine
+ * with the hash of that read (conflict ⇒ modal, never an overwrite).
+ *
+ * @param artifact - The file as the engine read it (carries `relPath` / `hash` / `layout`).
+ * @param payload  - The validated edit payload.
+ * @param onReload - Runs when the user picks Reload on a conflict modal.
+ * @returns `true` only when the engine wrote; `false` keeps the form open.
+ *
+ * @example
+ * if (await saveVarsEdit(parsed, payload)) { refresh(); }
+ */
+export async function saveVarsEdit(artifact: ParsedArtifactFile, payload: VarsEditPayload, onReload?: () => unknown): Promise<boolean> {
+    const meta = engineMeta(artifact);
+    if (!meta) {
+        void vscode.window.showErrorMessage(vscode.l10n.t('MD Artifacts: could not read "{0}".', artifact.filePath));
+        return false;
+    }
+    const model = toEngineModel(editPayloadToModel(payload, artifact), artifact);
+    return (await sendWrite('artifact.update', { path: meta.relPath, expectedHash: meta.hash, model }, { onReload })) !== undefined;
 }

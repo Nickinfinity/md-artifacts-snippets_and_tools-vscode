@@ -60,8 +60,9 @@ export class VarSetScanner {
         let collected: ParsedArtifactFile[];
         try {
             const { files } = await getEngine().request('vars.list', {});
-            // ponytail: a broken file is skipped (Q4) — the adapter would show it as an empty `blank` file and
-            // a TS whole-file rewrite would clobber it. W3's engine writes bring it back, shown broken.
+            // ponytail: a broken file is skipped (Q4); kept after W3 — showing a broken row is pane UI (W6).
+            // The clobber risk is gone: engine writes refuse an invalid file (`vars_invalid`). A legacy
+            // ```vks fence is NOT flagged by the engine at v0.10.0 (ER-1, gates the PR).
             collected = files.filter(f => !isBroken(f)).map(f => varsFileToParsed(f, vault));
         } catch {
             return [];

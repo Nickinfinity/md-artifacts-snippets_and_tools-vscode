@@ -1,97 +1,64 @@
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import {
     buildVariableCommandIds,
     handleNewFile, handleNewSubSet, handleAddVar, handleEditValue,
     handleRenameVar, handleRenameSubSet, handleDeleteVar, handleDeleteSubSet, handleDeleteFile,
 } from '../src/commands/variables.command.js';
-import {
-    toFormModel, fileNodePath, subsetIndex, varIndex, type CommandIO,
-} from '../src/commands/variables.command.helpers.js';
-import { parseFromContent, parseArtifactFile } from '../src/services/parser.service.js';
+import { fileNodePath, subsetIndex, varIndex, type CommandIO } from '../src/commands/variables.command.helpers.js';
 import { renderVariablesFile } from '../src/services/variables-writer.service.js';
-import { addVar as crudAddVar, setVarValue as crudSetVarValue } from '../src/services/variables-crud.service.js';
-import { extractSubSets } from '../src/services/varset.service.js';
-import { VariablesViewProvider, buildVariableNodes, type VariableNode } from '../src/ui/views/variablesView.provider.js';
+import { VariablesViewProvider, type VariableNode } from '../src/ui/views/variablesView.provider.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
+import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
- * T16 — the nine `md-artifacts.variables.*` tree commands (VSX-219).
- *
- * The module does NOT exist yet — every test here fails on import until
- * `src/commands/variables.command.ts` is implemented (the plan's own "Test
- * first" red reason).
+ * The `md-artifacts.variables.*` tree commands, through the engine: every edit is one `vars.*` request
+ * carrying the hash of the `artifact.read` the handler just did. Rejections assert the sink (requests sent).
  */
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
-function multiBlockModel(): ArtifactFormModel {
-    return {
-        artifactType: 'Variables', title: 'Env Bundle', description: '', tags: [],
-        blocks: [
-            { heading: 'Dev', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] },
-            { heading: 'Prod', description: '', language: '', code: '', vars: [
-                { name: 'VK-host', defaultValue: 'prod.example.com' },
-                { name: 'VK-port', defaultValue: '443' },
-            ] },
-        ],
-    };
-}
+const multiBlockModel = (): ArtifactFormModel => ({
+    artifactType: 'Variables', title: 'Env Bundle', description: '', tags: [],
+    blocks: [
+        { heading: 'Dev', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] },
+        { heading: 'Prod', description: '', language: '', code: '', vars: [
+            { name: 'VK-host', defaultValue: 'prod.example.com' },
+            { name: 'VK-port', defaultValue: '443' },
+        ] },
+    ],
+});
 
-function singleBlockModel(): ArtifactFormModel {
-    return {
-        artifactType: 'Variables', title: 'Local Dev', description: '', tags: [],
-        blocks: [{ heading: '', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
-    };
-}
+const singleBlockModel = (): ArtifactFormModel => ({
+    artifactType: 'Variables', title: 'Local Dev', description: '', tags: [],
+    blocks: [{ heading: '', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
+});
 
-/** Fresh temp vault with a `Variables/` directory, as a `vscode.Uri`. */
-function makeVault(): vscode.Uri {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'variables-command-test-'));
-    fs.mkdirSync(path.join(dir, 'Variables'));
-    return vscode.Uri.file(dir);
-}
-
-/** Writes a fixture model to `<vaultRoot>/Variables/<name>.md`; returns the absolute path. */
-function writeFixture(vaultRoot: vscode.Uri, name: string, model: ArtifactFormModel): string {
-    const filePath = path.join(vaultRoot.fsPath, 'Variables', `${name}.md`);
-    fs.writeFileSync(filePath, renderVariablesFile(model), 'utf8');
-    return filePath;
-}
-
-function readBytes(filePath: string): string {
-    return fs.readFileSync(filePath, 'utf8');
-}
-
-function fileNode(filePath: string): VariableNode {
-    return { id: filePath, parentId: null, kind: 'file', label: path.basename(filePath) };
-}
-function subsetNode(filePath: string, subIdx: number): VariableNode {
-    return { id: `${filePath}::subset:${subIdx}`, parentId: filePath, kind: 'subset', label: `sub${subIdx}` };
-}
-function varNode(filePath: string, subIdx: number, idx: number): VariableNode {
+const fileNode = (filePath: string, shape?: VariableNode['shape']): VariableNode =>
+    ({ id: filePath, parentId: null, kind: 'file', label: path.basename(filePath), ...(shape ? { shape } : {}) });
+const subsetNode = (filePath: string, subIdx: number): VariableNode =>
+    ({ id: `${filePath}::subset:${subIdx}`, parentId: filePath, kind: 'subset', label: `sub${subIdx}` });
+const varNode = (filePath: string, subIdx: number, idx: number): VariableNode => {
     const parentId = `${filePath}::subset:${subIdx}`;
     return { id: `${parentId}::var:${idx}`, parentId, kind: 'var', label: `var${idx}` };
-}
+};
 
 /** Canned `CommandIO` — queued `showInputBox` answers, a fixed confirm result, captured errors. */
-function makeIO(opts: { inputs?: (string | undefined)[]; confirmResult?: boolean; pick?: number } = {}): { io: CommandIO; errors: string[]; confirmCalls: string[] } {
+function makeIO(opts: { inputs?: (string | undefined)[]; confirmResult?: boolean } = {}): { io: CommandIO; errors: string[]; confirmCalls: string[] } {
     const inputs = [...(opts.inputs ?? [])];
-    const errors: string[] = [];
-    const confirmCalls: string[] = [];
+    const errors: string[] = [], confirmCalls: string[] = [];
     const io: CommandIO = {
         showInputBox: () => Promise.resolve(inputs.shift()),
         confirm: message => { confirmCalls.push(message); return Promise.resolve(opts.confirmResult ?? true); },
         showError: message => { errors.push(message); },
-        showQuickPick: (items) => Promise.resolve(opts.pick === undefined ? undefined : items[opts.pick]),
+        showQuickPick: () => Promise.resolve(undefined),
     };
     return { io, errors, confirmCalls };
 }
 
-/** Wraps a real `VariablesViewProvider`'s `refresh()` to count calls without touching its I/O. */
+/** Counts `refresh()` calls on a real provider without touching its I/O. */
 function spyRefresh(provider: VariablesViewProvider): () => number {
     let count = 0;
     const original = provider.refresh.bind(provider);
@@ -99,689 +66,231 @@ function spyRefresh(provider: VariablesViewProvider): () => number {
     return () => count;
 }
 
-function listVariablesDir(vaultRoot: vscode.Uri): string[] {
-    return fs.readdirSync(path.join(vaultRoot.fsPath, 'Variables')).sort();
-}
+const WRITES = ['vars.file.new', 'vars.meta.tags', 'vars.subset.add', 'vars.subset.rename', 'vars.subset.delete',
+    'vars.var.add', 'vars.var.rename', 'vars.var.set', 'vars.var.delete', 'artifact.delete'];
 
-// ── Test first ────────────────────────────────────────────────────────────
+suite('Variables pane commands (engine)', () => {
+    let eng: VarsEngine, provider: VariablesViewProvider, refreshes: () => number;
+    let sets: string, setsMd: string, flat: string, flatMd: string;
+    const writes = (): number => WRITES.reduce((n, m) => n + eng.calls(m).length, 0);
 
-suite('buildVariableCommandIds (T16)', () => {
-    test('Test first — equals the package.json mirror (id set, not a count)', () => {
-        const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as {
-            contributes: { commands: { command: string }[] };
-        };
-        const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('md-artifacts.variables.'));
-        // Derivation-sourced, not a second hardcoded count: W1 (H1.1) took this
-        // from 9 to 11 and a literal here would have to be edited by every wave
-        // that adds a command — the `deepStrictEqual` below is what pins the set.
-        assert.strictEqual(expected.length, buildVariableCommandIds().length,
-            `manifest declares ${expected.length} variables.* ids, derivation yields ${buildVariableCommandIds().length}`);
-        assert.deepStrictEqual([...buildVariableCommandIds()].sort(), [...expected].sort());
+    setup(() => {
+        eng = startVarsEngine();
+        provider = new VariablesViewProvider();
+        refreshes = spyRefresh(provider);
+        setsMd = renderVariablesFile(multiBlockModel());
+        flatMd = renderVariablesFile(singleBlockModel());
+        sets = eng.serve('Variables/sets.md', setsMd);
+        flat = eng.serve('Variables/flat.md', flatMd);
     });
-});
-
-// ── Node-id parsing ─────────────────────────────────────────────────────────
-
-suite('node-id parsing', () => {
-    test('file/subset/var ids round-trip', () => {
-        const fp = '/vault/Variables/env.md';
-        assert.strictEqual(fileNodePath(fileNode(fp)), fp);
-        assert.strictEqual(fileNodePath(subsetNode(fp, 1)), fp);
-        assert.strictEqual(fileNodePath(varNode(fp, 1, 0)), fp);
-
-        assert.strictEqual(subsetIndex(fileNode(fp)), undefined);
-        assert.strictEqual(subsetIndex(subsetNode(fp, 1)), 1);
-        assert.strictEqual(subsetIndex(varNode(fp, 1, 0)), 1);
-
-        assert.strictEqual(varIndex(subsetNode(fp, 1)), undefined);
-        assert.strictEqual(varIndex(varNode(fp, 1, 0)), 0);
-    });
-});
-
-// ── toFormModel — deep-freeze / structural-sharing contract ────────────────
-
-suite('toFormModel — deep-freeze contract (ledger #83/#85)', () => {
-    test('multi-block: a frozen model survives a mutator call; the untouched block is shared by reference', () => {
-        const md = renderVariablesFile(multiBlockModel());
-        const parsed = parseFromContent(md, '/vault/Variables/env.md', '/vault/Variables');
-        const model = toFormModel(parsed);
-        Object.freeze(model);
-        Object.freeze(model.blocks);
-        for (const b of model.blocks) { Object.freeze(b.vars); }
-
-        const updated = crudAddVar(model, 'Dev', 'VK-extra', 'x');
-
-        assert.strictEqual(updated.blocks.length, 2);
-        assert.strictEqual(updated.blocks[1], model.blocks[1], 'Prod block must be shared by reference, not mutated');
-    });
-
-    test('one-block: the block stays untitled, a pane edit writes no heading, and a frozen model survives', () => {
-        const md = renderVariablesFile(singleBlockModel());
-        const parsed = parseFromContent(md, '/vault/Variables/dev.md', '/vault/Variables');
-        const model = toFormModel(parsed);
-
-        // The set's title used to be put here, and the serializer then wrote it
-        // as `## Local Dev` — every pane edit turned a one-block file into a sub-set.
-        assert.strictEqual(model.blocks[0].heading, '');
-        const written = renderVariablesFile(crudSetVarValue(model, 0, 'VK-host', 'x'));
-        assert.ok(!written.includes('## '), `one-block file gained a heading:\n${written}`);
-
-        Object.freeze(model);
-        Object.freeze(model.blocks);
-        Object.freeze(model.blocks[0].vars);
-
-        const updated = crudSetVarValue(model, model.blocks[0].heading, 'VK-host', 'new-value');
-        assert.strictEqual(updated.blocks[0].vars[0]?.defaultValue, 'new-value');
-    });
-});
-
-// ── handleNewFile ─────────────────────────────────────────────────────────
-
-suite('handleNewFile', () => {
-    test('creates a new Variables file and refreshes the tree', async () => {
-        const vaultRoot = makeVault();
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['My New Set'] });
-
-        await handleNewFile(provider, io, vaultRoot);
-
-        const files = listVariablesDir(vaultRoot);
-        assert.deepStrictEqual(files, ['my-new-set.md']);
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('Cancel/Escape on the title prompt performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: [undefined] });
-
-        await handleNewFile(provider, io, vaultRoot);
-
-        assert.deepStrictEqual(listVariablesDir(vaultRoot), []);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('a name collision does not overwrite the existing file', async () => {
-        const vaultRoot = makeVault();
-        const existingPath = writeFixture(vaultRoot, 'my-new-set', singleBlockModel());
-        const before = readBytes(existingPath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors } = makeIO({ inputs: ['My New Set'] });
-
-        await handleNewFile(provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(existingPath), before, 'existing file must not be overwritten');
-        assert.strictEqual(refreshCount(), 0);
-        assert.ok(errors.length > 0);
-    });
-});
-
-// ── handleNewSubSet ───────────────────────────────────────────────────────
-
-suite('handleNewSubSet', () => {
-    /** Records each prompt's options while answering from the queue. */
-    function recordPrompts(io: CommandIO): vscode.InputBoxOptions[] {
-        const seen: vscode.InputBoxOptions[] = [];
-        const show = io.showInputBox;
-        io.showInputBox = opts => { seen.push(opts); return show(opts); };
-        return seen;
-    }
-
-    test('a set with no variables pre-fills the name with the set title, and it is created and shown', async () => {
-        const vaultRoot = makeVault();
-        const filePath = path.join(vaultRoot.fsPath, 'Variables', 'empty.md');
-        fs.writeFileSync(filePath, '---\nartifactType: Variables\ntitle: Local Dev\n---\n', 'utf8');
-        const { io, errors } = makeIO({ inputs: ['Local Dev'] });
-        const seen = recordPrompts(io);
-
-        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
-
-        assert.strictEqual(seen[0]?.value, 'Local Dev');
-        assert.deepStrictEqual(errors, [], 'the title collided with a sub-set that does not exist');
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks.map(b => b.heading), ['Local Dev']);
-        // The pane shows it straight away, as a sub-set row — an empty sub-set is
-        // no longer filtered out, and a titled one is never folded into the file row.
-        const nodes = buildVariableNodes([parsed!]);
-        assert.strictEqual(nodes[0]?.shape, 'sets');
-        assert.deepStrictEqual(nodes.map(n => [n.kind, n.label]), [['file', 'Local Dev'], ['subset', 'Local Dev']]);
-    });
-
-    test('a set that already has variables starts with an empty name', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const { io } = makeIO({ inputs: [undefined] });
-        const seen = recordPrompts(io);
-        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
-        assert.strictEqual(seen[0]?.value, '');
-    });
-
-    test('a name already used by a sub-set is flagged while typing', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const { io } = makeIO({ inputs: [undefined] });
-        const seen = recordPrompts(io);
-        await handleNewSubSet(fileNode(filePath), new VariablesViewProvider(), io, vaultRoot);
-        const check = seen[0]?.validateInput;
-        assert.ok(check?.('Dev'), 'duplicate name not flagged');
-        assert.strictEqual(check?.('Staging'), undefined);
-    });
-
-    // Round-trip, not a byte check: an empty sub-set used to vanish on
-    // re-parse (`serializeArtifact` omitted the `vks` fence for `vars: []`,
-    // and `parseBlocks` requires a fence after every heading) — fixed at the
-    // serializer (orchestrator row, logged exception to the forbidden-files
-    // rule). A round-trip assertion pins the user-visible behaviour now that
-    // it is true, rather than only pinning what bytes got written.
-    test('adds a new sub-set and refreshes — it survives a re-parse', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['Staging'] });
-
-        await handleNewSubSet(fileNode(filePath), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks.map(b => b.heading), ['Dev', 'Prod', 'Staging']);
-        assert.deepStrictEqual(parsed?.blocks[2]?.vars, []);
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('no argument refuses — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors } = makeIO({ inputs: ['Staging'] });
-
-        await handleNewSubSet(undefined, provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.ok(errors.length > 0);
-    });
-
-    test('Cancel/Escape on the heading prompt performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: [undefined] });
-
-        await handleNewSubSet(fileNode(filePath), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-});
-
-// ── handleAddVar ──────────────────────────────────────────────────────────
-
-suite('handleAddVar', () => {
-    test('adds a variable to the targeted sub-set', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['VK-region', 'us-east'] });
-
-        await handleAddVar(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars.map(v => v.name), ['VK-host', 'VK-region']);
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('a name typed without VK- gets the prefix; the box starts empty', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const { io } = makeIO({ inputs: ['region', 'us-east'] });
-        const seen: (string | undefined)[] = [];
-        const show = io.showInputBox;
-        io.showInputBox = opts => { seen.push(opts.value); return show(opts); };
-
-        await handleAddVar(subsetNode(filePath, 0), new VariablesViewProvider(), io, vaultRoot);
-
-        assert.strictEqual(seen[0], '', 'name box should not pre-fill an editable VK-');
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars.map(v => v.name), ['VK-host', 'VK-region']);
-    });
-
-    test('Cancel on the name prompt performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: [undefined] });
-
-        await handleAddVar(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('a duplicate variable name is rejected — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors } = makeIO({ inputs: ['VK-host', 'dup'] });
-
-        await handleAddVar(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.ok(errors.length > 0);
-    });
-});
-
-// ── handleEditValue ───────────────────────────────────────────────────────
-
-suite('handleEditValue', () => {
-    test('updates the variable\'s value and refreshes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['staging.example.com'] });
-
-        await handleEditValue(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.strictEqual(parsed?.blocks[0]?.vars[0]?.defaultValue, 'staging.example.com');
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('an unchanged value is a no-op — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['localhost'] }); // same as the fixture's VK-host default
-
-        await handleEditValue(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('Cancel/Escape performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: [undefined] });
-
-        await handleEditValue(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-});
-
-// ── handleRenameVar ───────────────────────────────────────────────────────
-
-suite('handleRenameVar', () => {
-    test('renames the variable, preserving its value', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['VK-hostname'] });
-
-        await handleRenameVar(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars[0], { name: 'VK-hostname', defaultValue: 'localhost' });
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('the box holds the name without VK-, and a typed name gets it back', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const { io } = makeIO({ inputs: ['hostname'] });
-        const seen: (string | undefined)[] = [];
-        const show = io.showInputBox;
-        io.showInputBox = opts => { seen.push(opts.value); return show(opts); };
-
-        await handleRenameVar(varNode(filePath, 0, 0), new VariablesViewProvider(), io, vaultRoot);
-
-        assert.strictEqual(seen[0], 'host');
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.strictEqual(parsed?.blocks[0]?.vars[0]?.name, 'VK-hostname');
-    });
-
-    test('an unchanged name is a no-op — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['VK-host'] });
-
-        await handleRenameVar(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('a name collision within the sub-set is rejected — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        // Prod sub-set (index 1) already has VK-port; rename VK-host -> VK-port collides.
-        const { io, errors } = makeIO({ inputs: ['VK-port'] });
-
-        await handleRenameVar(varNode(filePath, 1, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.ok(errors.length > 0);
-    });
-});
-
-// ── handleRenameSubSet ────────────────────────────────────────────────────
-
-suite('handleRenameSubSet', () => {
-    test('renames the sub-set heading', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['Staging'] });
-
-        await handleRenameSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.strictEqual(parsed?.blocks[0]?.heading, 'Staging');
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('an unchanged heading is a no-op — zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ inputs: ['Dev'] });
-
-        await handleRenameSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-});
-
-// ── handleDeleteVar — destructive ────────────────────────────────────────
-
-suite('handleDeleteVar', () => {
-    test('deletes the target variable; the sibling variable and sub-set survive untouched', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: true });
-
-        // Prod sub-set: delete VK-port (index 1), VK-host (index 0) must survive.
-        await handleDeleteVar(varNode(filePath, 1, 1), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars, [{ name: 'VK-host', defaultValue: 'localhost' }], 'Dev sub-set untouched');
-        assert.deepStrictEqual(parsed?.blocks[1]?.vars, [{ name: 'VK-host', defaultValue: 'prod.example.com' }], 'Prod keeps VK-host, loses VK-port');
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    // The silently-destructive path the round-2 review flagged: deleting a
-    // sub-set's *only* var (not the sub-set itself) used to strand the
-    // heading — the next write dropped the now-`vars: []` block on re-parse.
-    // Fixed at the serializer alongside the New-Sub-Set case above; asserted
-    // here as a round-trip, the same way.
-    test('deleting a sub-set\'s last variable leaves the sub-set surviving, empty', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: true });
-
-        // Dev sub-set has exactly one var (VK-host) — delete it.
-        await handleDeleteVar(varNode(filePath, 0, 0), provider, io, vaultRoot);
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.deepStrictEqual(parsed?.blocks.map(b => b.heading), ['Dev', 'Prod'], 'Dev heading survives, not stranded');
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars, [], 'Dev sub-set is now empty');
-        assert.deepStrictEqual(parsed?.blocks[1]?.vars, multiBlockModel().blocks[1]?.vars, 'Prod sub-set untouched');
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('declining the confirmation (Cancel) performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        // `showWarningMessage({modal:true}, 'Delete')` resolves undefined on Cancel — CommandIO.confirm -> false.
-        const { io } = makeIO({ confirmResult: false });
-
-        await handleDeleteVar(varNode(filePath, 1, 1), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('declining the confirmation (Escape) performs zero writes', async () => {
-        // Same API-level return value as Cancel (`showWarningMessage` resolves
-        // undefined for both — CLAUDE.md's standing gotcha) — asserted as its
-        // own case per the plan's requirement, not merged with the Cancel test.
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: false });
-
-        await handleDeleteVar(varNode(filePath, 1, 1), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-    });
-
-    test('no argument refuses — zero writes, no delete, a message shown', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors, confirmCalls } = makeIO({ confirmResult: true });
-
-        await handleDeleteVar(undefined, provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.strictEqual(confirmCalls.length, 0, 'must refuse before ever asking for confirmation');
-        assert.ok(errors.length > 0);
-    });
-});
-
-// ── handleDeleteSubSet — destructive ─────────────────────────────────────
-
-suite('handleDeleteSubSet', () => {
-    // Three sub-sets, not two: deleting one of *two* collapses the file to
-    // single-block shape (`serializeArtifact` only emits `## ` headings for
-    // `blocks.length > 1`), moving the survivor's vars to the top-level
-    // `parsed.vars` instead of `parsed.blocks[0]` — real, documented
-    // behaviour (`CLAUDE.md`: "multiBlock is derived"), but it would make
-    // this test about that collapse instead of about the sibling surviving.
-    // Three sub-sets keeps the file multi-block after the delete, so the
-    // untouched sibling is asserted the direct way.
-    test('deletes the target sub-set; an untouched sibling sub-set survives unchanged', async () => {
-        const vaultRoot = makeVault();
-        const threeSubSets: ArtifactFormModel = {
-            artifactType: 'Variables', title: 'Env Bundle', description: '', tags: [],
-            blocks: [
-                ...multiBlockModel().blocks,
-                { heading: 'Staging', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'staging.example.com' }] },
-            ],
-        };
-        const filePath = writeFixture(vaultRoot, 'env', threeSubSets);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: true });
-
-        await handleDeleteSubSet(subsetNode(filePath, 0), provider, io, vaultRoot); // delete 'Dev'
-
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.strictEqual(parsed?.blocks.length, 2);
-        assert.deepStrictEqual(parsed?.blocks.map(b => b.heading), ['Prod', 'Staging']);
-        assert.deepStrictEqual(parsed?.blocks[0]?.vars, threeSubSets.blocks[1]?.vars, 'Prod sub-set untouched');
-        assert.deepStrictEqual(parsed?.blocks[1]?.vars, threeSubSets.blocks[2]?.vars, 'Staging sub-set untouched');
-        assert.strictEqual(refreshCount(), 1);
-    });
-
-    test('deletes a file\'s last remaining sub-set — the file stays, with no variables', async () => {
-        const vaultRoot = makeVault();
-        // One TITLED sub-set: listed as a sub-set row, so Delete sub-set reaches it.
-        const filePath = writeFixture(vaultRoot, 'dev', {
-            ...singleBlockModel(), blocks: [{ ...singleBlockModel().blocks[0], heading: 'Dev' }],
+    teardown(() => eng.dispose());
+
+    suite('buildVariableCommandIds', () => {
+        test('equals the package.json mirror (id set, not a count)', () => {
+            const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as {
+                contributes: { commands: { command: string }[] };
+            };
+            const expected = pkg.contributes.commands.map(c => c.command).filter(id => id.startsWith('md-artifacts.variables.'));
+            assert.deepStrictEqual([...buildVariableCommandIds()].sort(), [...expected].sort());
         });
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors } = makeIO({ confirmResult: true });
-
-        await handleDeleteSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        assert.deepStrictEqual(errors, []);
-        const parsed = parseArtifactFile(filePath, path.join(vaultRoot.fsPath, 'Variables'));
-        assert.strictEqual(parsed?.frontmatter.title, 'Local Dev', 'file or its frontmatter was lost');
-        assert.deepStrictEqual(parsed?.vars, []);
-        assert.deepStrictEqual(parsed?.blocks, []);
-        assert.strictEqual(refreshCount(), 1);
     });
 
-    test('declining the confirmation (Cancel) performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: false });
-
-        await handleDeleteSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
-
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
+    suite('node-id parsing', () => {
+        test('file/subset/var ids round-trip', () => {
+            const fp = '/vault/Variables/env.md';
+            assert.strictEqual(fileNodePath(varNode(fp, 1, 0)), fp);
+            assert.strictEqual(subsetIndex(fileNode(fp)), undefined);
+            assert.strictEqual(subsetIndex(varNode(fp, 1, 0)), 1);
+            assert.strictEqual(varIndex(subsetNode(fp, 1)), undefined);
+            assert.strictEqual(varIndex(varNode(fp, 1, 0)), 0);
+        });
     });
 
-    test('declining the confirmation (Escape) performs zero writes', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: false });
+    suite('requests carry path, the read hash and the engine sub-set ref', () => {
+        test('rename var in sub-set 1 sends vars.var.rename with {index:1, heading:Prod}', async () => {
+            const { io } = makeIO({ inputs: ['port2'] });
+            await handleRenameVar(varNode(sets, 1, 1), provider, io, VAULT);
+            assert.deepStrictEqual(eng.calls('vars.var.rename').map(c => c.params), [{
+                path: 'Variables/sets.md', expectedHash: eng.hashOf(setsMd),
+                subset: { index: 1, heading: 'Prod' }, name: 'VK-port', newName: 'VK-port2',
+            }]);
+            assert.strictEqual(refreshes(), 1);
+        });
 
-        await handleDeleteSubSet(subsetNode(filePath, 0), provider, io, vaultRoot);
+        test('🔒 a flat file sends NO subset key (its pseudo-row heading is the file title)', async () => {
+            const { io } = makeIO({ inputs: ['server'] });
+            await handleRenameVar(varNode(flat, 0, 0), provider, io, VAULT);
+            const [call] = eng.calls('vars.var.rename');
+            assert.ok(call);
+            assert.ok(!('subset' in (call.params as object)), 'flat edit must not carry a subset');
+            assert.deepStrictEqual(call.params, { path: 'Variables/flat.md', expectedHash: eng.hashOf(flatMd), name: 'VK-host', newName: 'VK-server' });
+        });
 
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
+        test('sub-set ops on a flat file address {0, ""} (vars.subset.delete/flat)', async () => {
+            await handleDeleteSubSet(fileNode(flat, 'flat'), provider, makeIO().io, VAULT);
+            assert.deepStrictEqual(eng.calls('vars.subset.delete').map(c => (c.params as { subset: unknown }).subset), [{ index: 0, heading: '' }]);
+        });
+
+        test('edit value → vars.var.set; add var → vars.var.add; new sub-set → vars.subset.add; rename/delete sub-set', async () => {
+            await handleEditValue(varNode(sets, 0, 0), provider, makeIO({ inputs: ['127.0.0.1'] }).io, VAULT);
+            await handleAddVar(subsetNode(sets, 1), provider, makeIO({ inputs: ['user', 'bob'] }).io, VAULT);
+            await handleNewSubSet(fileNode(sets, 'sets'), provider, makeIO({ inputs: ['Staging'] }).io, VAULT);
+            await handleRenameSubSet(subsetNode(sets, 1), provider, makeIO({ inputs: ['Live'] }).io, VAULT);
+            await handleDeleteVar(varNode(sets, 1, 0), provider, makeIO().io, VAULT);
+            await handleDeleteSubSet(subsetNode(sets, 0), provider, makeIO().io, VAULT);
+            const p = (m: string): unknown => eng.calls(m)[0]?.params;
+            const base = { path: 'Variables/sets.md', expectedHash: eng.hashOf(setsMd) };
+            assert.deepStrictEqual(p('vars.var.set'), { ...base, subset: { index: 0, heading: 'Dev' }, name: 'VK-host', value: '127.0.0.1' });
+            assert.deepStrictEqual(p('vars.var.add'), { ...base, subset: { index: 1, heading: 'Prod' }, name: 'VK-user', value: 'bob' });
+            assert.deepStrictEqual(p('vars.subset.add'), { ...base, heading: 'Staging' });
+            assert.deepStrictEqual(p('vars.subset.rename'), { ...base, subset: { index: 1, heading: 'Prod' }, heading: 'Live' });
+            assert.deepStrictEqual(p('vars.var.delete'), { ...base, subset: { index: 1, heading: 'Prod' }, name: 'VK-host' });
+            assert.deepStrictEqual(p('vars.subset.delete'), { ...base, subset: { index: 0, heading: 'Dev' } });
+        });
+
+        test('add var on a blank file sends vars.var.add without subset', async () => {
+            const blank = eng.serve('Variables/blank.md', '---\nartifactType: Variables\ntitle: New\n---\n');
+            await handleAddVar(fileNode(blank, 'blank'), provider, makeIO({ inputs: ['host', 'h'] }).io, VAULT);
+            assert.deepStrictEqual(eng.calls('vars.var.add').map(c => c.params), [
+                { path: 'Variables/blank.md', expectedHash: eng.hashOf('---\nartifactType: Variables\ntitle: New\n---\n'), name: 'VK-host', value: 'h' },
+            ]);
+        });
+
+        test('conflict: modal, no re-send, Reload refreshes the pane', async () => {
+            eng.fake.on('vars.var.set', () => ({ error: { code: 'file.conflict', params: { path: 'Variables/flat.md' } } }));
+            await handleEditValue(varNode(flat, 0, 0), provider, makeIO({ inputs: ['x'] }).io, VAULT);
+            assert.deepStrictEqual(eng.modals, ['"flat.md" changed on disk since it was opened.']);
+            assert.strictEqual(eng.calls('vars.var.set').length, 1);
+            assert.strictEqual(refreshes(), 1, 'only the Reload refresh, not a success refresh');
+        });
     });
 
-    test('no argument refuses — zero writes, no delete, a message shown', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'env', multiBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors, confirmCalls } = makeIO({ confirmResult: true });
+    suite('🔒 containment: only Variables/ is read', () => {
+        test('inside Variables/ ⇒ exactly one artifact.read; inside the vault but outside ⇒ zero', async () => {
+            await handleDeleteFile(fileNode(flat), provider, makeIO({ confirmResult: false }).io, VAULT);
+            assert.strictEqual(eng.calls('artifact.read').length, 1);
 
-        await handleDeleteSubSet(undefined, provider, io, vaultRoot);
+            const other = eng.serve('Snippets/x.md', flatMd);
+            const { io, errors } = makeIO();
+            await handleRenameVar(varNode(other, 0, 0), provider, io, VAULT);
+            await handleDeleteFile(fileNode(other), provider, io, VAULT);
+            assert.strictEqual(eng.calls('artifact.read').length, 1, 'no read for a node outside Variables/');
+            assert.strictEqual(errors.length, 2);
+            assert.strictEqual(writes(), 0);
+        });
 
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.strictEqual(confirmCalls.length, 0);
-        assert.ok(errors.length > 0);
-    });
-});
-
-// ── handleDeleteFile — destructive ───────────────────────────────────────
-
-suite('handleDeleteFile', () => {
-    test('deletes the target file; the sibling file survives — exactly one path changed', async () => {
-        const vaultRoot = makeVault();
-        const targetPath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const siblingPath = writeFixture(vaultRoot, 'prod', multiBlockModel());
-        const siblingBefore = readBytes(siblingPath);
-        const before = listVariablesDir(vaultRoot);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: true });
-
-        await handleDeleteFile(fileNode(targetPath), provider, io, vaultRoot);
-
-        const after = listVariablesDir(vaultRoot);
-        const removed = before.filter(f => !after.includes(f));
-        const added = after.filter(f => !before.includes(f));
-        assert.deepStrictEqual(removed, ['dev.md']);
-        assert.deepStrictEqual(added, []);
-        assert.strictEqual(readBytes(siblingPath), siblingBefore, 'sibling file bytes unchanged');
-        assert.strictEqual(refreshCount(), 1);
+        test('a sibling dir sharing the prefix ("Variables-old/") is outside too', async () => {
+            const other = eng.serve('Variables-old/x.md', flatMd);
+            await handleDeleteFile(fileNode(other), provider, makeIO().io, VAULT);
+            assert.strictEqual(eng.calls('artifact.read').length, 0);
+        });
     });
 
-    test('declining the confirmation (Cancel) performs zero deletion', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: false });
+    suite('Cancel / Escape / decline / no-op send nothing', () => {
+        const cases: [string, () => Promise<void>][] = [
+            ['new sub-set cancelled', () => handleNewSubSet(fileNode(sets, 'sets'), provider, makeIO({ inputs: [undefined] }).io, VAULT)],
+            ['add var: name cancelled', () => handleAddVar(subsetNode(sets, 0), provider, makeIO({ inputs: [undefined] }).io, VAULT)],
+            ['add var: value cancelled', () => handleAddVar(subsetNode(sets, 0), provider, makeIO({ inputs: ['a', undefined] }).io, VAULT)],
+            ['edit value cancelled', () => handleEditValue(varNode(sets, 0, 0), provider, makeIO({ inputs: [undefined] }).io, VAULT)],
+            ['edit value unchanged', () => handleEditValue(varNode(sets, 0, 0), provider, makeIO({ inputs: ['localhost'] }).io, VAULT)],
+            ['rename var cancelled', () => handleRenameVar(varNode(sets, 0, 0), provider, makeIO({ inputs: [undefined] }).io, VAULT)],
+            ['rename var unchanged', () => handleRenameVar(varNode(sets, 0, 0), provider, makeIO({ inputs: ['host'] }).io, VAULT)],
+            ['rename sub-set unchanged', () => handleRenameSubSet(subsetNode(sets, 0), provider, makeIO({ inputs: ['Dev'] }).io, VAULT)],
+            ['delete var declined', () => handleDeleteVar(varNode(sets, 0, 0), provider, makeIO({ confirmResult: false }).io, VAULT)],
+            ['delete sub-set declined', () => handleDeleteSubSet(subsetNode(sets, 0), provider, makeIO({ confirmResult: false }).io, VAULT)],
+            ['delete file declined', () => handleDeleteFile(fileNode(sets), provider, makeIO({ confirmResult: false }).io, VAULT)],
+            ['new file cancelled', () => handleNewFile(provider, makeIO({ inputs: [undefined] }).io, VAULT)],
+        ];
+        for (const [name, run] of cases) {
+            test(name, async () => {
+                await run();
+                assert.strictEqual(writes(), 0);
+                assert.strictEqual(refreshes(), 0);
+            });
+        }
 
-        await handleDeleteFile(fileNode(filePath), provider, io, vaultRoot);
-
-        assert.ok(fs.existsSync(filePath));
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
+        test('no argument refuses with a toast: no read, no write', async () => {
+            const { io, errors } = makeIO({ inputs: ['x'] });
+            await handleNewSubSet(undefined, provider, io, VAULT);
+            await handleDeleteVar(undefined, provider, io, VAULT);
+            await handleDeleteSubSet(undefined, provider, io, VAULT);
+            await handleDeleteFile(undefined, provider, io, VAULT);
+            assert.strictEqual(errors.length, 4);
+            assert.strictEqual(eng.calls('artifact.read').length, 0);
+            assert.strictEqual(writes(), 0);
+        });
     });
 
-    test('declining the confirmation (Escape) performs zero deletion', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io } = makeIO({ confirmResult: false });
+    // H3.0e (W3): the prompt-display half of "`VK-` is fixed, not typed" — the wire half is `:134` / `:110`.
+    suite('VK- name prompts', () => {
+        const capture = (): { io: CommandIO; seen: vscode.InputBoxOptions[] } => {
+            const seen: vscode.InputBoxOptions[] = [];
+            return { seen, io: { ...makeIO().io, showInputBox: o => { seen.push(o); return Promise.resolve(undefined); } } };
+        };
 
-        await handleDeleteFile(fileNode(filePath), provider, io, vaultRoot);
+        test('add var: the name box starts empty — no editable VK- pre-fill', async () => {
+            const { io, seen } = capture();
+            await handleAddVar(subsetNode(sets, 1), provider, io, VAULT);
+            assert.strictEqual(seen[0]?.value, '');
+        });
 
-        assert.ok(fs.existsSync(filePath));
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
+        test('rename var: the box holds the name without VK-', async () => {
+            const { io, seen } = capture();
+            await handleRenameVar(varNode(sets, 1, 1), provider, io, VAULT);
+            assert.strictEqual(seen[0]?.value, 'port');
+        });
     });
 
-    test('no argument refuses — zero deletion, no delete, a message shown', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const before = readBytes(filePath);
-        const provider = new VariablesViewProvider();
-        const refreshCount = spyRefresh(provider);
-        const { io, errors, confirmCalls } = makeIO({ confirmResult: true });
+    suite('handleNewSubSet prompt', () => {
+        test('a set with no variables pre-fills the name with the set title; one with variables starts empty', async () => {
+            const empty = eng.serve('Variables/empty.md', '---\nartifactType: Variables\ntitle: Local Dev\n---\n');
+            const seen: vscode.InputBoxOptions[] = [];
+            const io: CommandIO = { ...makeIO().io, showInputBox: o => { seen.push(o); return Promise.resolve(undefined); } };
+            await handleNewSubSet(fileNode(empty, 'blank'), provider, io, VAULT);
+            await handleNewSubSet(fileNode(sets, 'sets'), provider, io, VAULT);
+            assert.deepStrictEqual(seen.map(o => o.value), ['Local Dev', '']);
+        });
 
-        await handleDeleteFile(undefined, provider, io, vaultRoot);
+        test('a name already used by a sub-set is flagged while typing', async () => {
+            const seen: vscode.InputBoxOptions[] = [];
+            const io: CommandIO = { ...makeIO().io, showInputBox: o => { seen.push(o); return Promise.resolve(undefined); } };
+            await handleNewSubSet(fileNode(sets, 'sets'), provider, io, VAULT);
+            assert.ok(seen[0]?.validateInput?.('Dev'));
+            assert.strictEqual(seen[0]?.validateInput?.('Staging'), undefined);
+        });
+    });
 
-        assert.ok(fs.existsSync(filePath));
-        assert.strictEqual(readBytes(filePath), before);
-        assert.strictEqual(refreshCount(), 0);
-        assert.strictEqual(confirmCalls.length, 0);
-        assert.ok(errors.length > 0);
+    suite('handleNewFile', () => {
+        test('vars.file.new, then vars.var.add with the NEW result path+hash (no artifact.read), form opened at result.path', async () => {
+            eng.fake.on('vars.file.new', () => ({ result: { path: 'Variables/local-dev.md', hash: 'h1' } }));
+            const opened: string[] = [];
+            await handleNewFile(provider, makeIO({ inputs: ['Local Dev'] }).io, VAULT, async u => { opened.push(u.fsPath); });
+            assert.deepStrictEqual(eng.calls('vars.file.new').map(c => c.params), [{ title: 'Local Dev' }]);
+            assert.deepStrictEqual(eng.calls('vars.var.add').map(c => c.params), [
+                { path: 'Variables/local-dev.md', expectedHash: 'h1', name: 'VK-name', value: '' },
+            ]);
+            assert.strictEqual(eng.calls('artifact.read').length, 0);
+            assert.deepStrictEqual(opened, ['/v/Variables/local-dev.md']);
+            assert.strictEqual(refreshes(), 1);
+        });
+
+        test('a name collision (file.exists) toasts: no seed request, form not opened', async () => {
+            eng.fake.on('vars.file.new', () => ({ error: { code: 'file.exists', params: { path: 'Variables/x.md' } } }));
+            let opened = 0;
+            await handleNewFile(provider, makeIO({ inputs: ['X'] }).io, VAULT, async () => { opened++; });
+            assert.strictEqual(eng.calls('vars.var.add').length, 0);
+            assert.strictEqual(opened, 0);
+            assert.strictEqual(eng.toasts.length, 1);
+        });
+    });
+
+    suite('handleDeleteFile', () => {
+        test('sends artifact.delete {path, expectedHash}, refreshes; the confirm names the file', async () => {
+            const { io, confirmCalls } = makeIO();
+            await handleDeleteFile(fileNode(sets), provider, io, VAULT);
+            assert.deepStrictEqual(eng.calls('artifact.delete').map(c => c.params), [{ path: 'Variables/sets.md', expectedHash: eng.hashOf(setsMd) }]);
+            assert.ok(confirmCalls[0]?.includes('sets.md'));
+            assert.strictEqual(refreshes(), 1);
+        });
     });
 });

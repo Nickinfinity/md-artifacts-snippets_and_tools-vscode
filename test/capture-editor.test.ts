@@ -1,39 +1,35 @@
 import * as assert from 'node:assert';
-import { captureEditor } from '../src/commands/capture/editor.capture.js';
+import { captureEditor, type PrefillFn } from '../src/commands/capture/editor.capture.js';
+import { loadOpCases } from './fake-engine.js';
+import type { EngineModel } from '../src/types/engine.types.js';
 
 /**
- * Unit tests for `captureEditor` (VSX-209, T7).
- *
- * Pure: takes `{ text, languageId }`, never a `vscode.TextEditor`. Empty
- * selection yields `undefined` so the caller shows a toast instead of
- * opening an empty form. `Snippet` (language mode `free`) keeps the mapped
- * fence language; `AIPrompt` (language mode `hidden`) forces its
- * `form.language.default` (`markdown`) regardless of the editor's
- * `languageId` — read through `getLanguageMode`/`getDefaultLanguage`, never
- * a `type === 'AIPrompt'` literal.
+ * `captureEditor` gathers the selection and asks the engine (`artifact.prefill`); language mapping and
+ * the hidden-language rule are engine-owned (op cases `selection_tsx`, `selection_hidden`).
  */
 
+const reply = (name: string): EngineModel =>
+    loadOpCases().find(c => c.method === 'artifact.prefill' && c.name === name)!.expect as EngineModel;
+
 suite('captureEditor', () => {
-    test('empty selection yields undefined', () => {
-        assert.strictEqual(captureEditor({ text: '', languageId: 'ts' }, 'Snippet'), undefined);
+    test('empty selection yields undefined and sends no request', async () => {
+        const sent: unknown[] = [];
+        const prefill: PrefillFn = async p => { sent.push(p); return undefined; };
+        assert.strictEqual(await captureEditor({ text: '', languageId: 'ts' }, 'Snippet', prefill), undefined);
+        assert.strictEqual(sent.length, 0);
     });
 
-    test('Snippet: maps languageId through mapLanguageId (typescriptreact -> tsx)', () => {
-        const result = captureEditor({ text: 'const x = 1;', languageId: 'typescriptreact' }, 'Snippet');
+    test('sends exactly the selection params; prefill comes from the reply', async () => {
+        const sent: unknown[] = [];
+        const prefill: PrefillFn = async p => { sent.push(p); return reply('selection_tsx'); };
+        const result = await captureEditor({ text: 'const x = 1;', languageId: 'typescriptreact' }, 'Snippet', prefill);
+        assert.deepStrictEqual(sent, [{ source: 'selection', type: 'Snippet', text: 'const x = 1;', languageId: 'typescriptreact' }]);
         assert.strictEqual(result?.source, 'selection');
-        assert.deepStrictEqual(result?.prefill.blocks?.[0], {
-            heading: '', description: '', language: 'tsx', code: 'const x = 1;', vars: [],
-        });
+        assert.strictEqual(result?.prefill.blocks?.[0]?.language, 'tsx');
+        assert.strictEqual(result?.prefill.blocks?.[0]?.code, 'const x = 1;');
     });
 
-    test('AIPrompt: forces markdown fence regardless of editor languageId', () => {
-        const result = captureEditor({ text: 'Review <VK-repo>.', languageId: 'typescript' }, 'AIPrompt');
-        assert.strictEqual(result?.prefill.blocks?.[0]?.language, 'markdown');
-        assert.strictEqual(result?.prefill.blocks?.[0]?.code, 'Review <VK-repo>.');
-    });
-
-    test('source is always selection', () => {
-        const result = captureEditor({ text: 'hi', languageId: 'plaintext' }, 'Snippet');
-        assert.strictEqual(result?.source, 'selection');
+    test('engine refusal yields undefined', async () => {
+        assert.strictEqual(await captureEditor({ text: 'hi', languageId: 'plaintext' }, 'Snippet', async () => undefined), undefined);
     });
 });

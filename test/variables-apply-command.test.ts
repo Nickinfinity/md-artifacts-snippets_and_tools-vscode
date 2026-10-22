@@ -1,14 +1,12 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import { handleApplyToPreview, handleSaveCurrentValues, type ApplyDeps } from '../src/commands/variables-apply.command.js';
 import { setPreviewTarget, type PreviewVarTarget } from '../src/services/preview-target.service.js';
 import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import { resolveTarget, type CommandIO } from '../src/commands/variables.command.helpers.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 import type { VariableNode } from '../src/ui/views/variablesView.provider.js';
+import { useVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
  * T1.3 — Variables-pane commands that reach a live preview (VSX-246).
@@ -26,19 +24,11 @@ function singleBlockModel(): ArtifactFormModel {
     };
 }
 
-/** Fresh temp vault with a `Variables/` directory, as a `vscode.Uri`. */
-function makeVault(): vscode.Uri {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'variables-apply-command-test-'));
-    fs.mkdirSync(path.join(dir, 'Variables'));
-    return vscode.Uri.file(dir);
-}
-
-/** Writes a fixture model to `<vaultRoot>/Variables/<name>.md`; returns the absolute path. */
-function writeFixture(vaultRoot: vscode.Uri, name: string, model: ArtifactFormModel): string {
-    const filePath = path.join(vaultRoot.fsPath, 'Variables', `${name}.md`);
-    fs.writeFileSync(filePath, renderVariablesFile(model), 'utf8');
-    return filePath;
-}
+let eng: () => VarsEngine;
+const makeVault = (): vscode.Uri => VAULT;
+/** Serves a fixture model at `Variables/<name>.md`; returns the absolute path a tree node carries. */
+const writeFixture = (_vault: vscode.Uri, name: string, model: ArtifactFormModel): string =>
+    eng().serve(`Variables/${name}.md`, renderVariablesFile(model));
 
 function subsetNode(filePath: string, subIdx: number): VariableNode {
     return { id: `${filePath}::subset:${subIdx}`, parentId: filePath, kind: 'subset', label: `sub${subIdx}` };
@@ -72,118 +62,116 @@ function makeDeps(vaultRoot: vscode.Uri | undefined): { deps: ApplyDeps; info: s
     return { deps, info, errors };
 }
 
-// ── O-2: no preview open ─────────────────────────────────────────────────────
+suite('Variables apply commands (engine)', () => {
+    eng = useVarsEngine();
 
-suite('handleApplyToPreview / handleSaveCurrentValues — no preview open (O-2)', () => {
-    test('handleApplyToPreview: no preview open — must not throw, must not apply, must tell the user', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const { deps, info, errors } = makeDeps(vaultRoot);
+    // ── O-2: no preview open ─────────────────────────────────────────────────────
 
-        await handleApplyToPreview(subsetNode(filePath, 0), deps);
+    suite('handleApplyToPreview / handleSaveCurrentValues — no preview open (O-2)', () => {
+        test('handleApplyToPreview: no preview open — must not throw, must not apply, must tell the user', async () => {
+            const vaultRoot = makeVault();
+            const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
+            const { deps, info, errors } = makeDeps(vaultRoot);
 
-        assert.strictEqual(info.length, 1, 'no preview open, and the user was told nothing');
-        assert.strictEqual(errors.length, 0, 'no preview open is not an error');
-    });
-
-    test('handleSaveCurrentValues: no preview open — same refusal path, invokable with no node', async () => {
-        const vaultRoot = makeVault();
-        const { deps, info, errors } = makeDeps(vaultRoot);
-
-        await handleSaveCurrentValues(deps);
-
-        assert.strictEqual(info.length, 1, 'no preview open, and the user was told nothing');
-        assert.strictEqual(errors.length, 0, 'no preview open is not an error');
-    });
-});
-
-// ── Apply to preview ─────────────────────────────────────────────────────────
-
-suite('handleApplyToPreview — a live preview receives the sub-set', () => {
-    test('applies the clicked sub-set to the live preview target', async () => {
-        const vaultRoot = makeVault();
-        const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
-        const { deps } = makeDeps(vaultRoot);
-        const target = fakeTarget();
-        const release = setPreviewTarget(target);
-
-        try {
             await handleApplyToPreview(subsetNode(filePath, 0), deps);
-            assert.deepStrictEqual(target.applied, [
-                ['Local Dev', [{ name: 'VK-host', defaultValue: 'localhost' }]],
-            ]);
-        } finally {
-            release();
-        }
-    });
-});
 
-// ── Save current values ──────────────────────────────────────────────────────
+            assert.strictEqual(info.length, 1, 'no preview open, and the user was told nothing');
+            assert.strictEqual(errors.length, 0, 'no preview open is not an error');
+        });
 
-suite('handleSaveCurrentValues — reaches the save-as-set flow with the target\'s values', () => {
-    test('a live target\'s currentValues() reach saveAsSet', async () => {
-        const vaultRoot = makeVault();
-        const { deps } = makeDeps(vaultRoot);
-        const saved: Record<string, string>[] = [];
-        const target: PreviewVarTarget = {
-            applyVarSet: () => { /* not exercised here */ },
-            currentValues: () => ({ 'VK-host': 'typed-value' }),
-            saveAsSet: async values => { saved.push(values); },
-        };
-        const release = setPreviewTarget(target);
+        test('handleSaveCurrentValues: no preview open — same refusal path, invokable with no node', async () => {
+            const vaultRoot = makeVault();
+            const { deps, info, errors } = makeDeps(vaultRoot);
 
-        try {
             await handleSaveCurrentValues(deps);
-            assert.deepStrictEqual(saved, [{ 'VK-host': 'typed-value' }]);
-        } finally {
-            release();
-        }
-    });
-});
 
-// ── D-7: containment guard inside resolveTarget ──────────────────────────────
-
-suite('resolveTarget — D-7 containment guard (hostile fixture)', () => {
-    test('a valid, parseable Variables file written OUTSIDE Variables/ is refused before reaching the preview', async () => {
-        const vaultRoot = makeVault();
-        // Written under the vault root but NOT under Variables/ — the fixture
-        // must be a genuinely parseable `artifactType: Variables` file, or the
-        // refusal could be coming from parseArtifactFile returning undefined
-        // instead of the containment guard. Built through the production
-        // emitter (renderVariablesFile), never a hand-typed string.
-        const outsideDir = path.join(vaultRoot.fsPath, 'NotVariables');
-        fs.mkdirSync(outsideDir);
-        const outsidePath = path.join(outsideDir, 'outside.md');
-        fs.writeFileSync(outsidePath, renderVariablesFile(singleBlockModel()), 'utf8');
-
-        const { deps } = makeDeps(vaultRoot);
-        const target = fakeTarget();
-        const release = setPreviewTarget(target);
-
-        try {
-            await handleApplyToPreview(subsetNode(outsidePath, 0), deps);
-            assert.strictEqual(target.applied.length, 0, 'a file outside Variables/ reached the preview');
-        } finally {
-            release();
-        }
+            assert.strictEqual(info.length, 1, 'no preview open, and the user was told nothing');
+            assert.strictEqual(errors.length, 0, 'no preview open is not an error');
+        });
     });
 
-    test('sink assertion — resolveTarget itself refuses the outside-root path (used to prove the guard is not decoration)', async () => {
-        const vaultRoot = makeVault();
-        const outsideDir = path.join(vaultRoot.fsPath, 'NotVariables');
-        fs.mkdirSync(outsideDir, { recursive: true });
-        const outsidePath = path.join(outsideDir, 'outside.md');
-        fs.writeFileSync(outsidePath, renderVariablesFile(singleBlockModel()), 'utf8');
+    // ── Apply to preview ─────────────────────────────────────────────────────────
 
-        const errors: string[] = [];
-        const io: CommandIO = {
-            showInputBox: () => Promise.resolve(undefined),
-            confirm: () => Promise.resolve(true),
-            showQuickPick: () => Promise.resolve(undefined),
-            showError: (message: string) => { errors.push(message); },
-        };
-        const result = await resolveTarget(subsetNode(outsidePath, 0), 'subset', vaultRoot, io);
-        assert.strictEqual(result, undefined, 'resolveTarget must refuse a path outside the Variables directory');
-        assert.strictEqual(errors.length, 1);
+    suite('handleApplyToPreview — a live preview receives the sub-set', () => {
+        test('applies the clicked sub-set to the live preview target', async () => {
+            const vaultRoot = makeVault();
+            const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
+            const { deps } = makeDeps(vaultRoot);
+            const target = fakeTarget();
+            const release = setPreviewTarget(target);
+
+            try {
+                await handleApplyToPreview(subsetNode(filePath, 0), deps);
+                assert.deepStrictEqual(target.applied, [
+                    ['Local Dev', [{ name: 'VK-host', defaultValue: 'localhost' }]],
+                ]);
+            } finally {
+                release();
+            }
+        });
+    });
+
+    // ── Save current values ──────────────────────────────────────────────────────
+
+    suite('handleSaveCurrentValues — reaches the save-as-set flow with the target\'s values', () => {
+        test('a live target\'s currentValues() reach saveAsSet', async () => {
+            const vaultRoot = makeVault();
+            const { deps } = makeDeps(vaultRoot);
+            const saved: Record<string, string>[] = [];
+            const target: PreviewVarTarget = {
+                applyVarSet: () => { /* not exercised here */ },
+                currentValues: () => ({ 'VK-host': 'typed-value' }),
+                saveAsSet: async values => { saved.push(values); },
+            };
+            const release = setPreviewTarget(target);
+
+            try {
+                await handleSaveCurrentValues(deps);
+                assert.deepStrictEqual(saved, [{ 'VK-host': 'typed-value' }]);
+            } finally {
+                release();
+            }
+        });
+    });
+
+    // ── D-7: containment guard inside resolveTarget ──────────────────────────────
+
+    suite('resolveTarget — D-7 containment guard (hostile fixture)', () => {
+        const outside = (): string => eng().serve('NotVariables/outside.md', renderVariablesFile(singleBlockModel()));
+
+        test('a valid Variables file OUTSIDE Variables/ is refused before reaching the preview', async () => {
+            const outsidePath = outside();
+            const { deps } = makeDeps(VAULT);
+            const target = fakeTarget();
+            const release = setPreviewTarget(target);
+            try {
+                await handleApplyToPreview(subsetNode(outsidePath, 0), deps);
+                assert.strictEqual(target.applied.length, 0, 'a file outside Variables/ reached the preview');
+                assert.strictEqual(eng().calls('artifact.read').length, 0, 'the outside file was read');
+            } finally {
+                release();
+            }
+        });
+
+        test('sink assertion: resolveTarget refuses the outside path and sends no artifact.read', async () => {
+            const outsidePath = outside();
+            const errors: string[] = [];
+            const io: CommandIO = {
+                showInputBox: () => Promise.resolve(undefined),
+                confirm: () => Promise.resolve(true),
+                showQuickPick: () => Promise.resolve(undefined),
+                showError: (message: string) => { errors.push(message); },
+            };
+            assert.strictEqual(await resolveTarget(subsetNode(outsidePath, 0), 'subset', VAULT, io), undefined);
+            assert.strictEqual(errors.length, 1);
+            assert.strictEqual(eng().calls('artifact.read').length, 0);
+        });
+
+        test('paired: the same file inside Variables/ is read exactly once', async () => {
+            const inside = eng().serve('Variables/in.md', renderVariablesFile(singleBlockModel()));
+            const target = await resolveTarget(subsetNode(inside, 0), 'subset', VAULT, makeDeps(VAULT).deps.io);
+            assert.ok(target);
+            assert.strictEqual(eng().calls('artifact.read').length, 1);
+        });
     });
 });

@@ -1,5 +1,21 @@
 import * as vscode from 'vscode';
 
+/** What a confirmation asks: the question, the confirming button, optional consequences. */
+type ConfirmOpts = { message: string; action: string; detail?: string };
+
+let sink: ((opts: ConfirmOpts) => Promise<boolean>) | undefined;
+
+/**
+ * Replaces the modal with a function, for tests. The test host refuses real dialogs, so
+ * every write-path test answers a confirmation through this one seam (W3, H3.0d).
+ *
+ * @param fn - Answers each confirmation; `undefined` restores the real modal.
+ * @returns Nothing.
+ * @example
+ * setConfirmSink(async () => true); // teardown: setConfirmSink(undefined)
+ */
+export function setConfirmSink(fn: ((opts: ConfirmOpts) => Promise<boolean>) | undefined): void { sink = fn; }
+
 /**
  * Shows a modal confirmation and reports whether the user accepted.
  *
@@ -22,6 +38,7 @@ export async function confirmModal(opts: {
     detail?: string;
     action: string;
 }): Promise<boolean> {
+    if (sink) { return sink(opts); }
     const answer = await vscode.window.showWarningMessage(
         opts.message,
         { modal: true, ...(opts.detail ? { detail: opts.detail } : {}) },
