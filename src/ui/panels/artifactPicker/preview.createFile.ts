@@ -166,7 +166,7 @@ export async function runCreateFileFlow(args: RunCreateFileFlowArgs, io: CreateF
  * @example
  * await blockIndex('AIAgentsConf/multi.md', { kind: 'multi', heading: 'Two' }); // 1
  */
-async function blockIndex(relPath: string, ref: BlockRef | undefined): Promise<number | undefined | null> {
+export async function blockIndex(relPath: string, ref: BlockRef | undefined): Promise<number | undefined | null> {
     if (ref?.kind !== 'multi') { return undefined; }
     const read = await requestOrNotify('artifact.read', { path: relPath });
     if (!read) { return null; }

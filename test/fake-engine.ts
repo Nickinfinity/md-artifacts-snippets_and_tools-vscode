@@ -10,15 +10,20 @@ import type { EngineErrorData, EngineProcess, TypeInfo } from '../src/types/engi
 
 const FIXTURES = path.join(__dirname, '../../test/fixtures/engine');
 
+/** One fake reply: a result or an engine error. */
+export type Reply = { result: unknown } | { error: EngineErrorData };
+
 /**
- * Answers one request: a result or an engine error.
+ * Answers one request: a result or an engine error, now or later.
+ * A Promise lets a test hold a reply back; replies still leave in request order.
  *
  * @param params - The request's params, untouched.
- * @returns `{ result }` or `{ error }`.
+ * @returns `{ result }` or `{ error }`, or a Promise of one.
  * @example
  * const h: FakeHandler = () => ({ result: { ok: true } });
+ * const slow: FakeHandler = async () => { await gate; return { result: 'late' }; };
  */
-export type FakeHandler = (params: unknown) => { result: unknown } | { error: EngineErrorData };
+export type FakeHandler = (params: unknown) => Reply | Promise<Reply>;
 
 /** A fake engine process plus test controls. */
 export interface FakeEngine extends EngineProcess {
@@ -57,7 +62,7 @@ export function createFakeEngine(opts: { protocol?: string; types?: readonly Typ
         exitHandlers.forEach(h => h(code));
     };
 
-    const initialize = (params: unknown): ReturnType<FakeHandler> => {
+    const initialize = (params: unknown): Reply => {
         const client = (params as { protocol?: unknown } | null)?.protocol;
         if (typeof client !== 'string') { return { error: { code: 'op.bad_request', params: {} } }; }
         if (client.split('.')[0] !== protocol.split('.')[0]) {
@@ -66,20 +71,34 @@ export function createFakeEngine(opts: { protocol?: string; types?: readonly Typ
         return { result: { protocol, engine: '0.10.0', types } };
     };
 
-    const handle = (line: string): void => {
-        if (hung || exited || line.trim() === '') { return; }
-        let req: { id: number | string; method: string; params?: unknown };
-        try { req = JSON.parse(line); } catch { fail(null, -32700, { code: 'protocol.parse_error', params: {} }); return; }
-        received.push({ id: req.id, method: req.method, params: req.params });
+    type Req = { id: number | string; method: string; params?: unknown };
+
+    const answer = async (req: Req): Promise<void> => {
         const custom = handlers.get(req.method);
         if (req.method !== 'initialize' && !initialized) { fail(req.id, -32002, { code: 'protocol.not_initialized', params: {} }); return; }
         if (req.method === 'initialize' && initialized && !custom) { fail(req.id, -32600, { code: 'protocol.already_initialized', params: {} }); return; }
         const handler = custom ?? (req.method === 'initialize' ? initialize : undefined);
         if (!handler) { fail(req.id, -32601, { code: 'op.unknown', params: { name: req.method } }); return; }
-        const out = handler(req.params);
+        const out = await handler(req.params);
+        if (hung || exited) { return; }
         if ('error' in out) { fail(req.id, -32000, out.error); return; }
         if (req.method === 'initialize') { initialized = true; }
         send({ id: req.id, result: out.result });
+    };
+
+    // Every reply rides one chain, so replies leave in request order even when a
+    // handler is async (the real engine is strictly in-order). Each link catches
+    // its own failure: one throwing handler must not silence every later reply.
+    let queue: Promise<void> = Promise.resolve();
+    const handle = (line: string): void => {
+        if (hung || exited || line.trim() === '') { return; }
+        let req: Req;
+        try { req = JSON.parse(line); } catch { fail(null, -32700, { code: 'protocol.parse_error', params: {} }); return; }
+        received.push({ id: req.id, method: req.method, params: req.params });
+        const step = async (): Promise<void> => {
+            try { await answer(req); } catch { fail(req.id, -32603, { code: 'op.internal', params: {} }); }
+        };
+        queue = queue.then(step, step);
     };
     readline.createInterface({ input: stdin }).on('line', handle);
 

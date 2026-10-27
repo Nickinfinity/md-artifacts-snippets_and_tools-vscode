@@ -1,4 +1,17 @@
-import type { ParsedVar } from '../types/parsed-artifact.types.js';
+import type { SubsetRef } from '../types/engine.types.js';
+
+/**
+ * Which variable set to apply: display label, vault-relative file path, and the
+ * engine's sub-set ref (absent for a flat file, whose label is the file title).
+ *
+ * @example
+ * const ref: VarSetRef = { label: 'Dev', path: 'Variables/a.md', subset: { index: 0, heading: 'Dev' } };
+ */
+export interface VarSetRef {
+    readonly label: string;
+    readonly path: string;
+    readonly subset?: SubsetRef;
+}
 
 /**
  * What a live preview offers the Variables pane, so the pane can drive
@@ -8,7 +21,7 @@ import type { ParsedVar } from '../types/parsed-artifact.types.js';
  *
  * @example
  * const target: PreviewVarTarget = {
- *     applyVarSet: (name, vars) => controller.applyVarSet(name, vars),
+ *     applyVarSet: ref => controller.applyVarSet(ref),
  *     currentValues: () => controller.snapshotValues(),
  *     saveAsSet: values => controller.handleSaveAsVarSet({ values }),
  * };
@@ -17,13 +30,12 @@ export interface PreviewVarTarget {
     /**
      * Applies a sub-set's values to the preview's inputs, showing the diff step.
      *
-     * @param subSetName - The sub-set's display name, for the diff header.
-     * @param vars - The sub-set's variables to merge into the preview.
+     * @param ref - The set to apply; the engine computes the diff.
      * @returns Nothing; the preview renders the diff itself.
      * @example
-     * target.applyVarSet('Staging', [{ name: 'VK-host', defaultValue: 'staging.example.com' }]);
+     * target.applyVarSet({ label: 'Staging', path: 'Variables/staging.md' });
      */
-    applyVarSet(subSetName: string, vars: readonly ParsedVar[]): void;
+    applyVarSet(ref: VarSetRef): void;
 
     /**
      * The values currently typed into the preview, for "save these as a set".

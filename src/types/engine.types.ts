@@ -195,7 +195,7 @@ export interface VarsFile {
  * A non-fatal render diagnostic (`render.*` code).
  *
  * @example
- * const w: RenderWarning = { code: 'render.unresolved', params: { line: '3', name: 'VK-x' } };
+ * const w: RenderWarning = { code: 'render.unknown_var', params: { line: '3', name: 'VK-x' } };
  */
 export interface RenderWarning { readonly code: string; readonly params: { readonly line: string; readonly name?: string; readonly path?: string } }
 

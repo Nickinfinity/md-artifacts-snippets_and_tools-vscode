@@ -316,8 +316,8 @@ export class PreviewPanelController {
     private claimTarget(): void {
         this.releaseTarget?.();
         this.releaseTarget = setPreviewTarget({
-            applyVarSet: (subSetName, vars) => {
-                this.varSet.showDiffFor(subSetName, vars, this.varsSnapshot);
+            applyVarSet: ref => {
+                void this.varSet.showDiffFor(ref, this.varsSnapshot);
             },
             currentValues: () => ({ ...this.varsSnapshot }),
             // Routed through the controller, not reimplemented: it holds the
@@ -346,8 +346,8 @@ export class PreviewPanelController {
         else if (cmd === 'quickEdit')     { this.modeController?.enterQuickEdit(); }
         else if (cmd === 'backToPreview') { this.modeController?.enterPreview(); }
         else if (cmd === 'fullEdit')      { this.handleFullEdit(); }
-        else if (cmd === 'insert')        { this.actions.handleInsert(msg); }
-        else if (cmd === 'copy')          { this.actions.handleCopy(msg); }
+        else if (cmd === 'insert')        { void this.actions.handleInsert(msg); }
+        else if (cmd === 'copy')          { void this.actions.handleCopy(msg); }
         else if (cmd === 'editBlock')     { await this.staged.handleEditBlock(); }
         else if (cmd === 'overwrite')     { await this.staged.handleOverwrite(msg); }
         else if (cmd === 'varsHeightChanged') { await this.width.handleVarsHeightChanged(msg); }

@@ -35,11 +35,11 @@ function subsetNode(filePath: string, subIdx: number): VariableNode {
 }
 
 /** Fake `PreviewVarTarget` that records every `applyVarSet` call. */
-function fakeTarget(): PreviewVarTarget & { applied: [string, readonly { name: string; defaultValue: string }[]][] } {
-    const applied: [string, readonly { name: string; defaultValue: string }[]][] = [];
+function fakeTarget(): PreviewVarTarget & { applied: unknown[] } {
+    const applied: unknown[] = [];
     return {
         applied,
-        applyVarSet: (subSetName, vars) => { applied.push([subSetName, vars]); },
+        applyVarSet: (...args: unknown[]) => { applied.push(args[0]); },
         currentValues: () => ({ 'VK-host': 'typed-value' }),
         saveAsSet: async () => { /* not exercised directly — recorded via a spy in its own test */ },
     };
@@ -102,9 +102,7 @@ suite('Variables apply commands (engine)', () => {
 
             try {
                 await handleApplyToPreview(subsetNode(filePath, 0), deps);
-                assert.deepStrictEqual(target.applied, [
-                    ['Local Dev', [{ name: 'VK-host', defaultValue: 'localhost' }]],
-                ]);
+                assert.deepStrictEqual(target.applied, [{ label: 'Local Dev', path: 'Variables/dev.md' }]);
             } finally {
                 release();
             }

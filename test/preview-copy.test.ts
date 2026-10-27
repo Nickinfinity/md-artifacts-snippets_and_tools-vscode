@@ -1,8 +1,7 @@
 import * as assert from 'node:assert';
 import { renderCodeRowsHtml } from '../src/services/render.service.js';
 import { getAllTypes } from '../src/services/artifact-type-config.service.js';
-import { resolveVars } from '../src/services/parser.service.js';
-import { renderPreviewHtml, mergeVarsWithDefaults } from '../src/ui/panels/artifactPicker/preview.render.js';
+import { renderPreviewHtml } from '../src/ui/panels/artifactPicker/preview.render.js';
 import type { ArtifactType, ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -88,27 +87,5 @@ suite('renderPreviewHtml — Copy control', () => {
         // CSP meta tag and the single script nonce are unchanged in shape.
         assert.match(html, /Content-Security-Policy"\s+content="default-src 'none'; style-src https:\/\/csp 'unsafe-inline'; script-src 'nonce-test-nonce';"/);
         assert.strictEqual(countMatches(html, /<script nonce="test-nonce">/), 1);
-    });
-});
-
-// ── Resolution chain: Copy must resolve identically to Insert ─────────────────
-
-/**
- * `handleCopy` and `handleInsert` both build resolved code via the same
- * `mergeVarsWithDefaults(...) → resolveVars(...)` pair — this pins that chain
- * so a future edit to either function can't silently make Copy diverge from
- * Insert. Covers both directions: default-value fallback for an empty input,
- * and an unresolved token staying literal (never blanked) when neither a
- * typed value nor a default exists.
- */
-suite('Copy resolution chain — mergeVarsWithDefaults → resolveVars (matches Insert)', () => {
-
-    test('empty typed value falls back to default; a var with no default stays literal', () => {
-        const resolved = mergeVarsWithDefaults(
-            { 'VK-h': '' },
-            [{ name: 'VK-h', defaultValue: 'localhost' }, { name: 'VK-x', defaultValue: '' }],
-        );
-        const result = resolveVars('ping <VK-h> <VK-x>', resolved);
-        assert.strictEqual(result, 'ping localhost <VK-x>');
     });
 });

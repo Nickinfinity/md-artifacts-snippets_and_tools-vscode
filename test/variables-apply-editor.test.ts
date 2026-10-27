@@ -1,7 +1,8 @@
 import * as assert from 'node:assert';
 import * as vscode from 'vscode';
-import { fillVarTokens, handleApplyToEditor, type ApplyDeps } from '../src/commands/variables-apply.command.js';
+import { handleApplyToEditor, type ApplyDeps } from '../src/commands/variables-apply.command.js';
 import { onPreviewTargetChanged, setPreviewTarget, type PreviewVarTarget } from '../src/services/preview-target.service.js';
+import { engineErrorMessage } from '../src/engine/errors.js';
 import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import type { VariableNode } from '../src/ui/views/variablesView.provider.js';
 import { useVarsEngine, VAULT } from './vars-engine.js';
@@ -11,29 +12,6 @@ import { useVarsEngine, VAULT } from './vars-engine.js';
  * `<VK-xxx>` tokens in the active editor) and the preview-open signal that
  * shows Apply-to-preview only while a preview exists.
  */
-
-suite('fillVarTokens', () => {
-    test('fills the set\'s tokens and leaves unknown ones', () => {
-        assert.strictEqual(
-            fillVarTokens('const <VK-result> = <VK-array>.map(<VK-other>);', [
-                { name: 'VK-result', defaultValue: 'names' },
-                { name: 'VK-array', defaultValue: 'users' },
-            ]),
-            'const names = users.map(<VK-other>);',
-        );
-    });
-
-    test('an empty value keeps its token instead of erasing it', () => {
-        assert.strictEqual(fillVarTokens('<VK-a>/<VK-b>', [
-            { name: 'VK-a', defaultValue: 'x' },
-            { name: 'VK-b', defaultValue: '' },
-        ]), 'x/<VK-b>');
-    });
-
-    test('the render-safe <VK-x></VK-x> pair becomes one value', () => {
-        assert.strictEqual(fillVarTokens('run <VK-host></VK-host>', [{ name: 'VK-host', defaultValue: 'db' }]), 'run db');
-    });
-});
 
 suite('handleApplyToEditor', () => {
     const eng = useVarsEngine();
@@ -66,23 +44,46 @@ suite('handleApplyToEditor', () => {
 
     teardown(async () => { await vscode.commands.executeCommand('workbench.action.closeAllEditors'); });
 
-    test('no selection → fills the whole document', async () => {
+    /** Canned engine: answers `render.text` by `params.text`; never substitutes. */
+    function canned(map: Record<string, string>): void {
+        eng().fake.on('render.text', p => ({ result: { output: map[(p as { text: string }).text] ?? (p as { text: string }).text, warnings: [], containsEscape: false } }));
+    }
+    const renders = (): { params: unknown }[] => eng().calls('render.text');
+
+    test('no selection → one render.text, document becomes the engine output', async () => {
         const { root, node } = vault();
-        const editor = await editorWith('const <VK-result> = <VK-array>.filter(x => x);\n<VK-array>.length;');
+        const text = 'const <VK-result> = <VK-array>.filter(x => x);\n<VK-array>.length;';
+        canned({ [text]: 'ENGINE-OUT' });
+        const editor = await editorWith(text);
         await handleApplyToEditor(node, deps(root, editor, []));
-        assert.strictEqual(editor.document.getText(), 'const activeUsers = users.filter(x => x);\nusers.length;');
+        assert.strictEqual(renders().length, 1);
+        assert.deepStrictEqual(renders()[0]?.params, { text, values: { 'VK-array': 'users', 'VK-result': 'activeUsers' } });
+        assert.strictEqual(editor.document.getText(), 'ENGINE-OUT');
     });
 
-    test('a selection limits the fill to the selected text', async () => {
+    test('a selection limits the render to the selected text', async () => {
         const { root, node } = vault();
+        canned({ '<VK-array>': 'users' });
         const editor = await editorWith('<VK-array>\n<VK-array>');
         editor.selection = new vscode.Selection(1, 0, 1, '<VK-array>'.length);
         await handleApplyToEditor(node, deps(root, editor, []));
+        assert.strictEqual(renders().length, 1);
+        assert.strictEqual((renders()[0]?.params as { text: string }).text, '<VK-array>');
         assert.strictEqual(editor.document.getText(), '<VK-array>\nusers');
     });
 
-    test('no matching tokens → tells the user and edits nothing', async () => {
+    test('an empty default is sent as "" (engine keeps the token)', async () => {
+        const file = eng().serve('Variables/e.md', renderVariablesFile({ ...model, blocks: [{ ...model.blocks[0]!, vars: [{ name: 'VK-a', defaultValue: '' }] }] }));
+        const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'E', shape: 'flat' };
+        canned({});
+        const editor = await editorWith('<VK-a>');
+        await handleApplyToEditor(node, deps(VAULT, editor, []));
+        assert.deepStrictEqual((renders()[0]?.params as { values: unknown }).values, { 'VK-a': '' });
+    });
+
+    test('engine output === input → tells the user and edits nothing', async () => {
         const { root, node } = vault();
+        canned({});
         const editor = await editorWith('nothing to fill');
         const info: string[] = [];
         await handleApplyToEditor(node, deps(root, editor, info));
@@ -90,11 +91,40 @@ suite('handleApplyToEditor', () => {
         assert.strictEqual(info.length, 1);
     });
 
-    test('no editor open → tells the user, touches nothing', async () => {
+    test('a refused later range → document byte-unchanged, one engine toast', async () => {
+        const { root, node } = vault();
+        const err = { code: 'render.limit', params: { limit: 'steps', max: '9' } };
+        eng().fake.on('render.text', p => (p as { text: string }).text === 'bbb'
+            ? { error: err } : { result: { output: 'X', warnings: [], containsEscape: false } });
+        const editor = await editorWith('aaa\nbbb');
+        editor.selections = [new vscode.Selection(0, 0, 0, 3), new vscode.Selection(1, 0, 1, 3)];
+        await handleApplyToEditor(node, deps(root, editor, []));
+        assert.strictEqual(editor.document.getText(), 'aaa\nbbb');
+        assert.deepStrictEqual(eng().toasts, [engineErrorMessage(err)]);
+    });
+
+    test('no editor open → tells the user, zero render.text', async () => {
         const { root, node } = vault();
         const info: string[] = [];
         await handleApplyToEditor(node, deps(root, undefined, info));
         assert.strictEqual(info.length, 1);
+        assert.strictEqual(renders().length, 0);
+    });
+
+    test('document edited while rendering → stale ranges, no fill, no toast', async () => {
+        const { root, node } = vault();
+        const editor = await editorWith('body');
+        eng().fake.on('render.text', async () => {
+            const we = new vscode.WorkspaceEdit();
+            we.insert(editor.document.uri, new vscode.Position(0, 0), 'USER ');
+            await vscode.workspace.applyEdit(we);
+            return { result: { output: 'FILLED', warnings: [], containsEscape: false } };
+        });
+        const info: string[] = [];
+        await handleApplyToEditor(node, deps(root, editor, info));
+        assert.strictEqual(editor.document.getText(), 'USER body');
+        assert.deepStrictEqual(info, []);
+        assert.deepStrictEqual(eng().toasts, []);
     });
 });
 

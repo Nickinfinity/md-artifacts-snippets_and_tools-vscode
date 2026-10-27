@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import type { EngineArtifact, EngineBlock, EngineVar, Layout, VarsFile } from '../types/engine.types.js';
 import type { ParsedArtifactFile, ParsedBlock, ParsedVar } from '../types/parsed-artifact.types.js';
+import type { ApplyChange, ApplyResult } from '../types/varset.types.js';
 import { isPathWithin } from '../utils/path-containment.js';
 import { EngineRequestError } from './request-error.js';
 
@@ -93,4 +94,34 @@ export function varsFileToParsed(f: VarsFile, vaultRoot: string):
         })) : [],
         relPath: f.path, ...(error === undefined ? {} : { error }),
     };
+}
+
+const APPLY_ACTIONS: readonly string[] = ['filled', 'overridden', 'kept'] satisfies readonly ApplyChange['action'][];
+const isAction = (a: unknown): a is ApplyChange['action'] => typeof a === 'string' && APPLY_ACTIONS.includes(a);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * A `varsets.apply` reply as the diff renderer's `ApplyResult`. The reply is engine stdout, so
+ * the shape is checked here: a malformed envelope throws `client.protocol`; a row with a non-string
+ * `name` / `newValue` or an unknown `action` is dropped (rejected, never sanitised — `action` becomes
+ * a CSS class). Structured values are dropped too, so diff, `values` and badge names agree.
+ *
+ * @param r - The engine reply (untrusted).
+ * @returns Strings-only result; a non-string `oldValue` becomes `''`.
+ * @throws EngineRequestError `client.protocol` when `changes` / `values` have the wrong shape.
+ * @example
+ * toApplyResult({ changes: [], values: {} }); // { changes: [], values: {} }
+ */
+export function toApplyResult(r: unknown): ApplyResult {
+    // ponytail: structured values dropped until the W6 table editor.
+    if (!isRecord(r) || !Array.isArray(r.changes) || !isRecord(r.values)) {
+        throw new EngineRequestError({ code: 'client.protocol', params: {} });
+    }
+    const changes = r.changes.flatMap((c: unknown): ApplyChange[] =>
+        isRecord(c) && typeof c.name === 'string' && typeof c.newValue === 'string'
+            && isAction(c.action)
+            ? [{ name: c.name, action: c.action, newValue: c.newValue, oldValue: typeof c.oldValue === 'string' ? c.oldValue : '' }]
+            : []);
+    const values = Object.fromEntries(Object.entries(r.values).filter((e): e is [string, string] => typeof e[1] === 'string'));
+    return { changes, values };
 }

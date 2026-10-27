@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
-import { applyVarSet } from '../../../services/varset.service.js';
+import { notifyEngineError, requestOrNotify } from '../../../engine/engine.vscode.js';
+import { toApplyResult } from '../../../engine/adapt.js';
+import { EngineRequestError } from '../../../engine/request-error.js';
+import type { VarSetRef } from '../../../services/preview-target.service.js';
 import { getEntry } from '../../../services/artifact-type-config.service.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
 import { sendWrite } from '../../../services/conflict.service.js';
@@ -31,7 +34,7 @@ export interface VarSetControllerCallbacks {
  *
  * @example
  * const ctrl = new VarSetController(extensionUri, { getCurrentArtifact, postMessage, rememberAppliedSet });
- * ctrl.showDiffFor('Local Dev', subSet.vars, { 'VK-host': '' });
+ * await ctrl.showDiffFor({ label: 'Local Dev', path: 'Variables/dev.md' }, { 'VK-host': '' });
  */
 export class VarSetController {
 
@@ -51,30 +54,35 @@ export class VarSetController {
     ) {}
 
     /**
-     * Computes the diff and posts it to the webview — the half of the apply
-     * flow that has nothing to do with *how* the sub-set was chosen.
+     * Asks the engine for the apply diff and posts it to the webview. A failed
+     * apply (toast already shown) leaves nothing confirmable.
      *
-     * Split out (W1/H1.4) so the Variables pane can reach the diff step
-     * without reimplementing it: `PreviewPanelController.applyVarSet` is the pane's caller. Synchronous — nothing below awaits.
-     *
-     * @param heading       - The sub-set's display name, for the diff header and the badge.
-     * @param vars          - The sub-set's variables to merge in.
+     * @param ref           - The set to apply (path + sub-set ref from the Variables pane).
      * @param currentValues - The preview's current input values to diff against.
-     * @returns void
+     * @returns Resolves once the diff is posted, or the failure reported.
      *
      * @example
-     * ctrl.showDiffFor('Local Dev', subSet.vars, { 'VK-host': '' });
+     * await ctrl.showDiffFor({ label: 'Local Dev', path: 'Variables/dev.md' }, { 'VK-host': '' });
      */
-    showDiffFor(heading: string, vars: readonly ParsedVar[], currentValues: Record<string, string>): void {
-        // Spread: `applyVarSet` takes a mutable `ParsedVar[]`, and a
-        // `readonly` array will not assign to it.
-        const result = applyVarSet(currentValues, [...vars]);
-        this.pending = { heading, result };
+    async showDiffFor(ref: VarSetRef, currentValues: Record<string, string>): Promise<void> {
+        // A failed apply must not leave the previous diff confirmable.
+        this.pending = undefined;
+        const r = await requestOrNotify('varsets.apply', {
+            path: ref.path, ...(ref.subset ? { subset: ref.subset } : {}), values: currentValues,
+        });
+        if (!r) { return; }
+        let result: ApplyResult;
+        try { result = toApplyResult(r); } catch (e) {
+            // Malformed reply: one toast through the engine error path, nothing confirmable.
+            if (e instanceof EngineRequestError) { await notifyEngineError(e); return; }
+            throw e;
+        }
+        this.pending = { heading: ref.label, result };
 
         this.cb.postMessage({
             command:    'showVarSetDiff',
-            html:       renderVarSetDiffHtml(result.changes, heading),
-            subSetName: heading,
+            html:       renderVarSetDiffHtml(result.changes, ref.label),
+            subSetName: ref.label,
         });
     }
 

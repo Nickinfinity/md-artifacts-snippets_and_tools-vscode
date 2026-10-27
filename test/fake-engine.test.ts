@@ -1,5 +1,11 @@
 import * as assert from 'node:assert';
+import * as readline from 'node:readline';
 import { createFakeEngine, loadOpCases, type FakeEngine } from './fake-engine.js';
+
+/** Lets `n` macrotask turns pass, so queued stream writes land. */
+async function ticks(n: number): Promise<void> {
+    for (let i = 0; i < n; i++) { await new Promise(r => setImmediate(r)); }
+}
 
 /** Writes one request and resolves with the next stdout line, parsed. */
 function ask(fake: FakeEngine, method: string, params: unknown, id = 1): Promise<any> {
@@ -33,6 +39,33 @@ suite('fake-engine', () => {
         const b = createFakeEngine(); const bc: (number | null)[] = [];
         b.onExit(c => bc.push(c)); b.crash(7); b.kill();
         assert.deepStrictEqual(bc, [7]);
+    });
+
+    test('async handler: replies keep request order, nothing leaves before release', async () => {
+        const fake = createFakeEngine();
+        await ask(fake, 'initialize', { protocol: '2.0' });
+        let release!: () => void;
+        const gate = new Promise<void>(r => { release = r; });
+        fake.on('a', async () => { await gate; return { result: 'A' }; });
+        fake.on('b', () => ({ result: 'B' }));
+        const lines: { id: number; result?: unknown }[] = [];
+        readline.createInterface({ input: fake.stdout }).on('line', l => lines.push(JSON.parse(l)));
+        fake.stdin.write('{"jsonrpc":"2.0","id":2,"method":"a","params":{}}\n{"jsonrpc":"2.0","id":3,"method":"b","params":{}}\n');
+        await ticks(5);
+        assert.strictEqual(lines.length, 0, 'nothing may leave before release');
+        release();
+        await ticks(5);
+        assert.deepStrictEqual(lines.map(l => [l.id, l.result]), [[2, 'A'], [3, 'B']]);
+    });
+
+    test('a throwing handler answers op.internal and later requests are still answered', async () => {
+        const fake = createFakeEngine();
+        await ask(fake, 'initialize', { protocol: '2.0' });
+        fake.on('boom', async () => { throw new Error('x'); });
+        fake.on('b', () => ({ result: 'B' }));
+        const boom = await ask(fake, 'boom', {}, 2);
+        assert.strictEqual(boom.error?.data?.code, 'op.internal');
+        assert.strictEqual((await ask(fake, 'b', {}, 3)).result, 'B');
     });
 
     test('loadOpCases normalises and pins the corpus', () => {

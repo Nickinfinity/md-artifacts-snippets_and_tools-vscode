@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { resolveVars } from '../../../services/parser.service.js';
 import type { BlockRef } from '../../../services/artifact-patcher.service.js';
 import { getEngine } from '../../../engine/engine.vscode.js';
 import { engineMeta, toEngineModel } from '../../../engine/model.js';
@@ -241,94 +240,6 @@ export function wrapForTerminal(type: ArtifactType, content: string): string {
  */
 export function needsTerminalConfirmation(type: ArtifactType, content: string): boolean {
     return content.includes('\n') && hasBothContexts(getEntry(type).contexts);
-}
-
-/** Longest single preview line shown in the terminal-confirm modal before truncation. */
-const CONFIRM_PREVIEW_LINE_MAX = 200;
-/** Longest run of leading lines shown in the terminal-confirm modal's preview. */
-const CONFIRM_PREVIEW_LINE_COUNT = 3;
-
-/**
- * Builds the modal `detail` text for the terminal-send confirmation: line
- * count, what is about to happen, and a short truncated preview so the user
- * can recognise the payload.
- *
- * @param content - The fully variable-resolved text about to be sent.
- * @returns The `detail` string for `vscode.window.showWarningMessage`.
- * @example terminalConfirmDetail('echo hi\nrm -rf /'); // → '2 lines will be pasted…'
- */
-function terminalConfirmDetail(content: string): string {
-    const lines = content.split('\n');
-    const clamp = (line: string): string =>
-        line.length > CONFIRM_PREVIEW_LINE_MAX ? `${line.slice(0, CONFIRM_PREVIEW_LINE_MAX)}…` : line;
-    const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
-        + (lines.length > CONFIRM_PREVIEW_LINE_COUNT ? '\n…' : '');
-
-    return vscode.l10n.t(
-        '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
-        lines.length,
-    ) + `\n\n${preview}`;
-}
-
-/**
- * Substitutes variables and delivers resolved content to the editor, terminal, or clipboard.
- *
- * The target surface is decided by {@link resolveInsertTarget} from the artifact's
- * declared `contexts` plus the invocation surface — never an
- * `artifactType === 'Command'` literal here. A `'terminal'` target always
- * writes (creating a terminal if none exists). A multi-line payload goes
- * through {@link wrapForTerminal} so it pastes as one block instead of
- * submitting itself line by line, and {@link needsTerminalConfirmation}
- * gates it behind a modal first — vault content is untrusted and
- * bracketed-paste support cannot be detected. Cancelling (or dismissing) the
- * modal sends nothing. An `'editor'` target falls back to the clipboard when
- * `editor` is `undefined`.
- *
- * @param editor            - Active text editor to insert into, or `undefined` when none is open.
- * @param artifact          - Artifact supplying the code template and type.
- * @param vars              - Resolved `{ name → value }` map from the edit panel or input box.
- * @param invocationSurface - Which menu the insert command was invoked from; see {@link InvocationSurface}.
- *
- * @example
- * await performInsert(vscode.window.activeTextEditor, artifact, { 'VK-host': 'localhost' }, 'editor');
- */
-export async function performInsert(
-    editor: vscode.TextEditor | undefined,
-    artifact: ParsedArtifactFile,
-    vars: Record<string, string>,
-    invocationSurface: InvocationSurface
-): Promise<void> {
-    const content = resolveVars(artifact.code, vars);
-    const target = resolveInsertTarget(artifact.frontmatter.artifactType, invocationSurface);
-
-    if (target === 'terminal') {
-        if (needsTerminalConfirmation(artifact.frontmatter.artifactType, content)) {
-            // Hoisted per call, not module scope, so `vscode.l10n.t` runs after
-            // the bundle is loaded; the read-back (`choice !== SEND_LABEL`)
-            // still compares one binding on both sides.
-            const SEND_LABEL = vscode.l10n.t('Send');
-            const choice = await vscode.window.showWarningMessage(
-                vscode.l10n.t('Send multi-line content to the terminal?'),
-                { modal: true, detail: terminalConfirmDetail(content) },
-                SEND_LABEL,
-            );
-            if (choice !== SEND_LABEL) { return; }
-        }
-        const terminal = vscode.window.activeTerminal ?? vscode.window.createTerminal('MD Artifacts');
-        terminal.sendText(wrapForTerminal(artifact.frontmatter.artifactType, content), false);
-        terminal.show(true);
-        return;
-    }
-    if (editor) {
-        editor.edit(edit => edit.insert(editor.selection.active, content));
-        return;
-    }
-    // No clipboard fallback: Copy is a dedicated button beside Insert and
-    // resolves identically, so a silent copy here was one button doing two
-    // different things depending on state the user cannot see. The preview
-    // hides Insert outright when no editor is open, so this is now only
-    // reachable if the last editor closed between render and click.
-    vscode.window.showWarningMessage(vscode.l10n.t('MD Artifacts: No editor open to insert into. Use Copy instead.'));
 }
 
 /**

@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import { getVaultRootUri } from '../services/config.service.js';
 import { getPreviewTarget } from '../services/preview-target.service.js';
-import { resolveVars } from '../services/parser.service.js';
+import { requestOrNotify } from '../engine/engine.vscode.js';
 import { subSetLabel } from '../services/varset.service.js';
-import type { ParsedVar } from '../types/parsed-artifact.types.js';
 import { at, defaultIO, resolveTarget, type CommandIO } from './variables.command.helpers.js';
 import type { VariableNode } from '../ui/views/variablesView.provider.js';
 
@@ -93,7 +92,10 @@ export async function handleApplyToPreview(
         return;
     }
 
-    target.applyVarSet(subSetLabel(subSet), subSet.vars);
+    target.applyVarSet({
+        label: subSetLabel(subSet), path: resolved.relPath,
+        ...(resolved.subset ? { subset: resolved.subset } : {}),
+    });
 }
 
 /**
@@ -115,27 +117,6 @@ export async function handleSaveCurrentValues(deps: ApplyDeps): Promise<void> {
     }
 
     await target.saveAsSet(target.currentValues());
-}
-
-/**
- * Fills the `<VK-xxx>` tokens a variable set defines, leaving every other
- * token in place. An empty value counts as "not provided", so its token is
- * kept rather than erased. Token syntax (including the `<VK-x></VK-x>` pair)
- * is `resolveVars`'s — not re-implemented here.
- *
- * @param text - Editor text that may contain `<VK-xxx>` tokens.
- * @param vars - The sub-set's variables.
- * @returns The text with the set's non-empty values substituted.
- *
- * @example
- * fillVarTokens('<VK-a>.<VK-b>', [{ name: 'VK-a', defaultValue: 'x' }]) // → 'x.<VK-b>'
- */
-export function fillVarTokens(text: string, vars: readonly ParsedVar[]): string {
-    const values: Record<string, string> = Object.create(null);
-    for (const v of vars) {
-        if (v.defaultValue !== '') { values[v.name] = v.defaultValue; }
-    }
-    return resolveVars(text, values);
 }
 
 /**
@@ -175,10 +156,20 @@ export async function handleApplyToEditor(
         ? selected
         : [new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length))];
 
-    const replacements = ranges
-        .map(range => ({ range, before: doc.getText(range) }))
-        .map(r => ({ ...r, after: fillVarTokens(r.before, subSet.vars) }))
-        .filter(r => r.after !== r.before);
+    // ── Render every range through the engine before the single edit ─────
+    // An empty default is sent as '' — the engine treats it as "not supplied" and keeps the token.
+    const values = Object.fromEntries(subSet.vars.map(v => [v.name, v.defaultValue]));
+    const version = doc.version;
+    const replacements: { range: vscode.Range; after: string }[] = [];
+    for (const range of ranges) {
+        const before = doc.getText(range);
+        // ponytail: warnings dropped — render.unknown_var for tokens outside the set is the normal case here.
+        const out = await requestOrNotify('render.text', { text: before, values });
+        if (!out) { return; }
+        if (out.output !== before) { replacements.push({ range, after: out.output }); }
+    }
+    // Ranges are stale if the document changed while the engine was answering.
+    if (doc.version !== version) { return; }
     if (replacements.length === 0) {
         deps.notifyInfo(vscode.l10n.t('MD Artifacts: no matching variables in the editor for "{0}".', subSetLabel(subSet)));
         return;
