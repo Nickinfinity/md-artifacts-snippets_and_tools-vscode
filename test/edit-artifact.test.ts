@@ -1,10 +1,9 @@
 import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { artifactToFormModel, unsupportedEditReason } from '../src/commands/create-prefill.helpers.js';
+import { artifactToFormModel } from '../src/commands/create-prefill.helpers.js';
 import { parseFromContent } from '../src/services/parser.service.js';
 import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
-import type { Layout } from '../src/types/engine.types.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 /**
@@ -260,104 +259,6 @@ suite('delete artifact', () => {
     });
 });
 
-/**
- * Guards the refusals that stop edit mode destroying content.
- *
- * The form round-trips through the webview, where `extractModel()` rebuilds the
- * model from DOM fields — so a frontmatter key with no input is gone by the
- * time Save runs. For a create that is harmless; for an edit it deletes the
- * user's content. Each case below was confirmed to lose data before the guard
- * existed.
- */
-suite('edit mode — refuses what the form cannot round-trip', () => {
-
-    function parseMd(md: string, layout?: Layout) {
-        const parsed = parseFromContent(md, '/v/AIPrompts/demo.md', '/v');
-        assert.ok(parsed, 'fixture failed to parse');
-        return { ...parsed, relPath: 'AIPrompts/demo.md', hash: 'h', ...(layout ? { layout } : {}) };
-    }
-
-    test('a flagged artifact is refused, not silently reduced to a fence', () => {
-        // The flag markers and every note line outside the region are not
-        // modelled at all — saving replaced the whole file with one fence.
-        const md = [
-            '---',
-            'artifactType: AIPrompt',
-            'title: Review',
-            '---',
-            '',
-            'Notes that are not part of the artifact.',
-            '',
-            '%%oa:start%%',
-            'Review the repo.',
-            '%%oa:end%%',
-            '',
-        ].join('\n');
-        const parsed = parseMd(md, { payload: 'flags' });
-        const reason = unsupportedEditReason(parsed);
-        assert.ok(reason, 'a flagged artifact was accepted for editing');
-        assert.match(reason, /flags/i);
-    });
-
-    test('a template index is refused — index links are read-side only', () => {
-        const md = [
-            '---',
-            'artifactType: Template',
-            'title: Scaffold',
-            'index: true',
-            '---',
-            '',
-            '```markdown',
-            '- [[one]]',
-            '```',
-            '',
-        ].join('\n');
-        const reason = unsupportedEditReason(parseMd(md));
-        assert.ok(reason, 'an index artifact was accepted for editing');
-        assert.match(reason, /index/i);
-    });
-
-    test('an artifact declaring env: is editable — the model carries the field now', () => {
-        const md = [
-            '---',
-            'artifactType: Snippet',
-            'title: Demo',
-            'env: prod',
-            'language: bash',
-            '---',
-            '',
-            '```bash',
-            'echo hi',
-            '```',
-            '',
-        ].join('\n');
-        // H7.0b gave `ArtifactFormModel` an `env` field and the serializer an emit
-        // line, so the key now survives a form round trip. The refusal existed
-        // only because it did not.
-        assert.strictEqual(
-            unsupportedEditReason(parseMd(md)),
-            undefined,
-            'an env-carrying artifact is refused although the model now carries env'
-        );
-    });
-
-    test('an ordinary snippet is still editable', () => {
-        const md = [
-            '---',
-            'artifactType: Snippet',
-            'title: Demo',
-            'language: bash',
-            '---',
-            '',
-            '```bash',
-            'echo hi',
-            '```',
-            '',
-        ].join('\n');
-        assert.strictEqual(unsupportedEditReason(parseMd(md)), undefined);
-    });
-});
-
 suite('edit command — boundaries', () => {
 
     const commandSource = fs.readFileSync(
@@ -381,10 +282,10 @@ suite('edit command — boundaries', () => {
         assert.ok(commandSource.includes('getCreateFormTypes()'), 'no create-form gate on the edit command');
     });
 
-    test('the round-trip refusal runs before the form opens', () => {
-        assert.ok(
-            commandSource.indexOf('unsupportedEditReason(') < commandSource.indexOf('openArtifactFormPanel('),
-            'the form opens before the lossy-edit check',
-        );
+    test('no lossy-edit refusal: flagged and index files open in the form (W-UI a)', () => {
+        const strip = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+        assert.ok(!strip(commandSource).includes('unsupportedEditReason'), 'the command still gates on the stale refusal');
+        const helpers = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'commands', 'create-prefill.helpers.ts'), 'utf8');
+        assert.ok(!strip(helpers).includes('export function unsupportedEditReason'), 'the stale refusal still exists');
     });
 });

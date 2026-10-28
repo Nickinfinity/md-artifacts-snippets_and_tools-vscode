@@ -78,11 +78,15 @@ export function artifactTerminalCommandId(dir: string): string {
  *
  * ### Visibility — single entry vs. submenu
  *
- * Each context surface (`editor/context`, `terminal/context`, `explorer/context`) shows:
+ * The editor and explorer surfaces (`editor/context`, `explorer/context`) show:
  * - A **direct menu entry** for each active artifact when only one is active in that surface
  *   (`!md-artifacts.<surface>HasMultiple`).
  * - The **"MD Artifacts" submenu** when two or more artifacts are active in that
  *   surface (`md-artifacts.<surface>HasMultiple`).
+ *
+ * The terminal is different (W-UI b): `terminal/context` holds ONE "MD Artifacts" root
+ * entry nesting an **Insert** and a **Create** submenu, so it no longer reads
+ * `terminalHasMultiple` / `terminalCreateHasMultiple` (still derived by `context.service.ts`).
  *
  * These `when` clauses and the `*HasMultiple` context keys are managed by `context.service.ts`.
  *

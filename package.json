@@ -209,6 +209,10 @@
         "label": "%submenu.editor.label%"
       },
       {
+        "id": "md-artifacts.submenu.terminal.root",
+        "label": "%submenu.terminal.root.label%"
+      },
+      {
         "id": "md-artifacts.submenu.terminal",
         "label": "%submenu.terminal.label%"
       },
@@ -359,38 +363,18 @@
       ],
       "terminal/context": [
         {
-          "command": "md-artifacts.insert.commands",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.commandsActive && !md-artifacts.terminalHasMultiple",
+          "submenu": "md-artifacts.submenu.terminal.root",
+          "when": "md-artifacts.vaultConfigured",
           "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.insert.aiprompts.terminal",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.aipromptsActive && !md-artifacts.terminalHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.insert.variables",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.variablesActive && !md-artifacts.terminalHasMultiple",
-          "group": "mda@1"
-        },
+        }
+      ],
+      "md-artifacts.submenu.terminal.root": [
         {
           "submenu": "md-artifacts.submenu.terminal",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.terminalHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.create.commands",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.commandsActive && !md-artifacts.terminalCreateHasMultiple",
-          "group": "3_create@1"
-        },
-        {
-          "command": "md-artifacts.create.aiprompts.terminal",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.aipromptsActive && !md-artifacts.terminalCreateHasMultiple",
-          "group": "3_create@2"
+          "group": "1_insert@1"
         },
         {
           "submenu": "md-artifacts.submenu.create.terminal",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.terminalCreateHasMultiple",
           "group": "3_create@1"
         }
       ],

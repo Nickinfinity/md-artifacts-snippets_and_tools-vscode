@@ -47,10 +47,12 @@ export function buildCodeBlockHtml(rowsHtml: string, lang: string): string {
  *
  * - Looks up `#codeWrapper` itself.
  * - Concatenates `WEBVIEW_ESC_LBL_JS` for the shared `esc`/`lbl` helpers,
- *   then defines local `extractCode`, `vkWrap`, `renderRows`.
+ *   then defines local `extractCodeFrom(wrapper)`, `extractCode`, `vkWrap`, `renderRows`.
  * - Implements caret-preserving re-render on `input` (debounced 150 ms).
- * - Intercepts `Enter` to insert a literal `\n` (avoids `<div>` wrapping).
- * - Intercepts paste to strip rich HTML.
+ * - Intercepts `Enter` and paste (plain text, CRLF-normalised) through one
+ *   `insertAtCaret(wrapper, text)` that edits the text and re-renders — never
+ *   `execCommand('insertText')`, which splits a paragraph in Chromium.
+ *   Ctrl/Cmd+Enter (Insert shortcut) and IME Enter pass through.
  * - Exposes `window.__codeBlock = { extractCode, renderRows }` so the outer
  *   script can read the latest plain-text code and re-render after a server
  *   `fileUpdated` round-trip.
@@ -66,9 +68,10 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
   // ── Code-block client (Part 2) ──────────────────────────────────────────
   const codeWrapper = document.getElementById('codeWrapper');
 
-  function extractCode() {
-    const rows = codeWrapper.querySelectorAll('.code-line-row');
-    if (rows.length === 0) { return codeWrapper.textContent || ''; }
+  // Takes the wrapper so the form's per-block cards share it (one helper, one name).
+  function extractCodeFrom(wrapper) {
+    const rows = wrapper.querySelectorAll('.code-line-row');
+    if (rows.length === 0) { return wrapper.textContent || ''; }
     const parts = [];
     rows.forEach(r => {
       const c = r.querySelector('.code-content');
@@ -76,6 +79,7 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
     });
     return parts.join('\n');
   }
+  const extractCode = () => extractCodeFrom(codeWrapper);
 
   // Opening and closing spellings both name one variable — the twin of
   // VK_TOKEN_RE in parser.service.ts, bound to it by webview-snippets.test.ts.
@@ -91,28 +95,33 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
   }
 
   // ── Caret offset (counted across all .code-content text + joining \n) ──
-  function getCaretOffset() {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) { return 0; }
-    const range = sel.getRangeAt(0);
-    if (!codeWrapper.contains(range.endContainer)) { return 0; }
-    const rows = codeWrapper.querySelectorAll('.code-line-row');
+  // Offset of (node, off) within the wrapper's plain text; 0 when outside it.
+  function offsetAt(wrapper, node, off) {
+    if (!wrapper.contains(node)) { return 0; }
+    if (node === wrapper) { return off === 0 ? 0 : extractCodeFrom(wrapper).length; }
+    const rows = wrapper.querySelectorAll('.code-line-row');
     let offset = 0;
     for (let i = 0; i < rows.length; i++) {
       const c = rows[i].querySelector('.code-content');
       if (!c) { continue; }
-      if (c.contains(range.endContainer) || c === range.endContainer) {
+      if (c.contains(node) || c === node) {
         const pre = document.createRange();
         pre.selectNodeContents(c);
-        pre.setEnd(range.endContainer, range.endOffset);
+        pre.setEnd(node, off);
         return offset + pre.toString().length;
       }
       offset += c.textContent.length + 1;
     }
     return offset;
   }
-  function setCaretOffset(offset) {
-    const rows = codeWrapper.querySelectorAll('.code-line-row');
+  function getCaretOffset() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { return 0; }
+    const range = sel.getRangeAt(0);
+    return offsetAt(codeWrapper, range.endContainer, range.endOffset);
+  }
+  function setCaretOffset(wrapper, offset) {
+    const rows = wrapper.querySelectorAll('.code-line-row');
     let remaining = offset;
     for (let i = 0; i < rows.length; i++) {
       const c = rows[i].querySelector('.code-content');
@@ -152,20 +161,36 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
       const code  = extractCode();
       const caret = getCaretOffset();
       codeWrapper.innerHTML = renderRows(code);
-      setCaretOffset(caret);
+      setCaretOffset(codeWrapper, caret);
     }, ${INPUT_DEBOUNCE_MS});
   }
   codeWrapper.addEventListener('input', scheduleRender);
-  codeWrapper.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter') {
-      ev.preventDefault();
-      document.execCommand('insertText', false, '\n');
+  // One insert path for Enter and paste: execCommand('insertText') splits a paragraph in
+  // Chromium (a second .code-content per row, lost on re-render), so edit the text and re-render.
+  function insertAtCaret(wrapper, text) {
+    text = text.replace(/\r\n?/g, '\n');
+    const code = extractCodeFrom(wrapper);
+    const sel = window.getSelection();
+    let start = 0, end = 0;
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0);
+      start = offsetAt(wrapper, r.startContainer, r.startOffset);
+      end   = offsetAt(wrapper, r.endContainer, r.endOffset);
     }
+    if (wrapper === codeWrapper && renderTimer) { clearTimeout(renderTimer); renderTimer = undefined; }
+    wrapper.innerHTML = renderRows(code.slice(0, start) + text + code.slice(end));
+    setCaretOffset(wrapper, start + text.length);
+    wrapper.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  codeWrapper.addEventListener('keydown', function (ev) {
+    // Ctrl/Cmd+Enter is the Insert shortcut; IME Enter commits a composition.
+    if (ev.key !== 'Enter' || ev.isComposing || ev.ctrlKey || ev.metaKey) { return; }
+    ev.preventDefault();
+    insertAtCaret(codeWrapper, '\n');
   });
   codeWrapper.addEventListener('paste', function (ev) {
     ev.preventDefault();
-    const text = (ev.clipboardData || window.clipboardData).getData('text/plain');
-    document.execCommand('insertText', false, text);
+    insertAtCaret(codeWrapper, (ev.clipboardData || window.clipboardData).getData('text/plain'));
   });
 
   // Bridge: expose the hooks the outer script needs.

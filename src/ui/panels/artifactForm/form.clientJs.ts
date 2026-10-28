@@ -79,17 +79,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
   }
 
   // ── Per-block code extraction ────────────────────────────────────────────
-  // renderRows is in scope from CODE_BLOCK_CLIENT_JS (line 0 shared helpers).
-  function extractCodeFrom(wrapper) {
-    const rows = wrapper.querySelectorAll('.code-line-row');
-    if (rows.length === 0) { return wrapper.textContent || ''; }
-    const parts = [];
-    rows.forEach(function(r) {
-      const c = r.querySelector('.code-content');
-      parts.push(c ? (c.textContent || '') : '');
-    });
-    return parts.join('\\n');
-  }
+  // extractCodeFrom / renderRows / insertAtCaret come from CODE_BLOCK_CLIENT_JS.
 
   // ── Block area helpers ───────────────────────────────────────────────────
   const blocksArea = document.getElementById('blocks-area');
@@ -137,19 +127,30 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         vscode.postMessage({ command: 'detectVars', blockIndex: blockIndex, code: extractCodeFrom(wrapper) });
       }, 300);
     });
+    // Card 0 is also #codeWrapper, so CODE_BLOCK_CLIENT_JS may already have handled it.
     wrapper.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Enter') { ev.preventDefault(); document.execCommand('insertText', false, '\\n'); }
+      if (ev.defaultPrevented || ev.key !== 'Enter' || ev.isComposing || ev.ctrlKey || ev.metaKey) { return; }
+      ev.preventDefault();
+      insertAtCaret(wrapper, '\\n');
     });
     wrapper.addEventListener('paste', function(ev) {
+      if (ev.defaultPrevented) { return; }
       ev.preventDefault();
-      const text = (ev.clipboardData || window.clipboardData).getData('text/plain');
-      document.execCommand('insertText', false, text);
+      insertAtCaret(wrapper, (ev.clipboardData || window.clipboardData).getData('text/plain'));
     });
   }
 
   function initAllCodeAreas() {
     // Single-block: window.__codeBlock already covers #codeWrapper.
     // Multi-block: init each card's wrapper by card DOM order = block index.
+    // Every server-rendered card carries id="codeWrapper", so cards must be checked first.
+    if (allCards().length > 0) {
+      allCards().forEach(function(card, i) {
+        const wrapper = codeWrapperInCard(card);
+        if (wrapper) { initCodeArea(wrapper, i); }
+      });
+      return;
+    }
     const single = document.getElementById('codeWrapper');
     if (single) {
       single.addEventListener('input', function() {
@@ -158,12 +159,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
           vscode.postMessage({ command: 'detectVars', blockIndex: 0, code: extractCodeFrom(single) });
         }, 300);
       });
-      return;
     }
-    allCards().forEach(function(card, i) {
-      const wrapper = codeWrapperInCard(card);
-      if (wrapper) { initCodeArea(wrapper, i); }
-    });
   }
 
   // ── New block card HTML ──────────────────────────────────────────────────

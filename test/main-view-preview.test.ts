@@ -37,9 +37,16 @@ suite('mainView.preview — ensureView (H3)', () => {
 
     test('short-circuits when already resolved — focus() is never called', async () => {
         let called = false;
-        const target: ViewTarget = { resolved: () => true, focus: async () => { called = true; } };
+        const target: ViewTarget = { resolved: () => true, visible: () => true, focus: async () => { called = true; } };
         await ensureView(target);
         assert.strictEqual(called, false);
+    });
+
+    test('resolved but hidden (retainContextWhenHidden) — focus() reveals once', async () => {
+        let calls = 0;
+        const target = { resolved: () => true, visible: () => false, focus: async () => { calls++; } };
+        await ensureView(target);
+        assert.strictEqual(calls, 1);
     });
 
     test('awaits focus() to completion before resolving — a slow reveal is not raced past', async () => {
@@ -47,6 +54,7 @@ suite('mainView.preview — ensureView (H3)', () => {
         let isResolved = false;
         const target: ViewTarget = {
             resolved: () => isResolved,
+            visible: () => true,
             focus: async () => {
                 await new Promise(resolve => setTimeout(resolve, 0));
                 isResolved = true;
@@ -59,20 +67,20 @@ suite('mainView.preview — ensureView (H3)', () => {
     });
 
     test('propagates a rejected focus() rather than swallowing it', async () => {
-        const target: ViewTarget = { resolved: () => false, focus: async () => { throw new Error('reveal failed'); } };
+        const target: ViewTarget = { resolved: () => false, visible: () => true, focus: async () => { throw new Error('reveal failed'); } };
         await assert.rejects(() => ensureView(target), /reveal failed/);
     });
 
     test('throws when focus() resolves without the view actually resolving (broken focus() contract)', async () => {
         // focus() returns cleanly but never flips resolved() to true — the
         // executeCommand-settles-before-resolveWebviewView-fires case.
-        const target: ViewTarget = { resolved: () => false, focus: async () => { /* no-op */ } };
+        const target: ViewTarget = { resolved: () => false, visible: () => true, focus: async () => { /* no-op */ } };
         await assert.rejects(() => ensureView(target), /did not resolve/);
     });
 
     test('type — resolved must be a thunk, not a snapshot boolean (a snapshot would make the recheck decoration)', () => {
         // @ts-expect-error - 'resolved' must be `() => boolean`; a boolean snapshot must not compile
-        const target: ViewTarget = { resolved: false, focus: async () => { /* noop */ } };
+        const target: ViewTarget = { resolved: false, visible: () => true, focus: async () => { /* noop */ } };
         assert.strictEqual(typeof target, 'object');
     });
 });

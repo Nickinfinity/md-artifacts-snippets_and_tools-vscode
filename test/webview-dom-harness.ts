@@ -181,6 +181,12 @@ export class ElementStub {
     listenersFor(type: string): Array<(ev: SyntheticEvent) => void> {
         return this.eventListeners.get(type) ?? [];
     }
+    /** Real-DOM-matching enough: builds its OWN event (never assigns `ev.target` — Node's
+     * global `Event.target` is a read-only getter) and bubbles it like `fire`. */
+    dispatchEvent(ev: { type: string }): boolean {
+        bubble(this, { type: ev.type, target: this });
+        return true;
+    }
     appendChild(child: ElementStub): ElementStub {
         this.children.push(child);
         child.parentElement = this;
@@ -212,7 +218,22 @@ export class ElementStub {
     focus(): void { /* not asserted */ }
 }
 
-interface SyntheticEvent { type: string; target: ElementStub; }
+interface SyntheticEvent {
+    type: string;
+    target: ElementStub;
+    defaultPrevented?: boolean;
+    preventDefault?: () => void;
+    [extra: string]: unknown;
+}
+
+/** Walks `target` → root calling each listener, as a bubbling DOM event would. */
+function bubble(target: ElementStub, event: SyntheticEvent): void {
+    let node: ElementStub | null = target;
+    while (node) {
+        for (const listener of node.listenersFor(event.type)) { listener(event); }
+        node = node.parentElement;
+    }
+}
 
 /** Parses the double-quoted-attribute HTML subset the client scripts emit. */
 function parseAttrs(raw: string): Record<string, string> {
@@ -376,7 +397,7 @@ export interface WebviewDom {
      * which cannot prove a negative when several elements share a selector). */
     all(selector: string): ElementStub[];
     /** Dispatches a DOM event at `target`, bubbling through `parentElement` — supports delegated listeners. */
-    fire(target: unknown, type: string): void;
+    fire(target: unknown, type: string, init?: Record<string, unknown>): void;
     /** Delivers a `window.addEventListener('message', ...)` event, as the extension host would post one. */
     dispatch(message: Record<string, unknown>): void;
     /** Every `vscode.postMessage(...)` call the script made, in order. */
@@ -401,7 +422,7 @@ export interface WebviewDom {
  * const dom = makeWebviewDom({ seedHtml: '<button id="x"></button>', script: '...' });
  * dom.fire(dom.el('#x'), 'click');
  */
-export function makeWebviewDom(opts: { seedHtml: string; script: string; state?: { mode?: unknown; query?: unknown } }): WebviewDom {
+export function makeWebviewDom(opts: { seedHtml: string; script: string; state?: { mode?: unknown; query?: unknown }; clipboardText?: string }): WebviewDom {
     const registry = new Map<string, ElementStub>();
     const root = new ElementStub('root', {}, registry);
     root.children = parseFragment(opts.seedHtml, root, registry);
@@ -449,7 +470,7 @@ export function makeWebviewDom(opts: { seedHtml: string; script: string; state?:
         innerWidth: 300,
         innerHeight: 600,
         screen: { availWidth: 1920, availHeight: 1080 },
-        clipboardData: { getData: () => '' },
+        clipboardData: { getData: (): string => opts.clipboardText ?? '' },
     };
 
     const stateWrites: unknown[] = [];
@@ -467,14 +488,11 @@ export function makeWebviewDom(opts: { seedHtml: string; script: string; state?:
     return {
         el: (selector: string): ElementStub | null => (selector.startsWith('#') ? registry.get(selector.slice(1)) ?? null : findFirst(root, selector)),
         all: (selector: string): ElementStub[] => findAll(root, selector),
-        fire: (target: unknown, type: string): void => {
+        fire: (target: unknown, type: string, init?: Record<string, unknown>): void => {
             if (!target) { return; }
-            const event: SyntheticEvent = { type, target: target as ElementStub };
-            let node: ElementStub | null = target as ElementStub;
-            while (node) {
-                for (const listener of node.listenersFor(type)) { listener(event); }
-                node = node.parentElement;
-            }
+            const event: SyntheticEvent = { ...init, type, target: target as ElementStub, defaultPrevented: false };
+            event.preventDefault = (): void => { event.defaultPrevented = true; };
+            bubble(target as ElementStub, event);
         },
         dispatch: (message: Record<string, unknown>): void => {
             for (const listener of winListeners.get('message') ?? []) { listener({ data: message }); }

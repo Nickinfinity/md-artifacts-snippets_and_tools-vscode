@@ -142,10 +142,38 @@ suite('Insert / Copy → artifact.render', () => {
         assert.strictEqual(sent.length, 0);
     });
 
-    test('Command stays byte-identical: one sendText, no confirm, no markers', async () => {
-        await performInsert(undefined, 'Command', { output: 'echo 1\necho 2', warnings: [], containsEscape: false }, 'editor', io());
-        assert.deepStrictEqual(sent, [{ text: 'echo 1\necho 2', addNewLine: false }]);
+    test('multi-line Command waits for Enter: confirm, then one bracketed paste', async () => {
+        const r: Rendered = { output: 'echo 1\necho 2', warnings: [], containsEscape: false };
+        await performInsert(undefined, 'Command', r, 'editor', io());
+        assert.deepStrictEqual(sent, [{ text: '\x1b[200~echo 1\necho 2\x1b[201~', addNewLine: false }]);
+        assert.strictEqual(confirms, 1);
+        sent.length = 0; confirmAnswer = false;
+        await performInsert(undefined, 'Command', r, 'editor', io());
+        assert.deepStrictEqual(sent, []);
+    });
+
+    test('🔒 containsEscape on a multi-line Command: refused before the confirm', async () => {
+        toasts.length = 0;
+        await performInsert(undefined, 'Command', { output: 'a\n\x1b[31mb', warnings: [], containsEscape: true }, 'editor', io());
         assert.strictEqual(confirms, 0);
+        assert.strictEqual(terminals, 0);
+        assert.deepStrictEqual(sent, []);
+        assert.deepStrictEqual(toasts, [refusal]);
+    });
+
+    test('🔒 hostile CR in a Command: confirm + bracketed paste; tab alone is sent plain', async () => {
+        const r: Rendered = { output: 'echo a\rtouch x', warnings: [], containsEscape: false };
+        await performInsert(undefined, 'Command', r, 'editor', io());
+        assert.strictEqual(confirms, 1);
+        assert.deepStrictEqual(sent, [{ text: '\x1b[200~echo a\rtouch x\x1b[201~', addNewLine: false }]);
+        sent.length = 0; confirmAnswer = false;
+        await performInsert(undefined, 'Command', r, 'editor', io());
+        assert.deepStrictEqual(sent, []);
+
+        sent.length = 0; confirms = 0;
+        await performInsert(undefined, 'Command', { output: 'echo\ta', warnings: [], containsEscape: false }, 'editor', io());
+        assert.strictEqual(confirms, 0);
+        assert.deepStrictEqual(sent, [{ text: 'echo\ta', addNewLine: false }]);
     });
 
     test('warnings ⇒ one joined toast, result still returned', async () => {

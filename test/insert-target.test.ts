@@ -52,10 +52,11 @@ suite('resolveInsertTarget (T3)', () => {
 });
 
 /**
- * `terminal.sendText` executes every internal newline as if typed — harmless
- * for `Command` (its whole point is to run), but a hazard for a both-context
- * type like `AIPrompt`: untrusted vault content that can carry a fenced
- * `bash` block. `needsTerminalConfirmation` is the pure decision gating the
+ * `terminal.sendText` executes every internal newline as if typed — a hazard
+ * for any type that reaches the terminal (`Command`, `AIPrompt`): untrusted
+ * vault content that can carry a fenced `bash` block or a hostile control
+ * character. Nothing may run before the user presses Enter (W-UI T-UI.6).
+ * `needsTerminalConfirmation` is the pure decision gating the
  * confirm modal in `performInsert`; the modal itself is extension-host UI and
  * is not unit-tested — this predicate is the thing that can silently rot.
  */
@@ -69,11 +70,20 @@ suite('needsTerminalConfirmation (T3 — terminal-send confirmation)', () => {
         assert.strictEqual(needsTerminalConfirmation('AIPrompt', 'single line'), false);
     });
 
-    // Regression guard: Command (contexts: ['terminal'] only) is where this
-    // confirm must NOT fire — it always ran multi-line content unconfirmed
-    // before T3, and that path must stay byte-identical.
-    test('multi-line content on a terminal-only type (Command) → false, unchanged from before T3', () => {
-        assert.strictEqual(needsTerminalConfirmation('Command', 'line one\nline two'), false);
+    // W-UI T-UI.6: a Command no longer runs line by line before Enter.
+    test('multi-line content on a terminal-only type (Command) → true', () => {
+        assert.strictEqual(needsTerminalConfirmation('Command', 'line one\nline two'), true);
+    });
+
+    test('single-line Command → false (already waits for Enter)', () => {
+        assert.strictEqual(needsTerminalConfirmation('Command', 'ls -la'), false);
+    });
+
+    test('🔒 Command with a bare CR, DEL or Ctrl-O (no newline) → true; tab alone → false', () => {
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\rtouch x'), true);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x7f'), true);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x0f'), true);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo\ta'), false);
     });
 
     test('multi-line content on an editor-only type (Snippet) → false (never reaches the terminal anyway)', () => {
@@ -113,9 +123,8 @@ suite('registerInsertCommands — .terminal registration (T3)', () => {
  * themselves at every newline.
  *
  * `sendText(content, false)` only suppresses the *trailing* newline, so the
- * payload is wrapped in bracketed-paste markers instead. A `Command` is
- * deliberately excluded: running it line by line is the entire point, and that
- * path must stay byte-identical.
+ * payload is wrapped in bracketed-paste markers instead. Since W-UI T-UI.6 a
+ * multi-line `Command` is wrapped too: nothing executes before Enter.
  */
 suite('wrapForTerminal — multi-line prompts paste as one block', () => {
 
@@ -136,9 +145,17 @@ suite('wrapForTerminal — multi-line prompts paste as one block', () => {
         assert.strictEqual(wrapForTerminal('AIPrompt', 'just one line'), 'just one line');
     });
 
-    // The regression guard: a Command is meant to execute line by line.
-    test('a multi-line Command is NOT wrapped', () => {
-        assert.strictEqual(wrapForTerminal('Command', 'echo one\necho two'), 'echo one\necho two');
+    test('a multi-line Command is wrapped (W-UI T-UI.6: waits for Enter)', () => {
+        assert.strictEqual(wrapForTerminal('Command', 'echo one\necho two'), `${START}echo one\necho two${END}`);
+    });
+
+    test('a single-line Command is left alone', () => {
+        assert.strictEqual(wrapForTerminal('Command', 'ls'), 'ls');
+    });
+
+    test('🔒 a CR-only Command is wrapped; a tab-only one is not', () => {
+        assert.strictEqual(wrapForTerminal('Command', 'echo a\rtouch x'), `${START}echo a\rtouch x${END}`);
+        assert.strictEqual(wrapForTerminal('Command', 'echo\ta'), 'echo\ta');
     });
 
     test('a multi-line Snippet is NOT wrapped', () => {

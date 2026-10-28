@@ -62,6 +62,12 @@ export class PreviewPanelController {
      */
     private editorsSub: vscode.Disposable | undefined;
 
+    /**
+     * The restore `dispose()` started. Edit awaits it so the form does not take
+     * focus mid-restore (the width commands act on the focused part).
+     */
+    private narrowed: Promise<void> = Promise.resolve();
+
     constructor(private readonly cb: PreviewCallbacks) {
         this.width = new PreviewWidth(msg => { cb.host.post(msg); });
         this.blockEdit = new BlockEditController({
@@ -194,7 +200,7 @@ export class PreviewPanelController {
         // abort) and the `open` guard above makes it once-per-session, so this
         // is the one place the widen is undone. Fire-and-forget: `dispose()` is
         // sync by contract, and a failed narrow must never break an insert.
-        void this.width.restore();
+        this.narrowed = this.width.restore();
         this.cb.endPreview();
         this.cb.onDispose();
     }
@@ -345,7 +351,7 @@ export class PreviewPanelController {
         else if (cmd === 'cancelEdit')    { this.modeController?.stopEditingSection(msg.section as SectionKey); }
         else if (cmd === 'quickEdit')     { this.modeController?.enterQuickEdit(); }
         else if (cmd === 'backToPreview') { this.modeController?.enterPreview(); }
-        else if (cmd === 'fullEdit')      { this.handleFullEdit(); }
+        else if (cmd === 'fullEdit')      { await this.handleFullEdit(); }
         else if (cmd === 'insert')        { void this.actions.handleInsert(msg); }
         else if (cmd === 'copy')          { void this.actions.handleCopy(msg); }
         else if (cmd === 'editBlock')     { await this.staged.handleEditBlock(); }
@@ -368,13 +374,17 @@ export class PreviewPanelController {
      * Routed through a command because the form needs the `ExtensionContext`,
      * which this controller does not carry. The preview session ends first:
      * the form is now the editing surface, so leaving the pane in preview mode
-     * behind it would show a stale copy of what the user is editing.
+     * behind it would show a stale copy of what the user is editing. The form
+     * opens only after the width restore settles: the form takes focus, and
+     * `decreaseViewWidth` acts on the focused part, so the remaining steps
+     * would otherwise shrink the editor group.
      */
-    private handleFullEdit(): void {
+    private async handleFullEdit(): Promise<void> {
         const artifact = this.currentArtifact;
         if (!artifact) { return; }
         const filePath = artifact.filePath;
         this.dispose();
+        await this.narrowed;
         void vscode.commands.executeCommand(EDIT_ARTIFACT_COMMAND_ID, filePath);
     }
 }

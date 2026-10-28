@@ -4,7 +4,7 @@ import { MainViewProvider } from '../src/ui/views/mainView.provider.js';
 import { WebviewHost, type WebviewHostTarget } from '../src/ui/panels/artifactPicker/webviewHost.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 import { PreviewPanelController } from '../src/ui/panels/artifactPicker/preview.js';
-import type { MainViewPreviewState } from '../src/ui/views/mainView.preview.js';
+import { ensureView, type MainViewPreviewState } from '../src/ui/views/mainView.preview.js';
 import { getPreviewTarget } from '../src/services/preview-target.service.js';
 
 /** A minimal single-block artifact whose code renders visible `.code-line-row`s. */
@@ -31,10 +31,11 @@ function fakeArtifact(): ParsedArtifactFile {
  */
 
 /** Minimal stand-in for the `WebviewView` VS Code hands `resolveWebviewView`. */
-function fakeView(): vscode.WebviewView & { setVisible(v: boolean): void; fireDispose(): void } {
+function fakeView(): vscode.WebviewView & { setVisible(v: boolean): void; fireDispose(): void; shows: boolean[] } {
     const disposeListeners: Array<() => void> = [];
     const visibilityListeners: Array<() => void> = [];
     let visible = true;
+    const shows: boolean[] = [];
     const view = {
         webview: {
             options: {},
@@ -47,11 +48,12 @@ function fakeView(): vscode.WebviewView & { setVisible(v: boolean): void; fireDi
         get visible() { return visible; },
         onDidChangeVisibility: (l: () => void) => { visibilityListeners.push(l); return new vscode.Disposable(() => { /* kept for the test's lifetime */ }); },
         onDidDispose: (l: () => void) => { disposeListeners.push(l); return new vscode.Disposable(() => { /* kept for the test's lifetime */ }); },
-        show: () => { /* revealing an already-resolved view is a no-op here */ },
+        shows,
+        show: (preserveFocus?: boolean) => { shows.push(preserveFocus === true); },
         setVisible(v: boolean) { visible = v; for (const l of visibilityListeners) { l(); } },
         fireDispose() { for (const l of disposeListeners) { l(); } },
     };
-    return view as unknown as vscode.WebviewView & { setVisible(v: boolean): void; fireDispose(): void };
+    return view as unknown as vscode.WebviewView & { setVisible(v: boolean): void; fireDispose(): void; shows: boolean[] };
 }
 
 suite('ORCH-7 integration — main pane joins (ledger #116)', () => {
@@ -73,6 +75,21 @@ suite('ORCH-7 integration — main pane joins (ledger #116)', () => {
         provider.resolveWebviewView(fakeView());
         await pending;
         assert.strictEqual(settled, true);
+    });
+
+    test('ensureView reveals (preserveFocus) a resolved-but-hidden view, and leaves a visible one alone', async () => {
+        const provider = new MainViewProvider(vscode.Uri.file('/ext'));
+        const view = fakeView();
+        provider.resolveWebviewView(view);
+        view.setVisible(false);
+        await ensureView(provider.viewTarget());
+        assert.deepStrictEqual(view.shows, [true]);
+
+        const shown = fakeView();
+        const p2 = new MainViewProvider(vscode.Uri.file('/ext'));
+        p2.resolveWebviewView(shown);
+        await ensureView(p2.viewTarget());
+        assert.deepStrictEqual(shown.shows, []);
     });
 
     test('viewTarget().resolved is a live thunk, not a snapshot', () => {

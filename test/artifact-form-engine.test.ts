@@ -6,10 +6,13 @@ import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 import { setSessionVault } from '../src/services/vault-watch.service.js';
 import { setConfirmSink } from '../src/services/confirm.service.js';
 import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { artifactToFormModel } from '../src/commands/create-prefill.helpers.js';
+import { EDIT_ARTIFACT_COMMAND_ID } from '../src/commands/editArtifact.command.js';
 import { requestOrNotify } from '../src/engine/engine.vscode.js';
-import { deleteWithConfirm, saveToEngine, type SaveIO } from '../src/ui/panels/artifactForm/panel.helpers.js';
+import { deleteWithConfirm, pruneVarsForSave, saveToEngine, type SaveIO } from '../src/ui/panels/artifactForm/panel.helpers.js';
 import type { OpenFormOpts } from '../src/ui/panels/artifactForm/panel.js';
 import type { EngineRead } from '../src/engine/model.js';
+import type { EngineArtifact, EngineModel } from '../src/types/engine.types.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 
 const SNIPPET = '---\nartifactType: Snippet\ntitle: Demo\nlanguage: bash\n---\n\n```bash\necho hi\n```\n';
@@ -144,5 +147,76 @@ suite('artifact form — engine writes', () => {
         const body = src.slice(at, src.indexOf('\n    }\n', at));
         assert.match(body, /\{ command: 'saveResult', ok: false \}/);
         assert.doesNotMatch(body, /error/);
+    });
+});
+
+// W-UI a: the lossy-edit refusal is gone; the engine refuses every lossy shape itself (artifact.unrepresentable).
+suite('edit — flagged / index files open in the form and round-trip', () => {
+    let eng: VarsEngine;
+    const flagged = (JSON.parse(fs.readFileSync(path.join(__dirname, '../../test/fixtures/engine/op-cases/artifact.read/flagged.json'), 'utf8')) as { expect: EngineArtifact }).expect;
+    const indexRead: EngineArtifact = {
+        filePath: 'Templates/index.md', fileName: 'index', relativePath: 'index.md',
+        frontmatter: { artifactType: 'Template', title: 'Index', index: true, paths: ['src/components'] },
+        code: '1. [[edit]]', vars: [], blocks: [], layout: { payload: 'bare' }, hash: 'h1',
+    };
+    const noop = (): void => undefined;
+    const formTabs = (): number => vscode.window.tabGroups.all.flatMap(g => g.tabs)
+        .filter(t => t.input instanceof vscode.TabInputWebview && t.input.viewType.includes('artifactForm')).length;
+    const waitForTab = async (): Promise<number> => {
+        for (let i = 0; i < 40 && formTabs() === 0; i++) { await new Promise(r => setTimeout(r, 50)); }
+        return formTabs();
+    };
+    const edited = (read: EngineRead, over: Partial<ArtifactFormModel>): ArtifactFormModel => {
+        const m = { ...artifactToFormModel(read), ...over } as ArtifactFormModel;
+        return { ...m, blocks: pruneVarsForSave(m.blocks) };
+    };
+    const updateParams = (): { expectedHash: string; model: EngineModel } => {
+        const sent = eng.fake.received.filter(r => r.method === 'artifact.update');
+        assert.strictEqual(sent.length, 1);
+        return sent[0]?.params as { expectedHash: string; model: EngineModel };
+    };
+
+    setup(async function () {
+        this.timeout(10_000);
+        // activate() first: a late activation replaces the fake engine and the /v vault.
+        await vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode')?.activate();
+        eng = startVarsEngine();
+        eng.fake.on('artifact.update', () => ({ result: { path: 'x.md', hash: 'new' } }));
+    });
+    teardown(async () => { await vscode.commands.executeCommand('workbench.action.closeAllEditors'); eng.dispose(); });
+
+    test('a flagged AIPrompt opens the form', async function () {
+        this.timeout(10_000);
+        eng.fake.on('artifact.read', () => ({ result: flagged }));
+        await vscode.commands.executeCommand(EDIT_ARTIFACT_COMMAND_ID, path.join(VAULT.fsPath, 'AIPrompts/flagged.md'));
+        assert.strictEqual(await waitForTab(), 1, 'the form did not open for a flagged file');
+    });
+
+    test('an index template opens the form', async function () {
+        this.timeout(10_000);
+        eng.fake.on('artifact.read', () => ({ result: indexRead }));
+        await vscode.commands.executeCommand(EDIT_ARTIFACT_COMMAND_ID, path.join(VAULT.fsPath, 'Templates/index.md'));
+        assert.strictEqual(await waitForTab(), 1, 'the form did not open for an index file');
+    });
+
+    test('flagged save: layout, payload and hash ride the update; only the title changes', async () => {
+        const read = toParsedArtifactFile(flagged, VAULT.fsPath);
+        const opts: OpenFormOpts = { mode: 'edit', type: 'AIPrompt', sourceUri: vscode.Uri.file(read.filePath), read };
+        assert.strictEqual(await saveToEngine(edited(read, { title: 'Flagged v2' }), opts, noop), true);
+        const p = updateParams();
+        assert.deepStrictEqual(p.model.layout, read.layout);
+        assert.strictEqual(p.model.blocks?.[0]?.code, read.code);
+        assert.strictEqual(p.model.title, 'Flagged v2');
+        assert.strictEqual(p.expectedHash, read.hash);
+    });
+
+    test('index save: index, paths and layout ride the update', async () => {
+        const read = toParsedArtifactFile(indexRead, VAULT.fsPath);
+        const opts: OpenFormOpts = { mode: 'edit', type: 'Template', sourceUri: vscode.Uri.file(read.filePath), read };
+        assert.strictEqual(await saveToEngine(edited(read, { description: 'd2' }), opts, noop), true);
+        const { model } = updateParams();
+        assert.strictEqual(model.index, true);
+        assert.deepStrictEqual(model.paths, ['src/components']);
+        assert.deepStrictEqual(model.layout, { payload: 'bare' });
     });
 });

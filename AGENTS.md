@@ -378,7 +378,9 @@ rediscover one through a silently dropped message:
   settles when the *reveal* completes, not when the provider callback runs, so
   revealing and immediately posting is a race. `ensureView()` (`mainView.preview.ts`)
   awaits `focus()` and then re-checks resolution, throwing rather than silently
-  posting into a view that never resolved. Guard: `test/main-view-integration.test.ts`.
+  posting into a view that never resolved. `ensureView` also reveals a view that
+  is resolved but hidden (`retainContextWhenHidden` keeps it resolved behind
+  another container) — `visible()` on `ViewTarget` (W-UI c). Guard: `test/main-view-integration.test.ts`.
 - **H4 — a sidebar pane is ~300px wide against an editor column's ~800px.**
   `main-view.css` loads after `picker.css`/`code-block.css` and reflows the
   preview to a single column; the code area wraps rather than widening the pane
@@ -538,6 +540,9 @@ and is labelled **"See/Edit Variables"** (browse/edit, not insert); it sits in
 Code's group separator keeps it last. Each surface shows direct entries when one
 artifact is active there, or an "MD Artifacts" submenu when two or more
 are (`*HasMultiple` context keys, maintained by `context.service.ts`).
+The terminal is the exception: one **MD Artifacts** entry
+(`md-artifacts.submenu.terminal.root`) nesting **Insert** and **Create**
+submenus, always (W-UI b).
 
 **Insert target — the invocation surface, not focus.** `AIPrompt` is the first
 type declaring both `'editor'` and `'terminal'` in `contexts`, so it is the
@@ -569,11 +574,12 @@ before — never clobbering it silently.
 **🔒 Terminal send — one paste, not a line of keystrokes.**
 `terminal.sendText(content, false)` suppresses only the *trailing* newline;
 every embedded newline still reaches the shell as if the user pressed Enter
-after that line. That is correct for `Command` — running it is the whole point
-— and wrong for `AIPrompt`, whose payload is multi-line flagged markdown by
-design, comes from the vault (untrusted by this codebase's standing rule), and
-routinely carries a fenced ` ```bash ` block that would otherwise execute
-verbatim.
+after that line (and a bare CR, or Ctrl-O in bash, submits it just the same).
+That is wrong for any multi-line payload — an `AIPrompt` (multi-line flagged
+markdown from the vault, untrusted by this codebase's standing rule, routinely
+carrying a fenced ` ```bash ` block) and a `Command` alike: a `Command` with an
+unfilled `<VK-…>` used to run line by line before the warning toast was read
+(W-UI f, user ruling 2026-10-27).
 
 `wrapForTerminal(type, content)` (`artifactPicker/preview.helpers.ts`) wraps a
 multi-line payload in **bracketed-paste markers** (`ESC[200~` … `ESC[201~`) —
@@ -581,17 +587,20 @@ the same mechanism a real terminal paste uses. The receiving program treats
 everything between them as literal text, so the newlines become part of the
 input instead of submitting it: the prompt lands as one block, the way
 Shift+Enter behaves in a CLI agent, and nothing runs until the user presses
-Enter. No trailing newline is added. Wrapping is skipped for single-line
-content and for any type not declaring **both** contexts, so `Command` is
-byte-identical to before — pinned by a test, because "a `Command` still
-executes line by line" is exactly what a well-meaning refactor would break.
+Enter. No trailing newline is added. Wrapping applies to every payload
+carrying a control character other than tab (any C0 — newline, CR, … — or DEL) of a type
+whose `contexts` include `'terminal'`; plain single-line content is sent
+unwrapped and without a newline. One private predicate in `preview.helpers.ts`
+drives both the wrap and the confirm, so they cannot disagree. **Nothing sent
+to the terminal runs before the user presses Enter.**
 
 Support cannot be detected from the extension host (a shell with bracketed
 paste disabled would show the markers literally and still act on each line), so
 the confirmation stays as the backstop: `needsTerminalConfirmation(type,
-content)` is `true` only when the target is `'terminal'` **and** the content is
-multi-line **and** the type declares both contexts — so `Command` never
-prompts. A `true` result opens a modal with the line count and a truncated
+content)` is `true` only when the target is `'terminal'` **and** the content
+carries such a control character **and** the type's `contexts` include
+`'terminal'` — `Command` and `AIPrompt` both prompt; the `containsEscape`
+refusal still runs first. A `true` result opens a modal with the line count and a truncated
 preview; Cancel or Escape sends nothing.
 
 ### Vault directory logic (`constants.ts` + `vault.service.ts`)

@@ -27,6 +27,13 @@ export interface ViewTarget {
      */
     resolved: () => boolean;
     /**
+     * Whether the resolved view is on screen. With `retainContextWhenHidden`
+     * the view stays resolved after the user switches container, so
+     * `resolved()` alone cannot tell "live" from "parked off-screen". A thunk
+     * for the same staleness reason as `resolved`.
+     */
+    visible: () => boolean;
+    /**
      * Reveals the pane (`executeCommand('md-artifacts.mainView.focus')`)
      * and resolves once `resolveWebviewView` has fired for it.
      */
@@ -50,9 +57,13 @@ export interface ViewTarget {
  * ever resolving must surface as a thrown error, not a silent success a
  * caller then posts into.
  *
+ * A resolved-but-**hidden** view is revealed too (W-UI c): posting into it
+ * would queue (H1) and the widen's measurement would time out. No recheck of
+ * `visible()` after `focus()` — `show()` is async and visibility flips later.
+ *
  * @param target - The pane's current resolution state and its reveal action.
- * @returns Resolves once the view is confirmed resolved — either already, or
- *          after `focus()` settles and `resolved()` confirms it.
+ * @returns Resolves once the view is confirmed resolved and revealed — either
+ *          already, or after `focus()` settles and `resolved()` confirms it.
  * @throws  If `focus()` rejects, or if it resolves without `resolved()`
  *          becoming `true`.
  *
@@ -61,7 +72,7 @@ export interface ViewTarget {
  * // view is now resolved — safe to post
  */
 export async function ensureView(target: ViewTarget): Promise<void> {
-    if (target.resolved()) {
+    if (target.resolved() && target.visible()) {
         return;
     }
     await target.focus();

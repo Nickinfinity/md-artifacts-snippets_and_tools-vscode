@@ -237,6 +237,7 @@ export class MainViewProvider implements vscode.WebviewViewProvider {
     viewTarget(): ViewTarget {
         return {
             resolved: () => this.view !== undefined,
+            visible:  () => this.view?.visible === true,
             focus:    () => this.focus(),
         };
     }

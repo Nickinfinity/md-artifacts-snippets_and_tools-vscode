@@ -5,7 +5,6 @@ import { artifactToFormModel } from './create-prefill.helpers.js';
 import { openArtifactFormPanel } from '../ui/panels/artifactForm/panel.js';
 import { getVaultRootUri } from '../services/config.service.js';
 import { getCreateFormTypes } from '../services/artifact-type-config.service.js';
-import { unsupportedEditReason } from './create-prefill.helpers.js';
 
 /** Command id the preview pane's Edit action runs. */
 export const EDIT_ARTIFACT_COMMAND_ID = 'md-artifacts.editArtifact';
@@ -60,12 +59,6 @@ export function registerEditArtifactCommand(context: vscode.ExtensionContext): v
         // an unhandled command failure rather than a message.
         if (!getCreateFormTypes().includes(type)) {
             vscode.window.showWarningMessage(vscode.l10n.t('{0} artifacts have no form — open the .md directly to edit one.', type));
-            return;
-        }
-        // Refuse rather than silently drop content the form cannot round-trip.
-        const blocked = unsupportedEditReason(parsed);
-        if (blocked) {
-            vscode.window.showWarningMessage(blocked);
             return;
         }
         openArtifactFormPanel(context, {

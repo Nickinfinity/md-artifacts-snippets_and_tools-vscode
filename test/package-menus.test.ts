@@ -29,7 +29,8 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 	) as {
 		contributes: {
 			commands: { command: string; title?: string }[];
-			menus: Record<string, { command?: string; when?: string }[]>;
+			menus: Record<string, { command?: string; submenu?: string; when?: string; group?: string }[]>;
+			submenus: { id: string; label: string }[];
 		};
 	};
 
@@ -113,6 +114,16 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 		for (const a of ARTIFACTS) {
 			for (const surface of surfacesFor(a.contexts)) {
 				const id = commandIdFor(a, surface);
+				if (surface === 'terminal') {
+					// One root entry nests the Insert submenu; no direct insert entries (W-UI b).
+					assert.ok(menuHasCommand('md-artifacts.submenu.terminal', id), `${id} missing from md-artifacts.submenu.terminal`);
+					assert.ok(
+						(pkg.contributes.menus['md-artifacts.submenu.terminal.root'] ?? [])
+							.some(e => e.submenu === 'md-artifacts.submenu.terminal'),
+						'md-artifacts.submenu.terminal.root must nest md-artifacts.submenu.terminal',
+					);
+					continue;
+				}
 				assert.ok(
 					menuHasCommand(`${surface}/context`, id),
 					`${id} missing from ${surface}/context (contexts: ${a.contexts.join(',')})`,
@@ -157,7 +168,10 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 			const baseId     = artifactCommandId(a.dir);
 			const terminalId = artifactTerminalCommandId(a.dir);
 
-			assert.ok(menuHasCommand('terminal/context', terminalId), `terminal/context missing ${terminalId}`);
+			assert.ok(
+				!(pkg.contributes.menus['terminal/context'] ?? []).some(e => e.command?.startsWith('md-artifacts.insert.')),
+				'terminal/context must reference no md-artifacts.insert.* command (single root entry)',
+			);
 			assert.ok(!menuHasCommand('terminal/context', baseId), `terminal/context must not reference the base id ${baseId}`);
 
 			assert.ok(menuHasCommand('md-artifacts.submenu.terminal', terminalId), `submenu.terminal missing ${terminalId}`);

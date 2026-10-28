@@ -1,7 +1,5 @@
 import * as path from 'node:path';
-import * as vscode from 'vscode';
 import { mapLanguageId } from '../services/language-map.service.js';
-import type { EngineRead } from '../engine/model.js';
 import { getFilenameField } from '../services/artifact-type-config.service.js';
 import type { ArtifactType, ParsedArtifactFile } from '../types/parsed-artifact.types.js';
 import type { ArtifactFormModel } from '../types/artifact-form.types.js';
@@ -152,43 +150,4 @@ export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<Artifac
         version:      fm.version,
         blocks,
     };
-}
-
-/**
- * Explains why an artifact cannot be safely edited through the form, if so.
- *
- * The form is a **lossy** representation of a `.md`: it round-trips through
- * the webview, where `extractModel()` rebuilds the model from DOM fields, so
- * anything without an input is gone by the time Save runs. For a create that
- * is harmless — the fields never existed. For an edit it **deletes the user's
- * content from their vault**, silently and irreversibly.
- *
- * Two cases the form cannot carry today, each refused rather than quietly
- * dropped:
- * - **Flagged payloads** (the marker syntax `flags.service.ts` owns) — the
- *   region markers and every line
- *   of surrounding note outside them are not modelled at all; a save replaces
- *   the whole file with a single fence.
- * - **`index: true` / `paths:`** — read-side-only keys the serializer never
- *   emits (see `ARTIFACT_FILE_FORMAT.md` §8), so a saved index stops being an
- *   index.
- * `env:` was a third case until H7.0b gave `ArtifactFormModel` an `env` field
- * and `serializeFrontmatter` an emit line for it. It now survives an edit, so
- * refusing one would be refusing a file the form handles correctly.
- *
- * @param parsed - The engine read; `layout.payload` says whether the body uses flags.
- * @returns A human-readable reason, or `undefined` when editing is safe.
- *
- * @example
- * const reason = unsupportedEditReason(parsed);
- * if (reason) { vscode.window.showWarningMessage(reason); return; }
- */
-export function unsupportedEditReason(parsed: EngineRead): string | undefined {
-    if (parsed.layout?.payload === 'flags') {
-        return vscode.l10n.t('This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.');
-    }
-    if (parsed.frontmatter.index === true || (parsed.frontmatter.paths?.length ?? 0) > 0) {
-        return vscode.l10n.t('This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.');
-    }
-    return undefined;
 }

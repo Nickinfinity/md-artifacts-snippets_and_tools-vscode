@@ -177,24 +177,36 @@ const BRACKETED_PASTE_START = '\x1b[200~';
 const BRACKETED_PASTE_END = '\x1b[201~';
 
 /**
+ * Any C0 control except tab (`\t`), plus DEL. A newline, a bare CR (Enter) and Ctrl-O (0x0F, which
+ * also runs the line in bash) all submit what was typed, so none may reach a shell unpasted. ESC is
+ * inside the range but is refused earlier, on the engine's `containsEscape`.
+ */
+const TERMINAL_CONTROL = /[\0-\x08\x0a-\x1f\x7f]/;
+
+/**
+ * THE terminal-block predicate: `content` carries a control character and `type` can reach the
+ * terminal. Shared by {@link wrapForTerminal} and {@link needsTerminalConfirmation} so they cannot disagree.
+ *
+ * @param type    - Canonical `ArtifactType` literal (looked up via `getEntry`).
+ * @param content - The fully variable-resolved text about to be sent.
+ * @returns Whether the payload must be pasted as a block and confirmed.
+ * @example reachesTerminalAsBlock('Command', 'a\nb') // → true
+ */
+function reachesTerminalAsBlock(type: ArtifactType, content: string): boolean {
+    return TERMINAL_CONTROL.test(content) && getEntry(type).contexts.includes('terminal');
+}
+
+/**
  * Wraps terminal-bound content in bracketed-paste markers so a multi-line
  * payload arrives as **one block of text** instead of as keystrokes that
  * submit themselves line by line.
  *
- * `terminal.sendText(content, false)` suppresses only the *trailing* newline.
- * Every newline *inside* the payload still reaches the shell as if the user
- * pressed Enter there — correct for a `Command` (running it is the point),
- * wrong for an `AIPrompt`, whose payload is multi-line markdown by design and
- * is meant to land in a CLI agent's input the way Shift+Enter does.
- *
- * Bracketed paste is the mechanism a real terminal paste uses: the receiving
- * program sees `ESC[200~ … ESC[201~` and treats everything between as literal
- * text, so the newlines become part of the input rather than executing it.
- * Nothing runs until the user presses Enter themselves.
- *
- * Scoped to both-context types, so the pre-existing `Command` path
- * (`contexts: ['terminal']` only) is byte-identical, and skipped for
- * single-line content, which has nothing to protect.
+ * `terminal.sendText(content, false)` suppresses only the *trailing* newline;
+ * every control character inside the payload still reaches the shell as if
+ * typed. Bracketed paste (`ESC[200~ … ESC[201~`) makes the receiving program
+ * treat everything between as literal text. Nothing runs until the user
+ * presses Enter. Applies to every type that can reach the terminal (`Command`
+ * and `AIPrompt`); single-line, control-free content has nothing to protect.
  *
  * ponytail: assumes the receiving program has bracketed paste enabled — true
  * for bash 4.4+, zsh, fish and the CLI agents this targets. A shell with it
@@ -208,27 +220,23 @@ const BRACKETED_PASTE_END = '\x1b[201~';
  *
  * @example
  * wrapForTerminal('AIPrompt', 'a\nb'); // → '\x1b[200~a\nb\x1b[201~'
- * wrapForTerminal('Command', 'a\nb');  // → 'a\nb' (unchanged — meant to run)
- * wrapForTerminal('AIPrompt', 'one');   // → 'one' (single line, nothing to protect)
+ * wrapForTerminal('Command', 'a\nb');  // → '\x1b[200~a\nb\x1b[201~'
+ * wrapForTerminal('Command', 'ls');    // → 'ls' (single line, nothing to protect)
  */
 export function wrapForTerminal(type: ArtifactType, content: string): string {
-    if (!content.includes('\n') || !hasBothContexts(getEntry(type).contexts)) {
-        return content;
-    }
-    return `${BRACKETED_PASTE_START}${content}${BRACKETED_PASTE_END}`;
+    return reachesTerminalAsBlock(type, content)
+        ? `${BRACKETED_PASTE_START}${content}${BRACKETED_PASTE_END}`
+        : content;
 }
 
 /**
  * Whether `performInsert` should confirm before sending `content` to the
  * terminal.
  *
- * Vault content is untrusted. {@link wrapForTerminal} stops a multi-line
- * payload from submitting itself, but bracketed-paste support cannot be
- * detected from the extension host, so a shell with it disabled would still
- * act on each newline. This confirmation is the backstop for that case.
- *
- * Scoped so the pre-existing `Command` path (`contexts: ['terminal']` only) is
- * byte-identical — it never confirms.
+ * Vault content is untrusted. {@link wrapForTerminal} stops a payload from
+ * submitting itself, but bracketed-paste support cannot be detected from the
+ * extension host, so a shell with it disabled would still act on each control
+ * character. This confirmation is the backstop. Same predicate as the wrap.
  *
  * @param type    - Canonical `ArtifactType` literal (looked up via `getEntry`).
  * @param content - The fully variable-resolved text about to be sent.
@@ -236,10 +244,11 @@ export function wrapForTerminal(type: ArtifactType, content: string): string {
  *
  * @example
  * needsTerminalConfirmation('AIPrompt', 'line one\nline two'); // → true
- * needsTerminalConfirmation('Command', 'line one\nline two');  // → false (['terminal']-only, unchanged)
+ * needsTerminalConfirmation('Command', 'line one\nline two');  // → true
+ * needsTerminalConfirmation('Command', 'ls');                  // → false
  */
 export function needsTerminalConfirmation(type: ArtifactType, content: string): boolean {
-    return content.includes('\n') && hasBothContexts(getEntry(type).contexts);
+    return reachesTerminalAsBlock(type, content);
 }
 
 /**

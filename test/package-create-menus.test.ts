@@ -139,7 +139,8 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 	});
 
 	test('each surface splits direct entries from its submenu on <surface>CreateHasMultiple', () => {
-		for (const surface of SURFACES) {
+		// terminal create submenu always nests under md-artifacts.submenu.terminal.root (W-UI b), ungated.
+		for (const surface of SURFACES.filter(s => s !== 'terminal')) {
 			const entries = (PKG.contributes.menus[MENU_KEY[surface]] ?? [])
 				.filter(e => e.command?.startsWith('md-artifacts.create.')
 					|| e.submenu?.startsWith('md-artifacts.submenu.create.'));
@@ -230,4 +231,26 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 			);
 		}
 	});
+
+    // ── W-UI (b): the terminal shows ONE "MD Artifacts" entry ──────────────
+
+    test('terminal/context holds exactly one entry, the root submenu', () => {
+        assert.deepStrictEqual(PKG.contributes.menus['terminal/context'], [
+            { submenu: 'md-artifacts.submenu.terminal.root', when: 'md-artifacts.vaultConfigured', group: 'mda@1' },
+        ]);
+    });
+
+    test('the terminal root nests Insert and Create, declared and labelled', () => {
+        assert.deepStrictEqual(PKG.contributes.menus['md-artifacts.submenu.terminal.root'], [
+            { submenu: 'md-artifacts.submenu.terminal', group: '1_insert@1' },
+            { submenu: 'md-artifacts.submenu.create.terminal', group: '3_create@1' },
+        ]);
+        const label = (id: string): string | undefined => {
+            const s = PKG.contributes.submenus.find(x => x.id === id);
+            return s ? resolveNls(s.label) : undefined;
+        };
+        assert.strictEqual(label('md-artifacts.submenu.terminal.root'), 'MD Artifacts');
+        assert.strictEqual(label('md-artifacts.submenu.terminal'), 'Insert');
+        assert.strictEqual(label('md-artifacts.submenu.create.terminal'), 'Create');
+    });
 });

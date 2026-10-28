@@ -50,7 +50,7 @@ export const DELIVERY_IO: DeliveryIO = {
  * @example terminalConfirmDetail('echo hi\nrm -rf /'); // → '2 lines will be pasted…'
  */
 function terminalConfirmDetail(content: string): string {
-    const lines = content.split('\n');
+    const lines = content.split(/\r\n|[\r\n]/);
     const clamp = (line: string): string =>
         line.length > CONFIRM_PREVIEW_LINE_MAX ? `${line.slice(0, CONFIRM_PREVIEW_LINE_MAX)}…` : line;
     const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
@@ -96,7 +96,7 @@ export async function renderForDelivery(
  * Target by {@link resolveInsertTarget}. 🔒 A terminal send of output the engine flags
  * `containsEscape` is refused before the confirm and before any terminal exists (D-11);
  * the flag is read on the engine's `output`, never on the bracketed-paste wrapper (which
- * carries ESC itself). Multi-line both-context payloads are confirmed, then pasted as one block.
+ * carries ESC itself). Any terminal payload carrying a control character (multi-line, bare CR, ...) is confirmed, then pasted as one block.
  *
  * @param editor            - Editor to insert into, or `undefined`.
  * @param type              - Artifact type.
