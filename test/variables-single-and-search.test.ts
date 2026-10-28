@@ -1,11 +1,10 @@
 import * as assert from 'node:assert';
 import { buildVariableNodes, filterVariableNodes, type VariableNode } from '../src/ui/views/variablesView.provider.js';
 import { resolveTarget, type CommandIO } from '../src/commands/variables.command.helpers.js';
-import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import { renderVarSetFormHtml, buildVarSetFormClientJs } from '../src/ui/panels/varsetForm/varsetForm.render.js';
 import { makeWebviewDom } from './webview-dom-harness.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
-import { useVarsEngine, VAULT } from './vars-engine.js';
+import { useVarsEngine, recordedSource, VAULT } from './vars-engine.js';
 
 /**
  * One-sub-set sets are worked on directly: the tree shows their vars with no
@@ -52,15 +51,11 @@ suite('variables tree — one-sub-set set shows its vars directly', () => {
 
 suite('variables tree — resolveTarget accepts a one-sub-set file as sub-set 0', () => {
     const eng = useVarsEngine();
-    const vaultWith = (model: Parameters<typeof renderVariablesFile>[0]): { root: typeof VAULT; file: string } =>
-        ({ root: VAULT, file: eng().serve('Variables/local.md', renderVariablesFile(model)) });
-    const model = {
-        artifactType: 'Variables' as const, title: 'Local', description: '', tags: [],
-        blocks: [{ heading: '', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
-    };
+    const vaultWith = (): { root: typeof VAULT; file: string } =>
+        ({ root: VAULT, file: eng().serve('Variables/local.md', recordedSource('vars-local')) });
 
     test('single file node + expected subset → resolves with subIdx 0', async () => {
-        const { root, file } = vaultWith(model);
+        const { root, file } = vaultWith();
         const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', shape: 'flat' };
         const target = await resolveTarget(node, 'subset', root, quietIo());
         assert.strictEqual(target?.subIdx, 0);
@@ -69,7 +64,7 @@ suite('variables tree — resolveTarget accepts a one-sub-set file as sub-set 0'
     });
 
     test('a multi-sub-set file node is still refused where a sub-set is expected', async () => {
-        const { root, file } = vaultWith(model);
+        const { root, file } = vaultWith();
         const errors: string[] = [];
         const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'Local', shape: 'sets' };
         assert.strictEqual(await resolveTarget(node, 'subset', root, quietIo(errors)), undefined);
@@ -77,10 +72,7 @@ suite('variables tree — resolveTarget accepts a one-sub-set file as sub-set 0'
     });
 
     test('a sets file resolves its sub-set ref {index, heading}', async () => {
-        const file = eng().serve('Variables/envs.md', renderVariablesFile({
-            artifactType: 'Variables', title: 'Envs', description: '', tags: [],
-            blocks: ['Dev', 'Prod'].map(heading => ({ heading, description: '', language: '', code: '', vars: [{ name: 'VK-a', defaultValue: '1' }] })),
-        }));
+        const file = eng().serve('Variables/envs.md', recordedSource('vars-envs'));
         const node: VariableNode = { id: `${file}::subset:1`, parentId: file, kind: 'subset', label: 'Prod' };
         assert.deepStrictEqual((await resolveTarget(node, 'subset', VAULT, quietIo()))?.subset, { index: 1, heading: 'Prod' });
     });

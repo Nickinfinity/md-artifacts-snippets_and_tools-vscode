@@ -1,0 +1,32 @@
+{
+  "filePath": "Variables/vars-titled-dev.md",
+  "fileName": "vars-titled-dev",
+  "relativePath": "vars-titled-dev.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Local Dev",
+    "language": "yaml VKs"
+  },
+  "code": "VK-host: localhost",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Dev",
+      "description": "",
+      "code": "VK-host: localhost",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-host",
+          "defaultValue": "localhost"
+        }
+      ]
+    }
+  ],
+  "hash": "329ba4e275e9f04ac5ebe6d9c1d1c6aab4782a4b954c0426369a55b019df727d"
+}

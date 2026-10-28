@@ -57,8 +57,10 @@ suite('package.nls.json localisation guard', () => {
 		// 82 → 84: `variables.viewInfo`, a title and a category site.
 		// 84 → 86: `engine.path` and `engine.debug` settings, one description each.
 		// 86 → 87: `submenu.terminal.root` label (W-UI b).
+		// 87 → 93: W5 H5.1 — `defaultEnvironment` deleted (−1); `vaultPath` + six `features.*`
+		// gain a `markdownDeprecationMessage`, one shared key (+7).
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 87);
+		assert.strictEqual(sites.length, 93);
 
 		// UNFILTERED count: the `""` review sentinel is es-ONLY. The en bundle has
 		// exactly 54 keys and no sentinel. 51 → 52: `cmd.variables.openFile.title`.
@@ -67,6 +69,7 @@ suite('package.nls.json localisation guard', () => {
 		// 56 → 58: `cmd.variables.editDescription.title`, `cmd.variables.editTags.title`.
 		// 58 → 59: `cmd.variables.viewInfo.title`.
 		// 59 → 61: `config.mdArtifacts.engine.path.description`, `config.mdArtifacts.engine.debug.description`.
+		// W5 H5.1: −`config.mdArtifacts.defaultEnvironment.description`, +`config.mdArtifacts.legacy.deprecated` (net 0).
 		assert.strictEqual(Object.keys(en).length, 62);
 
 		// A Map, not a Set of values: pins the key→value binding, not just the
@@ -96,8 +99,9 @@ suite('package.nls.json localisation guard', () => {
 		// The length pin is what stops it being vacuous over a subset: without
 		// it, a helper returning 5 of 70 sites passes here and in the Map guard.
 		// 84 → 86: `engine.path` and `engine.debug` settings (see the Map guard above).
+		// 87 → 93: W5 H5.1 (see the Map guard above).
 		const sites = everyLocalisableManifestSites();
-		assert.strictEqual(sites.length, 87);
+		assert.strictEqual(sites.length, 93);
 
 		const bare = sites.filter(s => !/^%.+%$/.test(s.value));
 		assert.deepStrictEqual(bare, [],

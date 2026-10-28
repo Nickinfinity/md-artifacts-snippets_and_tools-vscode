@@ -1,0 +1,27 @@
+{
+  "filePath": "Variables/fx-ve-single-subset.md",
+  "fileName": "fx-ve-single-subset",
+  "relativePath": "fx-ve-single-subset.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Solo",
+    "description": "A single, heading-less variable set",
+    "language": "yaml VKs",
+    "tags": [
+      "solo"
+    ]
+  },
+  "code": "VK-api_key: abc123\nVK-region: us-east-1",
+  "vars": [
+    {
+      "name": "VK-api_key",
+      "defaultValue": "abc123"
+    },
+    {
+      "name": "VK-region",
+      "defaultValue": "us-east-1"
+    }
+  ],
+  "blocks": [],
+  "hash": "8e424d54450bddc1b477c1facd87021f20ac1a614e79b5193b1977f8b6a5d6c6"
+}

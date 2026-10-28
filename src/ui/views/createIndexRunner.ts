@@ -9,7 +9,7 @@
  */
 import * as vscode from 'vscode';
 import { sendWrite } from '../../services/conflict.service.js';
-import { summariseRun } from '../../services/multi-index.service.js';
+import { summariseRun } from '../panels/artifactPicker/multiIndex.js';
 import { toVaultPath } from '../../engine/adapt.js';
 import { isWithinRoot } from '../panels/destFolderPicker.panel.js';
 import type { RunTally } from '../../types/multi-index.types.js';

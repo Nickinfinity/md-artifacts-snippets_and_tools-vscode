@@ -2,11 +2,9 @@ import * as assert from 'node:assert';
 import type * as vscode from 'vscode';
 import { handleApplyToPreview, handleSaveCurrentValues, type ApplyDeps } from '../src/commands/variables-apply.command.js';
 import { setPreviewTarget, type PreviewVarTarget } from '../src/services/preview-target.service.js';
-import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import { resolveTarget, type CommandIO } from '../src/commands/variables.command.helpers.js';
-import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 import type { VariableNode } from '../src/ui/views/variablesView.provider.js';
-import { useVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
+import { useVarsEngine, recordedSource, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
  * T1.3 — Variables-pane commands that reach a live preview (VSX-246).
@@ -17,18 +15,11 @@ import { useVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
-function singleBlockModel(): ArtifactFormModel {
-    return {
-        artifactType: 'Variables', title: 'Local Dev', description: '', tags: [],
-        blocks: [{ heading: '', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
-    };
-}
-
 let eng: () => VarsEngine;
 const makeVault = (): vscode.Uri => VAULT;
-/** Serves a fixture model at `Variables/<name>.md`; returns the absolute path a tree node carries. */
-const writeFixture = (_vault: vscode.Uri, name: string, model: ArtifactFormModel): string =>
-    eng().serve(`Variables/${name}.md`, renderVariablesFile(model));
+/** Serves the recorded flat set (`vars-flat`) at `Variables/<name>.md`; returns the absolute path a tree node carries. */
+const writeFixture = (_vault: vscode.Uri, name: string): string =>
+    eng().serve(`Variables/${name}.md`, recordedSource('vars-flat'));
 
 function subsetNode(filePath: string, subIdx: number): VariableNode {
     return { id: `${filePath}::subset:${subIdx}`, parentId: filePath, kind: 'subset', label: `sub${subIdx}` };
@@ -70,7 +61,7 @@ suite('Variables apply commands (engine)', () => {
     suite('handleApplyToPreview / handleSaveCurrentValues — no preview open (O-2)', () => {
         test('handleApplyToPreview: no preview open — must not throw, must not apply, must tell the user', async () => {
             const vaultRoot = makeVault();
-            const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
+            const filePath = writeFixture(vaultRoot, 'dev');
             const { deps, info, errors } = makeDeps(vaultRoot);
 
             await handleApplyToPreview(subsetNode(filePath, 0), deps);
@@ -95,7 +86,7 @@ suite('Variables apply commands (engine)', () => {
     suite('handleApplyToPreview — a live preview receives the sub-set', () => {
         test('applies the clicked sub-set to the live preview target', async () => {
             const vaultRoot = makeVault();
-            const filePath = writeFixture(vaultRoot, 'dev', singleBlockModel());
+            const filePath = writeFixture(vaultRoot, 'dev');
             const { deps } = makeDeps(vaultRoot);
             const target = fakeTarget();
             const release = setPreviewTarget(target);
@@ -135,7 +126,7 @@ suite('Variables apply commands (engine)', () => {
     // ── D-7: containment guard inside resolveTarget ──────────────────────────────
 
     suite('resolveTarget — D-7 containment guard (hostile fixture)', () => {
-        const outside = (): string => eng().serve('NotVariables/outside.md', renderVariablesFile(singleBlockModel()));
+        const outside = (): string => eng().serve('NotVariables/outside.md', recordedSource('vars-flat'));
 
         test('a valid Variables file OUTSIDE Variables/ is refused before reaching the preview', async () => {
             const outsidePath = outside();
@@ -166,7 +157,7 @@ suite('Variables apply commands (engine)', () => {
         });
 
         test('paired: the same file inside Variables/ is read exactly once', async () => {
-            const inside = eng().serve('Variables/in.md', renderVariablesFile(singleBlockModel()));
+            const inside = eng().serve('Variables/in.md', recordedSource('vars-flat'));
             const target = await resolveTarget(subsetNode(inside, 0), 'subset', VAULT, makeDeps(VAULT).deps.io);
             assert.ok(target);
             assert.strictEqual(eng().calls('artifact.read').length, 1);

@@ -1,7 +1,6 @@
 import * as assert from 'node:assert';
 import { renderVarSetFormHtml, buildVarSetFormClientJs } from '../src/ui/panels/varsetForm/varsetForm.render.js';
 import { handleVarSetFormMessage, type VarSetFormCallbacks } from '../src/ui/panels/varsetForm/varsetForm.panel.js';
-import { validateSubSetHeadings } from '../src/services/varset-form.service.js';
 import { makeWebviewDom } from './webview-dom-harness.js';
 import type { VarsEditPayload } from '../src/types/varset.types.js';
 
@@ -9,7 +8,7 @@ import type { VarsEditPayload } from '../src/types/varset.types.js';
  * The var-set edit form can add a sub-set (a `## heading` + `vks` fence).
  * Covers the markup, the client round trip (headings ride the wire), the
  * panel's heading handling (posted headings win, so renames land) and the
- * heading validator. Rename/delete live in varset-form-subset-controls.test.ts.
+ * duplicate-heading guard. Rename/delete live in varset-form-subset-controls.test.ts.
  */
 
 const base: VarsEditPayload = {
@@ -20,7 +19,6 @@ const headingless: VarsEditPayload = { ...base, subSets: [{ heading: '', pairs: 
 
 function bag(onWrite: (p: VarsEditPayload) => void, posted: Record<string, unknown>[] = []): VarSetFormCallbacks {
     return {
-        validate: () => ({ ok: true }),
         write: async () => true,
         post: (m) => { posted.push(m); },
         close: () => { /* noop */ },
@@ -101,13 +99,13 @@ suite('varset form — add sub-set: panel merge', () => {
         assert.deepStrictEqual(got?.subSets.map(s => s.heading), ['Dev', 'Prod']);
     });
 
-    test('an unnamed new sub-set is rejected with saveFailed and never written', async () => {
+    test('an unnamed new sub-set reaches the engine, which owns the empty-heading rule (artifact.unrepresentable)', async () => {
         let called = false;
         const posted: Record<string, unknown>[] = [];
         await save({ title: 'B', description: '', tags: [],
             pairs: [[['VK-a', '1']], []], headings: ['', ''] }, base, bag(() => { called = true; }, posted));
-        assert.strictEqual(called, false);
-        assert.strictEqual(posted[0]?.command, 'saveFailed');
+        assert.strictEqual(called, true);
+        assert.strictEqual(posted.length, 0);
     });
 
     test('headings whose length differs from pairs is a malformed payload', async () => {
@@ -118,13 +116,24 @@ suite('varset form — add sub-set: panel merge', () => {
     });
 });
 
-suite('varset form — validateSubSetHeadings', () => {
-    test('one sub-set may stay unnamed', () => assert.deepStrictEqual(validateSubSetHeadings(['']), { ok: true }));
-    test('distinct names pass', () => assert.deepStrictEqual(validateSubSetHeadings(['Dev', 'Prod']), { ok: true }));
-    test('empty name with 2+ sub-sets fails', () => assert.strictEqual(validateSubSetHeadings(['Dev', '']).ok, false));
-    test('duplicate names fail', () => assert.strictEqual(validateSubSetHeadings(['Dev', 'Dev']).ok, false));
-    test('newline or backtick fails', () => {
-        assert.strictEqual(validateSubSetHeadings(['Dev', 'a\nb']).ok, false);
-        assert.strictEqual(validateSubSetHeadings(['a`b']).ok, false);
+suite('varset form — duplicate sub-set headings (the one pre-request content rule)', () => {
+    const dup = async (headings: string[]): Promise<{ writes: number; posted: Record<string, unknown>[] }> => {
+        let writes = 0;
+        const posted: Record<string, unknown>[] = [];
+        await handleVarSetFormMessage({ command: 'save', payload: {
+            title: 'B', description: '', tags: [], pairs: headings.map(() => [['VK-a', '1']]), headings,
+        } }, bag(() => { writes++; }, posted), 'edit', base);
+        return { writes, posted };
+    };
+
+    test('duplicate names: saveFailed, writeEdit never called', async () => {
+        const r = await dup(['A', 'A']);
+        assert.strictEqual(r.writes, 0);
+        assert.strictEqual(r.posted[0]?.command, 'saveFailed');
+    });
+    test('distinct names pass', async () => assert.strictEqual((await dup(['Dev', 'Prod'])).writes, 1));
+    test('empty names are not "duplicates" — the engine owns that case', async () => assert.strictEqual((await dup(['', ''])).writes, 1));
+    test('a heading with a backtick or newline reaches the engine (it refuses only what it cannot write)', async () => {
+        assert.strictEqual((await dup(['A`B', 'C'])).writes, 1);
     });
 });

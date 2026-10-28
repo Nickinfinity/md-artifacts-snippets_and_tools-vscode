@@ -1,0 +1,14 @@
+{
+  "filePath": "Snippets/snippet-demo.md",
+  "fileName": "snippet-demo",
+  "relativePath": "snippet-demo.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Demo",
+    "language": "bash"
+  },
+  "code": "echo hi",
+  "vars": [],
+  "blocks": [],
+  "hash": "c7d2070142d58bc2c3d5fc27176aa5c2f6637d285a6145364c7d9ce45d87e492"
+}

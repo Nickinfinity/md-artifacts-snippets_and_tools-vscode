@@ -94,8 +94,8 @@ suite('confirmTextFor', () => {
     });
 
     // ── Ambiguous names (VSX-220 review finding 1) ──────────────────────────
-    // `addVar`'s uniqueness check is scoped to one sub-set (variables-crud
-    // .service.ts:125) and `addSubSet`'s to one file (:235), so the same leaf
+    // `addVar`'s uniqueness check is scoped to one sub-set and `addSubSet`'s to
+    // one file (both engine rules), so the same leaf
     // name legitimately exists under two different parents — `VK-host` in
     // both `Dev` and `Prod`, or two files each owning a `Production` sub-set.
     // Without `parent` in the message, both rows produce a byte-identical

@@ -1,0 +1,14 @@
+{
+  "filePath": "Variables/shape-empty-flat.md",
+  "fileName": "shape-empty-flat",
+  "relativePath": "shape-empty-flat.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Empty",
+    "language": "yaml VKs"
+  },
+  "code": "",
+  "vars": [],
+  "blocks": [],
+  "hash": "90eafca4ec8fcdd1861bd8870fc533817003ee57cdeea698dee4ece99e1a04a6"
+}

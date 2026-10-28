@@ -3,9 +3,8 @@ import * as vscode from 'vscode';
 import { handleApplyToEditor, type ApplyDeps } from '../src/commands/variables-apply.command.js';
 import { onPreviewTargetChanged, setPreviewTarget, type PreviewVarTarget } from '../src/services/preview-target.service.js';
 import { engineErrorMessage } from '../src/engine/errors.js';
-import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import type { VariableNode } from '../src/ui/views/variablesView.provider.js';
-import { useVarsEngine, VAULT } from './vars-engine.js';
+import { useVarsEngine, recordedSource, VAULT } from './vars-engine.js';
 
 /**
  * The Variables pane's two apply buttons: "Fill Variables in Editor" (fills
@@ -24,7 +23,7 @@ suite('handleApplyToEditor', () => {
     };
 
     function vault(): { root: vscode.Uri; node: VariableNode } {
-        const file = eng().serve('Variables/users.md', renderVariablesFile(model));
+        const file = eng().serve('Variables/users.md', recordedSource('vars-users'));
         return { root: VAULT, node: { id: file, parentId: null, kind: 'file', label: 'Users', shape: 'flat' } };
     }
 
@@ -73,7 +72,7 @@ suite('handleApplyToEditor', () => {
     });
 
     test('an empty default is sent as "" (engine keeps the token)', async () => {
-        const file = eng().serve('Variables/e.md', renderVariablesFile({ ...model, blocks: [{ ...model.blocks[0]!, vars: [{ name: 'VK-a', defaultValue: '' }] }] }));
+        const file = eng().serve('Variables/e.md', recordedSource('vars-users-empty'));
         const node: VariableNode = { id: file, parentId: null, kind: 'file', label: 'E', shape: 'flat' };
         canned({});
         const editor = await editorWith('<VK-a>');

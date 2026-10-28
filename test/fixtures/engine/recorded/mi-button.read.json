@@ -1,0 +1,20 @@
+{
+  "filePath": "Templates/mi/dir_2/subdir1/Button.md",
+  "fileName": "Button",
+  "relativePath": "mi/dir_2/subdir1/Button.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "title": "Button",
+    "language": "tsx",
+    "extension": ".tsx"
+  },
+  "code": "export const Button = () => console.log('<VK-language>');",
+  "vars": [
+    {
+      "name": "VK-language",
+      "defaultValue": "javascript"
+    }
+  ],
+  "blocks": [],
+  "hash": "60a73622fb2a2cc331633e56093299c5a570a90ab5a8d095c57dbccb31f41694"
+}

@@ -1,0 +1,19 @@
+{
+  "filePath": "Variables/vars-users-empty.md",
+  "fileName": "vars-users-empty",
+  "relativePath": "vars-users-empty.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Users",
+    "language": "yaml VKs"
+  },
+  "code": "VK-a:",
+  "vars": [
+    {
+      "name": "VK-a",
+      "defaultValue": ""
+    }
+  ],
+  "blocks": [],
+  "hash": "a693379a52879a22c2e954bc18439a93c4693863d236ba6d73e4ec58cd759e7f"
+}

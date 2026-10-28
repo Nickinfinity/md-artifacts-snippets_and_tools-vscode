@@ -2,13 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { confirmModal } from '../../../services/confirm.service.js';
 import type { ArtifactFormBlock, ArtifactFormModel } from '../../../types/artifact-form.types.js';
-import { pickDestFolder } from '../destFolderPicker.panel.js';
+import { pickDestFolder, runCommonChecks } from '../destFolderPicker.panel.js';
 import { sendWrite } from '../../../services/conflict.service.js';
 import { toEngineModel, type EngineRead } from '../../../engine/model.js';
 import { toVaultPath } from '../../../engine/adapt.js';
 import { getEntry } from '../../../services/artifact-type-config.service.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
-import { deriveFileName, validateArtifactFilename } from '../../../services/filename.service.js';
+import { slugify } from '../../../services/scratch-file.service.js';
 import type { OpenFormOpts } from './panel.js';
 import type { ParsedVar } from '../../../types/parsed-artifact.types.js';
 
@@ -56,8 +56,7 @@ export function mergeBlockVars(currentVars: ParsedVar[], detectedVars: ParsedVar
  * - Token `<VK-xxx>` present in `block.code` → keep var (any default).
  * - Token absent AND `defaultValue === ''`  → drop (no orphan default).
  * - Token absent AND `defaultValue !== ''`  → keep as orphan default
- *   (serializer will emit it in the `vks` fence; parser preserves it on
- *   round-trip).
+ *   (the engine's writer emits the defaults in the ```yaml VKs``` fence; they survive round-trip).
  *
  * @param blocks - Blocks from the form model before serialization.
  * @returns New blocks array with pruned var lists; original is not mutated.
@@ -259,4 +258,51 @@ export async function saveToEngine(webviewModel: ArtifactFormModel, opts: OpenFo
     if (!fileName) { return false; }
     const path = dirRel === '' ? `${fileName}.md` : `${dirRel}/${fileName}.md`;
     return await sendWrite('artifact.create', { path, model: toEngineModel(pruned) }) !== undefined;
+}
+
+// ── File-name rules (create-form prompt) ─────────────────────────────────────
+
+const MD_EXTENSION_RE = /\.md$/i;
+
+/**
+ * Validates a user-typed artifact filename (without the `.md` extension).
+ *
+ * Adds two file-only rules on top of `runCommonChecks`: rejects any
+ * case-variant of `.md` (the writer appends it) and otherwise allows
+ * unicode characters since Obsidian supports them in note names.
+ *
+ * @param name - Filename string (without `.md` extension).
+ * @returns `{ ok: true }` when valid, `{ ok: false, reason }` otherwise.
+ *
+ * @example
+ * validateArtifactFilename('express-route'); // → { ok: true }
+ * validateArtifactFilename('foo.md');        // → { ok: false, reason: ... }
+ * validateArtifactFilename('café-utils');    // → { ok: true }
+ */
+export function validateArtifactFilename(name: string): { ok: boolean; reason?: string } {
+    const shared = runCommonChecks(name);
+    if (!shared.ok) { return shared; }
+    if (MD_EXTENSION_RE.exec(name)) {
+        return { ok: false, reason: 'Do not include the .md extension — it is appended automatically' };
+    }
+    return { ok: true };
+}
+
+/**
+ * Derives a filename from a title via `slugify`, falling back to `'untitled'`.
+ *
+ * Used to pre-fill the filename input box when the user opens the picker
+ * after typing a title in the form.
+ *
+ * @param title - Raw title string.
+ * @returns The slug, or `'untitled'` when the slug would otherwise be empty.
+ *
+ * @example
+ * deriveFileName('My New Snippet'); // → 'my-new-snippet'
+ * deriveFileName('');               // → 'untitled'
+ * deriveFileName('!!!');            // → 'untitled'
+ */
+export function deriveFileName(title: string): string {
+    const slug = slugify(title);
+    return slug.length > 0 ? slug : 'untitled';
 }

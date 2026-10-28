@@ -5,8 +5,11 @@ import { createFakeEngine, type FakeEngine } from './fake-engine.js';
 import { startEngine } from '../src/engine/engine.vscode.js';
 import { setConfirmSink } from '../src/services/confirm.service.js';
 import { setSessionVault } from '../src/services/vault-watch.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
 import type { EngineArtifact } from '../src/types/engine.types.js';
+
+import { recordedReadsByHash } from './recorded.js';
+
+export { recordedSource } from './recorded.js';
 
 /** Vault root every Variables command test points its handlers at; nothing is read from disk. */
 export const VAULT = vscode.Uri.file('/v');
@@ -14,7 +17,7 @@ export const VAULT = vscode.Uri.file('/v');
 /** A fake engine serving `artifact.read` for registered files, plus the sinks tests assert on. */
 export interface VarsEngine {
     readonly fake: FakeEngine;
-    /** Registers `content` at vault-relative `rel`; returns its absolute path (what a tree node id carries). */
+    /** Registers `content` (must be a recorded source, found by hash) at vault-relative `rel`; returns its absolute path (what a tree node id carries). */
     serve(rel: string, content: string): string;
     /** The hash `serve` gave `content` — what the engine would be sent as `expectedHash`. */
     hashOf(content: string): string;
@@ -56,13 +59,11 @@ export function startVarsEngine(confirmAnswer = true): VarsEngine {
         calls: m => fake.received.filter(r => r.method === m),
         serve(rel, content) {
             const abs = path.posix.join(VAULT.fsPath, rel);
-            const p = parseFromContent(content, abs, path.posix.dirname(abs));
-            files.set(rel, {
-                filePath: rel, fileName: p.fileName, relativePath: rel.split('/').slice(1).join('/'),
-                frontmatter: p.frontmatter, code: p.code, vars: p.vars,
-                blocks: p.blocks.map(b => ({ heading: b.heading, description: b.description, code: b.code, vars: b.vars, ...(b.fenceLang === undefined ? {} : { fenceLang: b.fenceLang }) })),
-                hash: hashOf(content),
-            });
+            const hash = hashOf(content);
+            const hit = recordedReadsByHash().get(hash);
+            if (!hit) { throw new Error(`unrecorded source for ${rel} (sha256 ${hash}) — record it with test/fixtures/engine/recorded/record.mjs`); }
+            // The recorded reply is the engine's own; only the path fields follow where the test serves it.
+            files.set(rel, { ...hit, filePath: rel, fileName: path.posix.basename(rel, '.md'), relativePath: rel.split('/').slice(1).join('/') });
             return abs;
         },
         dispose() { setConfirmSink(undefined); setSessionVault(undefined); handle.dispose(); },

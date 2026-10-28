@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import { confirmModal } from '../../../services/confirm.service.js';
 import { notifyEngineError, requestOrNotify } from '../../../engine/engine.vscode.js';
 import { engineWarningMessage } from '../../../engine/errors.js';
@@ -56,10 +56,15 @@ function terminalConfirmDetail(content: string): string {
     const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
         + (lines.length > CONFIRM_PREVIEW_LINE_COUNT ? '\n…' : '');
 
-    return vscode.l10n.t(
-        '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
-        lines.length,
-    ) + `\n\n${preview}`;
+    // A single line reaches here only because it carries a control character (W-UI f);
+    // "1 lines" would be wrong and hide why the modal appeared.
+    const summary = lines.length === 1
+        ? vscode.l10n.t('This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.')
+        : vscode.l10n.t(
+            '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
+            lines.length,
+        );
+    return `${summary}\n\n${preview}`;
 }
 
 /**

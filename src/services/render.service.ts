@@ -1,6 +1,57 @@
 import hljs from 'highlight.js';
-import { VK_TOKEN_RE } from './parser.service.js';
 import { escHtml } from '../utils/html.js';
+import type { ParsedVar } from '../types/parsed-artifact.types.js';
+
+/**
+ * Matches a `<VK-Hint>` variable token — **opening or closing form** — where
+ * `Hint` starts with a letter. Both forms name the *same* variable.
+ *
+ * The closing form exists for markdown-native payloads (flags, §7): unfenced,
+ * `<VK-repo>` is a legal HTML open tag, so Obsidian renders it as an unclosed
+ * custom element that swallows every block below it. Writing
+ * `<VK-repo></VK-repo>` (or a lone `</VK-repo>`) leaves nothing open, so the
+ * note renders — and both spellings resolve to the one variable.
+ *
+ * The one owner of token syntax: the highlighter and the form's live detection
+ * both read it. The webview's `vkWrap` copy (client JS cannot import) is bound
+ * to this by `test/vk-closing-tag.test.ts`.
+ *
+ * **Carries the `/g` flag**, so it holds `lastIndex` state. Only use it with
+ * `matchAll` or `replace`/`replaceAll`, which reset `lastIndex` themselves;
+ * never with a bare `.test()` or `.exec()` loop.
+ *
+ * @example
+ * 'x = <VK-host>'.replaceAll(VK_TOKEN_RE, 'v')   // → 'x = v'
+ * 'x = </VK-host>'.replaceAll(VK_TOKEN_RE, 'v')  // → 'x = v'
+ */
+export const VK_TOKEN_RE = /<\/?VK-([A-Za-z]\w*)>/g;
+
+/**
+ * Scans raw code for `<VK-hint>` tokens and returns a deduplicated list of `ParsedVar` objects.
+ *
+ * A valid token must match `<VK-hint>` where `hint` starts with a letter and is followed by
+ * zero or more letters, digits, or underscores. The full `VK-hint` string (without angle
+ * brackets) becomes the `name` field; `defaultValue` is always `''`. Duplicate tokens
+ * (same name in multiple positions) are collapsed to a single entry in first-appearance order.
+ *
+ * @param code - Arbitrary string, typically the content of a code block.
+ * @returns Deduplicated array of `{ name, defaultValue }` objects, or `[]` when no tokens are found.
+ *
+ * @example
+ * extractVars('curl <VK-host>/<VK-path> -H "x: <VK-host>"')
+ */
+export function extractVars(code: string): ParsedVar[] {
+    const seen = new Set<string>();
+    const vars: ParsedVar[] = [];
+    for (const m of code.matchAll(VK_TOKEN_RE)) {
+        const name = `VK-${m[1]}`;
+        if (!seen.has(name)) {
+            seen.add(name);
+            vars.push({ name, defaultValue: '' });
+        }
+    }
+    return vars;
+}
 
 /**
  * Highlights one line of source code and wraps `<VK-xxx>` tokens in

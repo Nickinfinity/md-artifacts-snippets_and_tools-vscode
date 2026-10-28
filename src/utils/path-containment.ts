@@ -5,7 +5,7 @@ import * as path from 'node:path';
  *
  * This is the predicate standing between vault-authored text and the user's
  * filesystem, and it exists exactly once. It was previously spelled out three
- * times — `artifact-writer.service.ts`, `destFolderPicker.panel.ts` (whence the
+ * times — the retired artifact writer, `destFolderPicker.panel.ts` (whence the
  * batch scaffolder imported it, so a *security* predicate lived in a UI panel),
  * and the frontmatter migration — with the copies already diverging on whether
  * they normalised first. `CLAUDE.md`'s standing rule applies: a cross-file

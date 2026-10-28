@@ -8,10 +8,8 @@ import {
     handleRenameVar, handleRenameSubSet, handleDeleteVar, handleDeleteSubSet, handleDeleteFile,
 } from '../src/commands/variables.command.js';
 import { fileNodePath, subsetIndex, varIndex, type CommandIO } from '../src/commands/variables.command.helpers.js';
-import { renderVariablesFile } from '../src/services/variables-writer.service.js';
 import { VariablesViewProvider, type VariableNode } from '../src/ui/views/variablesView.provider.js';
-import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
-import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
+import { startVarsEngine, recordedSource, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
  * The `md-artifacts.variables.*` tree commands, through the engine: every edit is one `vars.*` request
@@ -19,22 +17,6 @@ import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
  */
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
-
-const multiBlockModel = (): ArtifactFormModel => ({
-    artifactType: 'Variables', title: 'Env Bundle', description: '', tags: [],
-    blocks: [
-        { heading: 'Dev', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] },
-        { heading: 'Prod', description: '', language: '', code: '', vars: [
-            { name: 'VK-host', defaultValue: 'prod.example.com' },
-            { name: 'VK-port', defaultValue: '443' },
-        ] },
-    ],
-});
-
-const singleBlockModel = (): ArtifactFormModel => ({
-    artifactType: 'Variables', title: 'Local Dev', description: '', tags: [],
-    blocks: [{ heading: '', description: '', language: '', code: '', vars: [{ name: 'VK-host', defaultValue: 'localhost' }] }],
-});
 
 const fileNode = (filePath: string, shape?: VariableNode['shape']): VariableNode =>
     ({ id: filePath, parentId: null, kind: 'file', label: path.basename(filePath), ...(shape ? { shape } : {}) });
@@ -78,8 +60,8 @@ suite('Variables pane commands (engine)', () => {
         eng = startVarsEngine();
         provider = new VariablesViewProvider();
         refreshes = spyRefresh(provider);
-        setsMd = renderVariablesFile(multiBlockModel());
-        flatMd = renderVariablesFile(singleBlockModel());
+        setsMd = recordedSource('vars-sets');
+        flatMd = recordedSource('vars-flat');
         sets = eng.serve('Variables/sets.md', setsMd);
         flat = eng.serve('Variables/flat.md', flatMd);
     });
@@ -149,10 +131,10 @@ suite('Variables pane commands (engine)', () => {
         });
 
         test('add var on a blank file sends vars.var.add without subset', async () => {
-            const blank = eng.serve('Variables/blank.md', '---\nartifactType: Variables\ntitle: New\n---\n');
+            const blank = eng.serve('Variables/blank.md', recordedSource('vars-blank-new'));
             await handleAddVar(fileNode(blank, 'blank'), provider, makeIO({ inputs: ['host', 'h'] }).io, VAULT);
             assert.deepStrictEqual(eng.calls('vars.var.add').map(c => c.params), [
-                { path: 'Variables/blank.md', expectedHash: eng.hashOf('---\nartifactType: Variables\ntitle: New\n---\n'), name: 'VK-host', value: 'h' },
+                { path: 'Variables/blank.md', expectedHash: eng.hashOf(recordedSource('vars-blank-new')), name: 'VK-host', value: 'h' },
             ]);
         });
 
@@ -243,7 +225,7 @@ suite('Variables pane commands (engine)', () => {
 
     suite('handleNewSubSet prompt', () => {
         test('a set with no variables pre-fills the name with the set title; one with variables starts empty', async () => {
-            const empty = eng.serve('Variables/empty.md', '---\nartifactType: Variables\ntitle: Local Dev\n---\n');
+            const empty = eng.serve('Variables/empty.md', recordedSource('vars-blank-localdev'));
             const seen: vscode.InputBoxOptions[] = [];
             const io: CommandIO = { ...makeIO().io, showInputBox: o => { seen.push(o); return Promise.resolve(undefined); } };
             await handleNewSubSet(fileNode(empty, 'blank'), provider, io, VAULT);

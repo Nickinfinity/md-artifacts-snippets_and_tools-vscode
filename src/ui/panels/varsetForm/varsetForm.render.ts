@@ -57,7 +57,7 @@ export function renderVarPairRows(pairs: [string, string][], subSetIndex?: numbe
     // fixed by definition; edit mode is where a set gains or loses a variable.
     const isEdit = subSetIndex !== undefined;
     const subsetAttr = isEdit ? ` data-subset="${subSetIndex}"` : '';
-    // Edit-mode actions: the shared ↑/↓ (row order = order in the vks fence) + remove.
+    // Edit-mode actions: the shared ↑/↓ (row order = order in the file) + remove.
     const actionsCell = (i: number): string => isEdit
         ? `
         <td class="var-actions">${buildReorderButtons('var-row', i, pairs.length)}<button class="row-remove" title="${escHtml(vscode.l10n.t('Remove variable'))}" aria-label="${escHtml(vscode.l10n.t('Remove variable'))}"><span class="codicon codicon-trash" aria-hidden="true"></span></button></td>`
@@ -333,8 +333,8 @@ ${TAGS_FIELD_CLIENT_JS}
  * Shape-guards an inbound webview payload into a {@link VarSetFormPayload}.
  *
  * The webview message is untrusted: `pairs` entries carry user-typed variable
- * *names* as well as values, and both are emitted verbatim into a ` ```vks `
- * fence on write, so every field is checked before use. Hostile input is
+ * *names* as well as values, and both are written through the engine, so every
+ * field is shape-checked before use. Hostile input is
  * **rejected, never sanitised** — a malformed payload returns `undefined`
  * rather than a best-effort coercion.
  *
@@ -386,8 +386,9 @@ export function parseVarSetFormPayload(raw: unknown): VarSetFormPayload | undefi
  * rejected. Hostile input is **rejected, never sanitised**.
  *
  * This guard is only half the protection: it rejects a bad *shape*, while
- * `validateVarPairs` rejects fence-breaking *content*. Both must run before any
- * write, because names and values are emitted verbatim into a ` ```vks ` fence.
+ * the engine refuses unwritable *content* (`vks.*` /
+ * `artifact.unrepresentable`), and only duplicate sub-set headings are checked in
+ * the panel before the write.
  *
  * @param raw - The `msg.payload` value posted from the webview, untyped.
  * @returns The validated wire payload, or `undefined` when the shape is wrong.

@@ -9,7 +9,7 @@ import { setConfirmSink } from '../src/services/confirm.service.js';
 import { setSessionVault } from '../src/services/vault-watch.service.js';
 import { PreviewActions, type PreviewActionsCallbacks } from '../src/ui/panels/artifactPicker/preview.actions.js';
 import { performInsert, renderForDelivery, type DeliveryIO } from '../src/ui/panels/artifactPicker/preview.insert.js';
-import type { BlockRef } from '../src/services/artifact-patcher.service.js';
+import type { BlockRef } from '../src/ui/panels/artifactPicker/preview.types.js';
 import type { EngineArtifact, Rendered } from '../src/types/engine.types.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 

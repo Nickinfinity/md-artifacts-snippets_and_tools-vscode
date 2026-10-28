@@ -17,7 +17,6 @@
  */
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { applyCarryOver, summariseRun } from '../../../services/multi-index.service.js';
 import { getVaultPath } from '../../../services/config.service.js';
 import { getEngine } from '../../../engine/engine.vscode.js';
 import { toParsedArtifactFile } from '../../../engine/adapt.js';
@@ -27,7 +26,7 @@ import { EngineRequestError } from '../../../engine/request-error.js';
 import { isWithinRoot } from '../destFolderPicker.panel.js';
 import { out } from './shared.js';
 import type { EngineResult } from '../../../types/engine.types.js';
-import type { BatchOutcome, DestCandidate, IndexStep } from '../../../types/multi-index.types.js';
+import type { BatchOutcome, DestCandidate, IndexStep, RunTally } from '../../../types/multi-index.types.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 
 /** One step of an `index.plan` reply. */
@@ -151,7 +150,7 @@ export class MultiIndexRunner {
         }
 
         // Carry-over from earlier steps overrides this step's own defaults.
-        artifact.vars = applyCarryOver(artifact.vars, carry);
+        artifact.vars = artifact.vars.map(v => (Object.hasOwn(carry, v.name) ? { ...v, defaultValue: carry[v.name] } : v));
 
         // Delegate the actual write to the preview step (`runCreateFileFlow` → `write_file`).
         const outcome = await this.cb.previewStep(artifact, destDir);
@@ -206,4 +205,25 @@ function warnRejected(rejected: EngineResult<'index.plan'>['rejected']): void {
     const detail = rejected.map(r => `${r.raw} (${engineErrorMessage({ code: r.code, params: {} })})`).join('; ');
     const noun = rejected.length === 1 ? 'entry' : 'entries';
     warn(`${rejected.length} ${noun} skipped: ${detail}`);
+}
+
+/**
+ * The closing notification for a batch run.
+ *
+ * @param tally - The run's final counts.
+ * @param label - Prefix naming which kind of run is reporting.
+ * @returns The notification text.
+ *
+ * @example
+ * summariseRun({ written: 3, skipped: 0, aborted: false });
+ * // → 'Multi-Template: 3 files written, 0 skipped.'
+ *
+ * @example
+ * summariseRun({ written: 2, skipped: 1, aborted: false }, 'Create index');
+ * // → 'Create index: 2 files written, 1 skipped.'
+ */
+export function summariseRun(tally: RunTally, label = 'Multi-Template'): string {
+    const fileWord = tally.written === 1 ? 'file' : 'files';
+    const suffix = tally.aborted ? ' Run cancelled.' : '';
+    return `${label}: ${tally.written} ${fileWord} written, ${tally.skipped} skipped.${suffix}`;
 }

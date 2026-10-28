@@ -10,14 +10,13 @@
  */
 import * as vscode from 'vscode';
 import { resolveOutputFileName } from '../../../services/template.service.js';
-import { resolveDestination } from '../../../services/template-destination.service.js';
-import { validateTargetFileName } from '../../../services/filename.service.js';
+import { resolveDestination } from '../destFolderPicker.panel.js';
 import { handleWriteError } from '../../../services/conflict.service.js';
 import { getEngine, requestOrNotify } from '../../../engine/engine.vscode.js';
 import { resolveInVault, toVaultPath } from '../../../engine/adapt.js';
 import { engineMeta } from '../../../engine/model.js';
 import { EngineRequestError } from '../../../engine/request-error.js';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import type { EngineParams } from '../../../types/engine.types.js';
 import type { BatchOutcome } from '../../../types/multi-index.types.js';
@@ -175,8 +174,8 @@ export async function blockIndex(relPath: string, ref: BlockRef | undefined): Pr
 }
 
 /**
- * Prompts for a target filename, seeded with `defaultValue` and validated
- * live by `validateTargetFileName` (workspace-target rules, T3).
+ * Prompts for a target filename, seeded with `defaultValue`. No live validation: the engine
+ * refuses a bad name on `write_file` (`naming.*`), which is the one authority. @internal
  *
  * @param defaultValue - Prefilled, fully-editable filename (raw title + ext, P5).
  * @returns The confirmed filename, or `undefined` when the user cancels.
@@ -184,15 +183,11 @@ export async function blockIndex(relPath: string, ref: BlockRef | undefined): Pr
  * @example
  * const name = await askFileName('Button.tsx');
  */
-async function askFileName(defaultValue: string): Promise<string | undefined> {
+export async function askFileName(defaultValue: string): Promise<string | undefined> {
     return vscode.window.showInputBox({
         prompt:         vscode.l10n.t('File name for the new file'),
         value:          defaultValue,
         ignoreFocusOut: true,
-        validateInput:  v => {
-            const r = validateTargetFileName(v);
-            return r.ok ? undefined : r.reason;
-        },
     });
 }
 

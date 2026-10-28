@@ -23,35 +23,6 @@ export interface IndexStep {
 }
 
 /**
- * A link or declared path that will not be used, and why.
- *
- * Rejections are reported to the user by name — a vault-authored path is never
- * silently sanitised into a different path.
- *
- * @example
- * { raw: '/etc/hosts', reason: 'absolute path' }
- */
-export interface RejectedEntry {
-    /** The offending entry exactly as authored. */
-    readonly raw: string;
-    /** Human-readable refusal reason, shown in the warning. */
-    readonly reason: string;
-}
-
-/**
- * Result of scanning an index: the steps to run and everything refused.
- *
- * @example
- * { steps: [{ raw: 'a', relPath: 'a.md', relDir: '' }], rejected: [] }
- */
-export interface IndexPlan {
-    /** Accepted steps, in document order, duplicates preserved. */
-    readonly steps: readonly IndexStep[];
-    /** Entries refused by the path-safety rule, in document order. */
-    readonly rejected: readonly RejectedEntry[];
-}
-
-/**
  * One offered destination folder, workspace-folder-relative (POSIX, `''` = workspace root).
  *
  * @example
@@ -65,16 +36,6 @@ export interface DestCandidate {
     /** QuickPick detail — `'Suggested — mirrors the index'` or `'From the index'`. */
     readonly detail: string;
 }
-
-/**
- * Variable values carried between steps. Keys are full `VK-xxx` names.
- *
- * In-memory and per-run by design — durable bundles are what Variable Sets are for.
- *
- * @example
- * const carry: CarryOver = { 'VK-language': 'java' };
- */
-export type CarryOver = Readonly<Record<string, string>>;
 
 /**
  * How one step finished — the value the batch gate resolves with.

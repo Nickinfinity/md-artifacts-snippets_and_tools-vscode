@@ -20,7 +20,6 @@ function fakeBag(overrides: Partial<VarSetFormCallbacks> = {}): VarSetFormCallba
     const writeCalls: unknown[] = [];
     let closeCalls = 0;
     return {
-        validate: () => ({ ok: true }),
         write: async () => true,
         post: () => { /* no-op */ },
         close: () => { closeCalls++; },
@@ -45,7 +44,7 @@ suite('varset form panel — open-time writer guard (edit mode)', () => {
         assert.throws(() => {
             openVarSetFormPanel(
                 vscode.Uri.file('/ext'),
-                { validate: () => ({ ok: true }), write: async () => true, post: () => { /* noop */ }, close: () => { /* noop */ } },
+                { write: async () => true, post: () => { /* noop */ }, close: () => { /* noop */ } },
                 { mode: 'edit', payload: basePayload, sourceUri: vscode.Uri.file('/v/Variables/bundles.md') },
             );
         }, /writeEdit/);
@@ -104,7 +103,7 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
         assert.strictEqual(called, false, 'writeEdit was called despite a malformed payload');
     });
 
-    test('a name containing "=" is rejected and never reaches writeEdit', async () => {
+    test('a name containing "=" reaches writeEdit — the engine refuses it (vks.bad_key), not the panel', async () => {
         let called = false;
         const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
@@ -121,10 +120,10 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
             basePayload,
         );
 
-        assert.strictEqual(called, false, 'writeEdit was called despite a fence-breaking name');
+        assert.strictEqual(called, true, 'the panel re-checked a rule the engine owns');
     });
 
-    test('a value containing a newline is rejected and never reaches writeEdit', async () => {
+    test('a value containing a newline reaches writeEdit — the engine writes it as a block scalar', async () => {
         let called = false;
         const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
@@ -141,10 +140,10 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
             basePayload,
         );
 
-        assert.strictEqual(called, false, 'writeEdit was called despite a newline-carrying value');
+        assert.strictEqual(called, true, 'the panel re-checked a rule the engine owns');
     });
 
-    test('a value containing a backtick is rejected and never reaches writeEdit', async () => {
+    test('a value containing a backtick reaches writeEdit — the engine accepts it', async () => {
         let called = false;
         const cb = fakeBag({ writeEdit: async () => { called = true; return true; } });
 
@@ -161,7 +160,16 @@ suite('varset form panel — edit-mode save: callback-not-called assertions', ()
             basePayload,
         );
 
-        assert.strictEqual(called, false, 'writeEdit was called despite a backtick-carrying value');
+        assert.strictEqual(called, true, 'the panel re-checked a rule the engine owns');
+    });
+
+    test('a description line "~~~" reaches writeEdit — over-strict before, accepted by the engine', async () => {
+        let got: VarsEditPayload | undefined;
+        const cb = fakeBag({ writeEdit: async (payload) => { got = payload; return true; } });
+        await handleVarSetFormMessage({ command: 'save', payload: {
+            title: 'Bundles', description: '', tags: [], pairs: [[['VK-host', 'h']]], headings: ['Dev'], descriptions: ['x\n~~~\ny'],
+        } }, cb, 'edit', basePayload);
+        assert.strictEqual(got?.subSets[0]?.description, 'x\n~~~\ny');
     });
 
     test('a valid single-sub-set grouped payload survives the guard and reaches writeEdit', async () => {

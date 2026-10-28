@@ -160,10 +160,6 @@ suite('resolveLangId', () => {
         assert.strictEqual(resolveLangId('code', 'python', known), 'python');
     });
 
-    test('ignores a "vks" fence and falls back to frontmatter', () => {
-        assert.strictEqual(resolveLangId('vks', 'json', known), 'json');
-    });
-
     test('uses frontmatter when fence language is empty', () => {
         assert.strictEqual(resolveLangId('', 'typescript', known), 'typescript');
     });

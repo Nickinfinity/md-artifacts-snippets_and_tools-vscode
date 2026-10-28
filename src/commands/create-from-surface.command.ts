@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { getCreateTypesForSurface, getIndexCapableTypes, getEntry } from '../services/artifact-type-config.service.js';
-import { validateObsidianVault } from '../services/vault.service.js';
 import { getVaultPath } from '../services/config.service.js';
 import { openArtifactFormPanel } from '../ui/panels/artifactForm/panel.js';
 import type { ArtifactContext } from '../types/artifact.types.js';
@@ -189,8 +188,8 @@ export function registerCreateSurfaceCommands(context: vscode.ExtensionContext):
         const disposable = vscode.commands.registerCommand(
             commandId,
             (uri?: vscode.Uri) => {
-                const vaultPath = getVaultPath();
-                if (!vaultPath || !validateObsidianVault(vaultPath)) { return; }
+                // The session vault is engine-selected (Obsidian vaults only) — no `.obsidian` re-check here.
+                if (!getVaultPath()) { return; }
 
                 // The `.index` runner is T12 (Wave 4). Opening the plain form
                 // here would create an ordinary artifact rather than an index,

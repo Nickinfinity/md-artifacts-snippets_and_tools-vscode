@@ -1,0 +1,62 @@
+{
+  "filePath": "Variables/fx-ve-with-env.md",
+  "fileName": "fx-ve-with-env",
+  "relativePath": "fx-ve-with-env.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Bundles",
+    "description": "Per-environment settings",
+    "language": "yaml VKs",
+    "tags": [
+      "api",
+      "dev"
+    ],
+    "env": "staging"
+  },
+  "code": "VK-host: localhost\nVK-port: '3000'",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    },
+    {
+      "name": "VK-port",
+      "defaultValue": "3000"
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Dev",
+      "description": "",
+      "code": "VK-host: localhost\nVK-port: '3000'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-host",
+          "defaultValue": "localhost"
+        },
+        {
+          "name": "VK-port",
+          "defaultValue": "3000"
+        }
+      ]
+    },
+    {
+      "heading": "Prod",
+      "description": "",
+      "code": "VK-host: prod.example.com\nVK-port: '443'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-host",
+          "defaultValue": "prod.example.com"
+        },
+        {
+          "name": "VK-port",
+          "defaultValue": "443"
+        }
+      ]
+    }
+  ],
+  "hash": "b8b11c500cd12531fe0489c50dfdfe1f02c16ed84e9f343d7894f9685e308782"
+}

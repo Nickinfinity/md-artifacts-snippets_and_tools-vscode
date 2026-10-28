@@ -1,0 +1,14 @@
+{
+  "filePath": "Snippets/persist-single.md",
+  "fileName": "persist-single",
+  "relativePath": "persist-single.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Solo",
+    "language": "ts"
+  },
+  "code": "let a = 1;",
+  "vars": [],
+  "blocks": [],
+  "hash": "7eaebf55eac51dbc8cbcdcdbb73cb82b7b639f277b8b31c8de94a96c8afd8d29"
+}

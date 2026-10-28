@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { getNonce } from '../../../utils/helpers.js';
 import { renderVarSetFormHtml, parseVarSetFormPayload, parseVarsEditPayload } from './varsetForm.render.js';
-import { validateVarPairs, validateSubSetHeadings, validateSubSetDescriptions } from '../../../services/varset-form.service.js';
 import type { VarSetFormPayload, VarsEditPayload } from '../../../types/varset.types.js';
 
 const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
@@ -15,8 +14,6 @@ const FORM_VIEW_TYPE = 'mdArtifacts.varSetForm';
  * the renderer/panel and the write-path service stay independently buildable.
  */
 export interface VarSetFormCallbacks {
-    /** Checks a payload before writing; `ok: false` carries the failure reason to show the user. */
-    validate(payload: VarSetFormPayload): { ok: true } | { ok: false; reason: string };
     /** Writes the validated payload to `Variables/<slug>.md`; `false` (conflict, refused, exists) keeps the form open. */
     write(payload: VarSetFormPayload): Promise<boolean>;
     /** Posts a message back into the form webview. */
@@ -50,7 +47,7 @@ export interface VarSetFormCallbacks {
  * silently take the edit path. Create mode is byte-identical to before.
  *
  * @param msg  - The raw message posted from the webview (`{ command, payload? }`).
- * @param cb   - Callback bag supplying validate/write/post/close (+ `writeEdit` in edit mode).
+ * @param cb   - Callback bag supplying write/post/close (+ `writeEdit` in edit mode).
  * @param mode - Which save path to take; defaults to `'create'` so existing callers are untouched.
  * @param base - Edit mode only: the payload the panel was opened with, supplying the `heading` and
  *               `env` values the webview never posts back.
@@ -86,30 +83,25 @@ export async function handleVarSetFormMessage(
         return;
     }
 
-    const result = cb.validate(payload);
-    if (!result.ok) {
-        cb.post({ command: 'saveFailed', reason: result.reason });
-        return;
-    }
-
+    // Content rules (names, values, title) are the engine's: its refusal comes back through `write`.
     // Close only on success: a refused write keeps the user's edits on screen.
     if (await cb.write(payload)) { cb.close(); }
 }
 
 /**
- * The edit-mode half of the save branch: shape-guard, content-validate, write.
+ * The edit-mode half of the save branch: shape-guard, one content rule, write.
  *
- * Bypasses `validate`/`write` deliberately — `validateVarSetForm` iterates
- * `payload.pairs`, which the grouped edit shape does not have, and its title
- * check is a slug rule belonging to the create path. It does **not** bypass the
- * content check: `validateVarPairs` runs over every sub-set's rows, because
- * names and values reach the ` ```vks ` fence verbatim and this payload is
- * webview text the user just typed — strictly more hostile than create's.
+ * Bypasses `write` deliberately — the grouped edit shape has no `pairs` list and
+ * its title is not a slug. Names, values, descriptions and empty headings are the
+ * engine's to refuse (`vks.*` / `artifact.unrepresentable`, shown as one toast by
+ * `saveVarsEdit`); a TS re-check would be a second rule book. The one rule the
+ * engine does **not** apply to `artifact.update` is **duplicate sub-set headings**
+ * (only `vars.subset.add` / `rename` refuse them), so it stays here, run on the
+ * **posted** headings and over non-empty ones only (the engine owns the empty case).
  *
  * Headings come off the wire when posted — the form can rename and delete
- * sub-sets, so the webview's list is the only one aligned to its rows — and
- * are checked by `validateSubSetHeadings` before any write. `env` is always
- * re-attached from `base`; it is never rendered, so the webview cannot touch it.
+ * sub-sets, so the webview's list is the only one aligned to its rows. `env` is
+ * always re-attached from `base`; it is never rendered, so the webview cannot touch it.
  *
  * @param msg  - The raw `save` message from the webview.
  * @param cb   - Callback bag; `writeEdit` is guaranteed present by the open-time guard.
@@ -130,14 +122,6 @@ async function handleEditSave(
         return;
     }
 
-    for (const group of wire.pairs) {
-        const check = validateVarPairs(group);
-        if (!check.ok) {
-            cb.post({ command: 'saveFailed', reason: check.reason });
-            return;
-        }
-    }
-
     // Posted headings are authoritative: after a delete the base is no longer
     // index-aligned to the rows, so falling back to it per slot would hand one
     // sub-set another's name. Only a payload with no headings at all (an older
@@ -145,9 +129,9 @@ async function handleEditSave(
     const headings = wire.headings
         ? wire.headings.map(h => h.trim())
         : wire.pairs.map((_, i) => base.subSets[i]?.heading ?? '');
-    const headingCheck = validateSubSetHeadings(headings);
-    if (!headingCheck.ok) {
-        cb.post({ command: 'saveFailed', reason: headingCheck.reason });
+    const dup = headings.find((h, i) => h !== '' && headings.indexOf(h) !== i);
+    if (dup !== undefined) {
+        cb.post({ command: 'saveFailed', reason: `Sub-set name "${dup}" is used twice.` });
         return;
     }
 
@@ -156,12 +140,6 @@ async function handleEditSave(
     const descriptions = wire.descriptions
         ? wire.descriptions.map(d => d.trim())
         : wire.pairs.map((_, i) => base.subSets[i]?.description ?? '');
-    const descriptionCheck = validateSubSetDescriptions(descriptions);
-    if (!descriptionCheck.ok) {
-        cb.post({ command: 'saveFailed', reason: descriptionCheck.reason });
-        return;
-    }
-
     const payload: VarsEditPayload = {
         title:       wire.title,
         description: wire.description,
@@ -215,7 +193,7 @@ export interface OpenVarSetFormOpts {
  * takes the create path and title.
  *
  * @param extensionUri - Extension root URI, for `localResourceRoots` and stylesheet URIs.
- * @param cb           - Callback bag supplying validate/write/post/close (+ `writeEdit` in edit mode).
+ * @param cb           - Callback bag supplying write/post/close (+ `writeEdit` in edit mode).
  * @param opts         - See {@link OpenVarSetFormOpts}.
  *
  * @example

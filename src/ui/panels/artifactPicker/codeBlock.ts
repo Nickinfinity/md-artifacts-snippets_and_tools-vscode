@@ -82,7 +82,7 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
   const extractCode = () => extractCodeFrom(codeWrapper);
 
   // Opening and closing spellings both name one variable — the twin of
-  // VK_TOKEN_RE in parser.service.ts, bound to it by webview-snippets.test.ts.
+  // VK_TOKEN_RE in render.service.ts, bound to it by vk-closing-tag.test.ts.
   function vkWrap(html) {
     return html.replace(/&lt;(\/?)VK-([A-Za-z]\w*)&gt;/g, '<span class="vk-var">&lt;$1VK-$2&gt;</span>');
   }

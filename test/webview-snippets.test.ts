@@ -284,8 +284,8 @@ suite('jsStr — the one script-context escaper (H6.0)', () => {
         // Two traps, both paid for during H6.0:
         //
         // 1. The bare sequence `<` + backslash + `/` is NOT the thing to hunt:
-        //    `parser.service.ts` carries it twice as ordinary regex syntax
-        //    (`VK_TOKEN_RE` :98, `VK_PAIR_RE` :110) matching a `</VK-xxx>`
+        //    `render.service.ts` carries it as ordinary regex syntax
+        //    (`VK_TOKEN_RE` in `render.service.ts`) matching a `</VK-xxx>`
         //    closing tag. The needle below is the *replacement value* that
         //    produces the escape - `<`, backslash, backslash, `/` - which those
         //    regexes do not contain.

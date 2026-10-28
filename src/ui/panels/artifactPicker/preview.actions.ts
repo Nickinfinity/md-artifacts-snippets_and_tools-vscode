@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { writesWholeFile } from '../../../services/artifact-type-config.service.js';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import type { PreviewModeController } from '../../../services/preview-mode.service.js';
-import { isIndexArtifact } from '../../../services/multi-index.service.js';
+import { isIndexArtifact } from './navigator.helpers.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import type { InvocationSurface } from './preview.helpers.js';
 import { DELIVERY_IO, performInsert, renderForDelivery, type DeliveryIO } from './preview.insert.js';

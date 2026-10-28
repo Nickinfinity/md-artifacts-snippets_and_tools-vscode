@@ -8,7 +8,6 @@
  *  - `resolveOutputFileName`   — the per-type entry point callers use
  *  - `resolveTemplateFileName` — the D3 extension-precedence chain (template)
  *  - `resolveAgentFileName`    — `target:` used verbatim (agent)
- *  - `validateSingleBlock`     — the D1 single-block restriction, both types
  *
  * The two resolvers differ only in *where the name comes from*; every rule they
  * share (path-injection rejection, extension detection, trailing-dot trimming)
@@ -32,11 +31,6 @@ export interface TemplateFileNameArgs {
     /** Base name to use when nothing is typed (e.g. the artifact title/fileName). */
     fallbackBase?: string;
 }
-
-/** Result of the single-block guard — a discriminated union so callers narrow on `ok`. */
-export type TemplateBlockCheck =
-    | { ok: true }
-    | { ok: false; reason: string };
 
 // ── Exports ─────────────────────────────────────────────────────────────────────
 
@@ -163,33 +157,4 @@ function resolveExtension(fmExt: string, langId: string | undefined): string {
         return extForLang(normalizeLangId(lang));
     }
     return '';
-}
-
-/**
- * Enforces D1: a file-writing artifact is a single code block. A parsed file
- * with two or more `##` blocks is a validation error (surfaced in the preview,
- * no write happens). An empty `blocks` array is the classic single-block shape —
- * always ok.
- *
- * Shared verbatim by `template` and `agent` — a written file is one file either
- * way — so the only per-type variation is the human label, passed in by the
- * caller from `getTypeSingular(type)` rather than hardcoded here.
- *
- * @param parsed - The parsed file-writing artifact (template or agent).
- * @param label  - Singular noun for the message (defaults to `'template'`).
- * @returns `{ ok: true }` for 0–1 blocks; `{ ok: false, reason }` naming the count otherwise.
- *
- * @example
- * validateSingleBlock({ ...parsed, blocks: [] })                       // { ok: true }
- * validateSingleBlock({ ...parsed, blocks: [b1, b2] }, 'agent config') // { ok: false, reason: '…2 blocks…' }
- */
-export function validateSingleBlock(parsed: ParsedArtifactFile, label = 'template'): TemplateBlockCheck {
-    const count = parsed.blocks.length;
-    if (count > 1) {
-        return {
-            ok: false,
-            reason: `A ${label} must be a single code block, but this file has ${count} blocks. Split it into separate ${label} files.`,
-        };
-    }
-    return { ok: true };
 }

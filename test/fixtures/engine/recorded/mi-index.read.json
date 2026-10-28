@@ -1,0 +1,13 @@
+{
+  "filePath": "Templates/mi/index.md",
+  "fileName": "index",
+  "relativePath": "mi/index.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "language": "markdown"
+  },
+  "code": "1. [[dir_2/subdir1/Button]]\n2. [T](dir_2/subdir1/Button.test.md)\n3. [[../escape]]\n4. [[dir_1/barrel]]",
+  "vars": [],
+  "blocks": [],
+  "hash": "802219525da1357e1ff8780681d65b533bade3928de20edd7cf10f2a487541d3"
+}

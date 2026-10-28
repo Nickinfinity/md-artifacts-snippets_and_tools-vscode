@@ -6,7 +6,6 @@ import type { VarSetRef } from '../../../services/preview-target.service.js';
 import { getEntry } from '../../../services/artifact-type-config.service.js';
 import { getVaultRootUri } from '../../../services/config.service.js';
 import { sendWrite } from '../../../services/conflict.service.js';
-import { validateVarSetForm } from '../../../services/varset-form.service.js';
 import type { ParsedArtifactFile, ParsedVar } from '../../../types/parsed-artifact.types.js';
 import type { ApplyResult, VarSetFormPayload } from '../../../types/varset.types.js';
 import { getVarSetScanner } from '../varsetPicker.panel.js';
@@ -162,7 +161,6 @@ export class VarSetController {
         openVarSetFormPanel(
             this.extensionUri,
             {
-                validate: validateVarSetForm,
                 write:    payload => writeVarSetFromForm(payload),
                 // `post` and `close` are supplied by the panel itself — it owns
                 // the webview and its disposal. These are the inert defaults the

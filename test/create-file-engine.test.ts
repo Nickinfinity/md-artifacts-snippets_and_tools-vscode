@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { createFakeEngine, type FakeEngine } from './fake-engine.js';
 import { startEngine } from '../src/engine/engine.vscode.js';
 import { setSessionVault } from '../src/services/vault-watch.service.js';
-import { runCreateFileFlow, type CreateFileIo } from '../src/ui/panels/artifactPicker/preview.createFile.js';
+import { askFileName, runCreateFileFlow, type CreateFileIo } from '../src/ui/panels/artifactPicker/preview.createFile.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 import type { EngineArtifact, EngineErrorData } from '../src/types/engine.types.js';
 
@@ -144,5 +144,36 @@ suite('Create File → artifact.write_file', () => {
         const r = await runCreateFileFlow({ artifact: template(), code: 'x <VK-a>', vars: {}, destDir: wsUri, destUri: undefined, openAfterWrite: true }, io());
         assert.strictEqual(r.kind, 'error');
         assert.strictEqual(toasts.length, 1);
+    });
+});
+
+suite('Create File — file-name prompt', () => {
+    test('askFileName shows no validateInput: naming is the engine\'s refusal on write_file', async () => {
+        const orig = vscode.window.showInputBox;
+        let opts: vscode.InputBoxOptions | undefined;
+        Object.assign(vscode.window, { showInputBox: async (o?: vscode.InputBoxOptions) => { opts = o; return 'a.ts'; } });
+        try {
+            assert.strictEqual(await askFileName('Button.tsx'), 'a.ts');
+        } finally { Object.assign(vscode.window, { showInputBox: orig }); }
+        assert.ok(opts, 'showInputBox was called');
+        assert.strictEqual(opts.validateInput, undefined);
+        assert.strictEqual(opts.value, 'Button.tsx');
+    });
+
+    test('regression net (green both sides): an engine naming.reserved refusal ⇒ one toast, cancelled, exactly one write_file', async () => {
+        const fake = createFakeEngine();
+        const toasts: string[] = [];
+        const h = startEngine({ spawn: () => fake, enginePath: process.execPath, showError: m => { toasts.push(m); return Promise.resolve(undefined); } });
+        setSessionVault('/v');
+        const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'create-file-naming-'));
+        try {
+            fake.on('artifact.write_file', () => ({ error: { code: 'naming.reserved', params: { name: 'CON' } } }));
+            const r = await runCreateFileFlow({ artifact: template(), code: 'x <VK-a>', vars: {}, destDir: vscode.Uri.file(ws), destUri: undefined, openAfterWrite: false }, {
+                getWorkspaceFolder: () => vscode.Uri.file(ws), askFileName: async () => 'CON', pickCollision: async () => undefined,
+            });
+            assert.strictEqual(r.kind, 'cancelled');
+            assert.strictEqual(toasts.length, 1);
+            assert.strictEqual(fake.received.filter(x => x.method === 'artifact.write_file').length, 1);
+        } finally { setSessionVault(undefined); h.dispose(); fs.rmSync(ws, { recursive: true, force: true }); }
     });
 });

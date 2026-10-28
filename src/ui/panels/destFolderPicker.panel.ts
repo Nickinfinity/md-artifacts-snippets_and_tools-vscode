@@ -1,7 +1,73 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { validateFolderName } from '../../services/filename.service.js';
 import { isPathWithin } from '../../utils/path-containment.js';
+
+// ── Name validation (shared with the create form's file-name prompt) ───────
+
+export type NameCheck = { ok: true } | { ok: false; reason: string };
+
+const ILLEGAL_CHARS_RE   = /[\\/:*?"<>|]/;
+const CONTROL_CHARS_RE   = /[\x00-\x1F\x7F]/;
+const RESERVED_NAMES_RE  = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
+ * Runs the common name checks shared by file and folder validators.
+ *
+ * Covers empty-after-trim, illegal characters, ASCII control characters,
+ * leading / trailing dot, leading / trailing space, and Windows reserved
+ * names. Returns the first failure encountered with a user-facing reason.
+ *
+ * @param name - Raw name string as typed by the user.
+ * @returns `{ ok: true }` when all shared rules pass; `{ ok: false, reason }` otherwise.
+ *
+ * @example
+ * runCommonChecks('CON');   // → { ok: false, reason: 'Reserved system name' }
+ * runCommonChecks('foo');   // → { ok: true }
+ */
+export function runCommonChecks(name: string): NameCheck {
+    if (name.trim().length === 0) {
+        return { ok: false, reason: 'Name cannot be empty' };
+    }
+    if (name.startsWith(' ') || name.endsWith(' ')) {
+        return { ok: false, reason: 'Name cannot start or end with a space' };
+    }
+    if (name.startsWith('.') || name.endsWith('.')) {
+        return { ok: false, reason: 'Name cannot start or end with a dot' };
+    }
+    if (ILLEGAL_CHARS_RE.exec(name)) {
+        return { ok: false, reason: 'Name contains an illegal character (\\ / : * ? " < > |)' };
+    }
+    if (CONTROL_CHARS_RE.exec(name)) {
+        return { ok: false, reason: 'Name contains a control character' };
+    }
+    if (RESERVED_NAMES_RE.exec(name)) {
+        return { ok: false, reason: 'Reserved system name (CON, PRN, AUX, NUL, COM1-9, LPT1-9)' };
+    }
+    return { ok: true };
+}
+
+/**
+ * Validates a user-typed folder name created inside the artifact root.
+ *
+ * Adds folder-specific rules on top of `runCommonChecks`: rejects `.` and
+ * `..` (no traversal) and rejects any `/` or `\` (folder names are a single
+ * path segment — nested paths must be created level by level). Does **not**
+ * reject `.md` extensions since folders are not markdown files.
+ *
+ * @param name - Folder name string (single path segment).
+ * @returns `{ ok: true }` when valid, `{ ok: false, reason }` otherwise.
+ *
+ * @example
+ * validateFolderName('Web');     // → { ok: true }
+ * validateFolderName('..');      // → { ok: false, reason: ... }
+ * validateFolderName('a/b');     // → { ok: false, reason: ... }
+ */
+export function validateFolderName(name: string): { ok: boolean; reason?: string } {
+    if (name === '.' || name === '..') {
+        return { ok: false, reason: 'Folder name cannot be "." or ".."' };
+    }
+    return runCommonChecks(name);
+}
 
 // ── Pure helpers (exported for testing) ──────────────────────────────────────
 
@@ -145,6 +211,8 @@ class DestFolderNavigator {
                     items.push({ label: LABEL_BACK, isBack: true });
                 }
                 try {
+                    // ponytail: recorded E-1 exception — vault AND workspace navigation (listing only, never artifact
+                    // content); upgrade path for the vault side: `artifact.tree`.
                     const entries = await vscode.workspace.fs.readDirectory(this.currentDir);
                     const dirs = filterDirEntries(entries);
                     dirs.sort(([a], [b]) => a.localeCompare(b));
@@ -180,6 +248,8 @@ class DestFolderNavigator {
                     const newUri = vscode.Uri.joinPath(this.currentDir, name);
                     if (!isWithinRoot(this.rootUri, newUri)) { return; }
                     try {
+                        // ponytail: recorded E-1 exception — creates an empty folder (name checked by validateFolderName,
+                        // contained by isWithinRoot); no engine op creates folders.
                         await vscode.workspace.fs.createDirectory(newUri);
                         this.dirStack.push(this.currentDir);
                         this.currentDir = newUri;
@@ -212,4 +282,60 @@ class DestFolderNavigator {
             void render().then(() => qp.show());
         });
     }
+}
+
+// ── Destination from an invoked URI ──
+
+/**
+ * Maps an invoked URI + its file type to the directory to write into.
+ *
+ * A directory (or a symlink pointing at one — the `Directory` bit is set) is
+ * used as-is; anything else (a file, a symlink to a file) resolves to its parent.
+ *
+ * @param uri      - The URI the command was invoked on.
+ * @param fileType - The stat'd `FileType` bitmask for `uri`.
+ * @returns The directory URI to write the template into.
+ *
+ * @example
+ * classifyDestination(Uri.file('/ws/src'), FileType.Directory)          // /ws/src
+ * classifyDestination(Uri.file('/ws/src/a.ts'), FileType.File)          // /ws/src
+ */
+export function classifyDestination(uri: vscode.Uri, fileType: vscode.FileType): vscode.Uri {
+    if ((fileType & vscode.FileType.Directory) !== 0) {
+        return uri;
+    }
+    return vscode.Uri.joinPath(uri, '..');
+}
+
+/**
+ * Resolves the destination directory for a template write.
+ *
+ * When `uri` is supplied it is stat'd and classified (D2); when it is absent —
+ * or the stat fails — the folder picker opens rooted at the first workspace
+ * folder. Returns `undefined` when no workspace is open or the user cancels the
+ * picker.
+ *
+ * @param uri - The invoked Explorer URI, or `undefined` for a palette invocation.
+ * @returns The chosen destination directory URI, or `undefined`.
+ *
+ * @example
+ * const dest = await resolveDestination(clickedUri);
+ * if (dest) { hand destDir: dest to the engine's template write; }
+ */
+export async function resolveDestination(uri: vscode.Uri | undefined): Promise<vscode.Uri | undefined> {
+    if (uri !== undefined) {
+        try {
+            // ponytail: recorded E-1 exception (W5 R3) — stat only decides file vs directory for the invoked
+            // URI; workspace navigation, never artifact content.
+            const stat = await vscode.workspace.fs.stat(uri);
+            return classifyDestination(uri, stat.type);
+        } catch {
+            // URI vanished between click and stat — fall through to the picker.
+        }
+    }
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (root === undefined) {
+        return undefined;
+    }
+    return pickDestFolder(root);
 }

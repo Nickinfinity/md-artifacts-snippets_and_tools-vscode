@@ -1,4 +1,4 @@
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import { getEngine } from '../../../engine/engine.vscode.js';
 import { toParsedArtifactFile } from '../../../engine/adapt.js';
 import { getVaultPath } from '../../../services/config.service.js';

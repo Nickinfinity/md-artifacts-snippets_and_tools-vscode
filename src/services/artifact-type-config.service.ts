@@ -221,7 +221,7 @@ export function isTerminalOnly(type: ArtifactType): boolean {
  *
  * The one reader of `Artifact.outputNameKey`, and the reason no caller spells
  * `artifactType === 'Template'` to make this decision: `buildFilePrefill`
- * (explorer capture) and `create-index.service.ts` (batch siblings) both need
+ * (explorer capture) and the batch scaffolder (batch siblings) both need
  * the same per-type answer, and both get it here. Kept in this service rather
  * than as a local table because this module derives **everything** from
  * `getEntry` — a `Record<ArtifactType, …>` here would be a second enumeration

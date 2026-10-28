@@ -1,0 +1,19 @@
+{
+  "filePath": "Snippets/edit-1.md",
+  "fileName": "edit-1",
+  "relativePath": "edit-1.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Demo",
+    "description": "A demo snippet.",
+    "language": "typescript",
+    "tags": [
+      "a",
+      "b"
+    ]
+  },
+  "code": "const answer = 42;",
+  "vars": [],
+  "blocks": [],
+  "hash": "f88295f75013f2e87113889ec0ead66309dd71d5263dd89de69cc70e9f5dd99d"
+}

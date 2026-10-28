@@ -1,0 +1,14 @@
+{
+  "filePath": "Snippets/availability-1.md",
+  "fileName": "availability-1",
+  "relativePath": "availability-1.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Demo",
+    "language": "typescript"
+  },
+  "code": "const answer = 42;",
+  "vars": [],
+  "blocks": [],
+  "hash": "89ec566f9dde0fd9af1cfc949ac10080d625e76a585ea913c339d0019bdc289c"
+}

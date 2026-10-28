@@ -43,7 +43,7 @@
   "viewsWelcome.mainView.contents": "Choose your Obsidian vault to start creating and inserting artifacts.\n[Choose Vault Folder](command:md-artifacts.settings)",
   "viewsWelcome.variablesView.contents": "Variable sets live in your vault's Variables folder.\n[Choose Vault Folder](command:md-artifacts.settings)",
   "config.mdArtifacts.vaultPath.description": "Absolute path to the Obsidian vault root directory. Must contain a .obsidian folder.",
-  "config.mdArtifacts.defaultEnvironment.description": "Default environment identifier (reserved for future use).",
+  "config.mdArtifacts.legacy.deprecated": "Read once at first start and imported into the engine's configuration; the engine now owns the vault and the enabled types. Change them in **MD Artifacts: Settings**. Removed in a later release.",
   "config.mdArtifacts.features.snippets.description": "Enable the Snippets directory. Auto-created on first vault selection.",
   "config.mdArtifacts.features.aiagentsconf.description": "Enable the AI Agents Config directory. Auto-created on first vault selection.",
   "config.mdArtifacts.features.commands.description": "Enable the Commands directory (terminal context menu).",

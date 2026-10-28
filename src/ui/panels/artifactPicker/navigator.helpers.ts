@@ -2,7 +2,8 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { resolveInVault } from '../../../engine/adapt.js';
 import type { TreeFile } from '../../../types/engine.types.js';
-import type { ParsedArtifactFile, ParsedBlock } from '../../../types/parsed-artifact.types.js';
+import { writesWholeFile } from '../../../services/artifact-type-config.service.js';
+import type { ParsedArtifactFile, ParsedBlock, ParsedFrontmatter } from '../../../types/parsed-artifact.types.js';
 
 /** Debounce window for QuickPick `onDidChangeActive` → preview render. */
 export const PREVIEW_DEBOUNCE_MS = 120;
@@ -123,4 +124,21 @@ export function treeToItems(
         items.push(item);
     }
     return items;
+}
+
+/**
+ * Reports whether a parsed file's frontmatter marks it as a template index.
+ *
+ * `index: true` alone is not enough — a run can only write files, so a
+ * `Snippet` or `Command` carrying `index: true` is not an index.
+ *
+ * @param fm - Parsed frontmatter of a candidate file.
+ * @returns `true` only when `fm.index === true` and the type writes whole files.
+ *
+ * @example
+ * isIndexArtifact({ artifactType: 'Template', index: true }); // → true
+ * isIndexArtifact({ artifactType: 'Snippet', index: true });  // → false
+ */
+export function isIndexArtifact(fm: ParsedFrontmatter): boolean {
+    return fm.index === true && writesWholeFile(fm.artifactType);
 }

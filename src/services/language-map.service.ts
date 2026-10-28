@@ -24,7 +24,7 @@
 import { LANG_ALIAS, LANG_EXT, LANG_FENCE } from '../types/constants.js';
 
 /** Fence info-strings that are not real languages — ignored by `resolveLangId`. */
-const GENERIC_FENCE_LANGS = new Set(['', 'code', 'vks']);
+const GENERIC_FENCE_LANGS = new Set(['', 'code']);
 
 /** Matches a languageId safe to use verbatim as a file extension. */
 const FILENAME_SAFE_EXT_RE = /^[a-z0-9]+$/;
@@ -70,7 +70,7 @@ export function normalizeLangId(raw: string): string {
 /**
  * Resolves the languageId to apply to the temp document.
  *
- * Priority: fence language (when "real" — not `code`/`vks`/empty) → frontmatter
+ * Priority: fence language (when "real" — not `code`/empty) → frontmatter
  * language → `'plaintext'`. A candidate is accepted only when its normalised form
  * appears in `known`.
  *

@@ -9,8 +9,9 @@ import { engineErrorMessage } from '../src/engine/errors.js';
 import { out } from '../src/ui/panels/artifactPicker/shared.js';
 import { engineMeta } from '../src/engine/model.js';
 import { setSessionVault } from '../src/services/vault-watch.service.js';
-import { parseArtifactFile } from '../src/services/parser.service.js';
-import { MultiIndexRunner } from '../src/ui/panels/artifactPicker/multiIndex.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { recordedRead } from './recorded.js';
+import { MultiIndexRunner, summariseRun } from '../src/ui/panels/artifactPicker/multiIndex.js';
 import type { MultiIndexCallbacks } from '../src/ui/panels/artifactPicker/multiIndex.js';
 import type { BatchOutcome, DestCandidate, IndexStep } from '../src/types/multi-index.types.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
@@ -23,18 +24,18 @@ import type { EngineArtifact } from '../src/types/engine.types.js';
  * whatever outcome a given scenario needs). No extension-host UI interaction
  * is required — that's exactly why the callback bag exists.
  *
- * The vault side is real, read-only fixtures under `test/fixtures/multi-index/`
- * (mirroring the exact link set `multi-index.service.test.ts`'s `buildIndexPlan`
- * suite already exercises); the workspace side is a fresh temp directory per
+ * The vault side is the engine's recorded `index.plan` / `artifact.read` replies
+ * (the same link set the engine's op-cases exercise); the workspace side is a fresh temp directory per
  * test, cleaned up in `teardown`.
  */
 
-const FIXTURE_DIR = path.join(__dirname, '../../test/fixtures/multi-index');
+/** Synthetic vault path — the runner reads through the fake engine, never this directory. */
+const FIXTURE_DIR = path.join(os.tmpdir(), 'multi-index-fixture-vault');
 
-/** The index as the navigator hands it over: parsed, carrying the engine's `relPath` / `hash`. */
+/** The index as the navigator hands it over: the recorded engine read, with the test's `relPath` / `hash`. */
 function readIndexArtifact(fileName: string): ParsedArtifactFile {
-    const parsed = parseArtifactFile(path.join(FIXTURE_DIR, fileName), FIXTURE_DIR);
-    assert.ok(parsed, `fixture ${fileName} must parse`);
+    const rec = fileName === 'index.md' ? 'mi-index' : 'mi-hostile-index';
+    const parsed = toParsedArtifactFile(recordedRead(rec), FIXTURE_DIR);
     return { ...parsed, relPath: `Templates/${fileName}`, hash: 'h-index' } as ParsedArtifactFile;
 }
 
@@ -330,5 +331,23 @@ suite('MultiIndexRunner — engine error text', () => {
         } finally { out.appendLine = orig; }
         const words = engineErrorMessage({ code: 'vault.not_selected', params: {} });
         assert.ok(lines.some(l => l.includes(words)), `expected "${words}" in ${JSON.stringify(lines)}`);
+    });
+});
+
+suite('summariseRun', () => {
+
+    test('matches the closing-notification example verbatim', () => {
+        assert.strictEqual(summariseRun({ written: 3, skipped: 0, aborted: false }), 'Multi-Template: 3 files written, 0 skipped.');
+    });
+
+    test('singular "file" for exactly one file written', () => {
+        assert.strictEqual(summariseRun({ written: 1, skipped: 2, aborted: false }), 'Multi-Template: 1 file written, 2 skipped.');
+    });
+
+    test('notes an aborted run', () => {
+        assert.strictEqual(
+            summariseRun({ written: 1, skipped: 0, aborted: true }),
+            'Multi-Template: 1 file written, 0 skipped. Run cancelled.',
+        );
     });
 });

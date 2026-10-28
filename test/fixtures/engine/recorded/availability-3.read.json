@@ -1,0 +1,15 @@
+{
+  "filePath": "Templates/availability-3.md",
+  "fileName": "availability-3",
+  "relativePath": "availability-3.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "title": "Readme",
+    "language": "markdown",
+    "extension": "md"
+  },
+  "code": "# Title",
+  "vars": [],
+  "blocks": [],
+  "hash": "13a8e8e69df907432837a49deb1a615542043cb3f239812096574c6a1b4a9d94"
+}

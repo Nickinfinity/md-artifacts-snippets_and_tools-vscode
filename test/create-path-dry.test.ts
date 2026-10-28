@@ -21,8 +21,8 @@ import { ARTIFACTS } from '../src/types/constants.js';
  * Type literals are read from `ARTIFACTS` itself (never hand-copied), so a
  * new artifact type is covered automatically without touching this file.
  *
- * **Comments are stripped before matching.** Same trap `flags.service.test.ts`
- * and `force-write-containment.test.ts` both hit: several files in this exact
+ * **Comments are stripped before matching.** Same trap the retired flag-marker
+ * guard and `force-write-containment.test.ts` both hit: several files in this exact
  * set document "never a `type === 'AIPrompt'` literal" in JSDoc precisely
  * because they obey this rule, so the file most carefully explaining the
  * invariant is the guard's first false positive if comments are not removed
@@ -104,7 +104,6 @@ function isCreatePathFile(relPath: string): boolean {
         relPath.startsWith('commands/capture/') ||
         /^ui\/views\/mainView\.[^/]+\.ts$/.test(relPath) ||
         relPath === 'ui/views/createIndexRunner.ts' ||
-        relPath === 'services/create-index.service.ts' ||
         relPath === 'ui/panels/artifactForm/form.html.ts'
     );
 }

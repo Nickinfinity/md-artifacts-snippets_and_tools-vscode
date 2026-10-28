@@ -44,7 +44,7 @@
   "viewsWelcome.mainView.contents": "Elige tu vault de Obsidian para empezar a crear e insertar artefactos.\n[Elegir carpeta del vault](command:md-artifacts.settings)",
   "viewsWelcome.variablesView.contents": "Los conjuntos de variables viven en la carpeta Variables de tu vault.\n[Elegir carpeta del vault](command:md-artifacts.settings)",
   "config.mdArtifacts.vaultPath.description": "Ruta absoluta a la raíz del vault de Obsidian. Debe contener una carpeta .obsidian.",
-  "config.mdArtifacts.defaultEnvironment.description": "Identificador de entorno predeterminado (reservado para uso futuro).",
+  "config.mdArtifacts.legacy.deprecated": "Se lee una vez en el primer inicio y se importa a la configuración del motor; ahora el motor gestiona la bóveda y los tipos activados. Cámbialos en **MD Artifacts: Ajustes**. Se eliminará en una versión posterior.",
   "config.mdArtifacts.features.snippets.description": "Habilita el directorio Snippets. Se crea automáticamente al elegir el vault por primera vez.",
   "config.mdArtifacts.features.aiagentsconf.description": "Habilita el directorio AI Agents Config. Se crea automáticamente al elegir el vault por primera vez.",
   "config.mdArtifacts.features.commands.description": "Habilita el directorio Commands (menú contextual de la terminal).",

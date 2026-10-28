@@ -1,7 +1,6 @@
 import * as assert from 'node:assert';
 import { ARTIFACTS } from '../src/types/constants.js';
 import { getAllTypes } from '../src/services/artifact-type-config.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
 import type { ArtifactType } from '../src/types/parsed-artifact.types.js';
 
 /**
@@ -171,46 +170,9 @@ suite('ARTIFACTS per-type form config', () => {
     });
 });
 
-// ── Drift guard: ARTIFACTS ↔ parser (services-dry Phase 2) ───────────────────
-
-/**
- * `parser.service.ts` used to carry its own hardcoded set of the five valid
- * `artifactType:` values. A type added to ARTIFACTS but missing from that list
- * was *silently* downgraded to 'Snippet' on parse — no error, no warning, just
- * wrong data. VALID_TYPES is now derived, and this suite is what keeps the two
- * bound: it fails loudly if any future change re-hardcodes the list.
- */
-suite('ARTIFACTS ↔ parser type agreement', () => {
-
-    /**
-     * @example
-     * parseFromContent('---\nartifactType: Variables\n---\n').frontmatter.artifactType === 'Variables'
-     */
-    test('the parser accepts every type declared in ARTIFACTS', () => {
-        for (const entry of ARTIFACTS) {
-            const parsed = parseFromContent(`---\nartifactType: ${entry.type}\n---\n`, '/v/x.md', '/v');
-            assert.strictEqual(parsed.frontmatter.artifactType, entry.type,
-                `parser rejected declared type '${entry.type}' and fell back to '${parsed.frontmatter.artifactType}'`);
-        }
-    });
-
-    test('an undeclared type still falls back to the directory-derived default', () => {
-        const parsed = parseFromContent('---\nartifactType: not-a-real-type\n---\n', '/v/x.md', '/v');
-        assert.strictEqual(parsed.frontmatter.artifactType, 'Snippet');
-    });
-
-    test('a legacy `type:` key is ignored entirely — never read as artifactType', () => {
-        const parsed = parseFromContent('---\ntype: Command\n---\n', '/v/x.md', '/v');
-        assert.strictEqual(parsed.frontmatter.artifactType, 'Snippet');
-    });
-
-    test('a value differing only in case does not match — no case-insensitive fallback', () => {
-        // '/vault/Commands' resolves a different directory-derived default ('Command')
-        // than the hardcoded 'Snippet' fallback, so a case-insensitive bug (wrongly
-        // accepting 'snippet' as 'Snippet') is distinguishable from correct behaviour.
-        const parsed = parseFromContent('---\nartifactType: snippet\n---\n', '/vault/Commands/x.md', '/vault/Commands');
-        assert.strictEqual(parsed.frontmatter.artifactType, 'Command');
-    });
+// ── Drift guard: registry ↔ type-config accessors ────────────────────────────
+// (The parser half of this suite died with the TS parser; the engine's parse/tfd-* cases hold it.)
+suite('ARTIFACTS ↔ type-config agreement', () => {
 
     test('getAllTypes covers ARTIFACTS exactly — no extras, no omissions', () => {
         assert.deepStrictEqual([...getAllTypes()].sort(), ARTIFACTS.map(e => e.type).sort());

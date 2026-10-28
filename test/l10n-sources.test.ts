@@ -23,7 +23,7 @@ import * as path from 'node:path';
  * carrying a sanctioned red gate.
  *
  * **Comments are stripped before matching**, the same trap
- * `create-path-dry.test.ts`, `flags.service.test.ts` and
+ * `create-path-dry.test.ts`, the retired flag-marker guard and
  * `force-write-containment.test.ts` all hit: the file documenting a rule is a
  * source-grep guard's first false positive. `plan.md` §10 spells the four
  * patterns out in prose, and several owned files carry JSDoc examples of the
@@ -89,7 +89,7 @@ const servicesDir = path.join(srcRoot, 'services');
  * @returns The file's source text, comments removed.
  *
  * @example
- * readStripped('/repo/src/services/vault.service.ts'); // → 'export function …'
+ * readStripped('/repo/src/services/config.service.ts'); // → 'export function …'
  */
 function readStripped(file: string): string {
     return stripComments(fs.readFileSync(file, 'utf8'));
@@ -154,7 +154,7 @@ const PATTERNS: ReadonlyArray<{ re: RegExp; message: string }> = [
  * @returns Nothing; throws `AssertionError` on the first violation.
  *
  * @example
- * assertLocalised('/repo/src/services/vault.service.ts');
+ * assertLocalised('/repo/src/services/config.service.ts');
  */
 function assertLocalised(file: string): void {
     const src = readStripped(file);
@@ -222,26 +222,18 @@ suite('l10n sources — src/commands', () => {
 });
 
 /**
- * T5.2's thirteen owned services, listed **literally** (`vault-watch.service.ts` joined in W2/H2.1, `conflict.service.ts` in W3/H3.0b).
+ * T5.2's eight owned services (W5 T5.7 deleted five of the original thirteen), listed **literally**.
  *
- * 🔴 Never `readdirSync(servicesDir)` here. `create-index.service.ts:177`
- * carries `title: 'Index'`, a guard-visible P2 hit in a **`vscode`-free**
- * service: a directory-globbed suite would go red on a file nobody owns and
- * nobody may legally fix (adding the import would break its `vscode`-free
- * status), blocking the wave with no available action. The membership guard
- * below is the one that deliberately scans the whole directory, and its job is
- * the opposite one — detecting a service entering or leaving the set.
+ * 🔴 Never `readdirSync(servicesDir)` here: a directory-globbed suite goes red on
+ * a `vscode`-free file nobody owns and nobody may legally fix. The membership
+ * guard below is the one that deliberately scans the whole directory, and its
+ * job is the opposite one — detecting a service entering or leaving the set.
  */
 const T52_OWNS: readonly string[] = [
     'confirm.service.ts',
-    'artifact-writer.service.ts',
     'config.service.ts',
     'context.service.ts',
-    'template-writer.service.ts',
-    'variables-writer.service.ts',
     'temp-document.service.ts',
-    'template-destination.service.ts',
-    'vault.service.ts',
     'scratch-file.service.ts',
     'varset.service.ts',
     'vault-watch.service.ts',
@@ -249,32 +241,19 @@ const T52_OWNS: readonly string[] = [
 ];
 
 /**
- * The nineteen services that must stay `vscode`-free, measured from the tree
- * at `146a81d` (30 services: 19 free, 11 coupled).
- *
- * Seventeen are pre-branch; `preview-target.service.ts` (W0/T0.3) and
- * `varset-form.service.ts` (W2/T2.2) bring it to nineteen.
+ * The nine services that must stay `vscode`-free (ten of the original nineteen
+ * died in W5 T5.7).
  */
 const VSCODE_FREE: readonly string[] = [
-    'artifact-patcher.service.ts',
-    'artifact-serializer.service.ts',
     'artifact-type-config.service.ts',
-    'create-index.service.ts',
-    'filename.service.ts',
-    'flags.service.ts',
-    'frontmatter-migration.service.ts',
     'language-map.service.ts',
-    'multi-index.service.ts',
     'pane-layout.service.ts',
     'pane-width.service.ts',
-    'parser.service.ts',
     'preview-mode.service.ts',
     'preview-target.service.ts',
     'render.service.ts',
     'template.service.helpers.ts',
     'template.service.ts',
-    'variables-crud.service.ts',
-    'varset-form.service.ts',
 ];
 
 suite('l10n sources — src/services', () => {
@@ -290,7 +269,7 @@ suite('l10n sources — src/services', () => {
     // "has no `from 'vscode'`" and then asserted that same predicate — vacuous
     // by construction: a service that GAINS the import silently leaves the set
     // instead of failing. Pinning the names is what makes it a real guard.
-    test('the vscode-free service set is exactly the nineteen named — localise at the caller, never here', () => {
+    test('the vscode-free service set is exactly the nine named — localise at the caller, never here', () => {
         const derived = fs.readdirSync(servicesDir)
             .filter(f => f.endsWith('.ts') && !fs.readFileSync(path.join(servicesDir, f), 'utf8').includes("from 'vscode'"))
             .sort();
@@ -298,7 +277,7 @@ suite('l10n sources — src/services', () => {
             'a service entered or left the vscode-free set — localise at the caller, not here');
     });
 
-    test("T5.2's thirteen owned services are exactly the vscode-coupled ones", () => {
+    test("T5.2's eight owned services are exactly the vscode-coupled ones", () => {
         const coupled = fs.readdirSync(servicesDir)
             .filter(f => f.endsWith('.ts') && fs.readFileSync(path.join(servicesDir, f), 'utf8').includes("from 'vscode'"))
             .sort();

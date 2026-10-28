@@ -11,8 +11,8 @@ import { isPathWithin } from '../src/utils/path-containment.js';
  * filesystem, and the IDE analyser performs no taint analysis, so nothing else
  * checks it. Second the *singleness*: the rule was spelled out three times
  * before this file existed, and the copies had already diverged on whether they
- * normalised the paths first. The drift guard below is modelled on
- * `flags.service.test.ts`, which pins the flag marker to its owning service the
+ * normalised the paths first. The drift guard below is modelled on the retired
+ * flag-marker guard, which pinned the flag marker to its owning module the
  * same way.
  */
 suite('isPathWithin — the containment rule', () => {

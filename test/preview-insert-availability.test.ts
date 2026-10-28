@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { renderPreviewHtml } from '../src/ui/panels/artifactPicker/preview.render.js';
 import { renderCodeRowsHtml } from '../src/services/render.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { recordedRead } from './recorded.js';
 import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
 
 /**
@@ -18,10 +19,8 @@ import type { ParsedArtifactFile } from '../src/types/parsed-artifact.types.js';
  * that silently does something else is worse than one that is absent.
  */
 
-function artifact(md: string, file: string): ParsedArtifactFile {
-    const parsed = parseFromContent(md, file, '/v');
-    assert.ok(parsed, `fixture failed to parse: ${file}`);
-    return parsed;
+function artifact(name: string): ParsedArtifactFile {
+    return toParsedArtifactFile(recordedRead(name), '/v');
 }
 
 function render(a: ParsedArtifactFile, insertAvailable: boolean): string {
@@ -36,20 +35,11 @@ function render(a: ParsedArtifactFile, insertAvailable: boolean): string {
     );
 }
 
-const SNIPPET = artifact([
-    '---', 'artifactType: Snippet', 'title: Demo', 'language: typescript', '---', '',
-    '```typescript', 'const answer = 42;', '```', '',
-].join('\n'), '/v/Snippets/demo.md');
+const SNIPPET = artifact('availability-1');
 
-const COMMAND = artifact([
-    '---', 'artifactType: Command', 'title: Deploy', 'language: bash', '---', '',
-    '```bash', 'npm run deploy', '```', '',
-].join('\n'), '/v/Commands/deploy.md');
+const COMMAND = artifact('availability-2');
 
-const TEMPLATE = artifact([
-    '---', 'artifactType: Template', 'title: Readme', 'language: markdown', 'extension: md', '---', '',
-    '```markdown', '# Title', '```', '',
-].join('\n'), '/v/Templates/readme.md');
+const TEMPLATE = artifact('availability-3');
 
 /** True when `#insertBtn` carries the `hidden` attribute in the rendered markup. */
 function insertHidden(html: string): boolean {

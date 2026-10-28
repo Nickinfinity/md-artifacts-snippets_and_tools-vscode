@@ -2,12 +2,11 @@ import * as vscode from 'vscode';
 import { buildFormHtml } from './form.html.js';
 import { FORM_CLIENT_JS } from './form.clientJs.js';
 import { defaultModel } from './form.helpers.js';
-import { pruneVarsForSave, confirmDiscardDraft, deleteWithConfirm, saveToEngine } from './panel.helpers.js';
+import { pruneVarsForSave, confirmDiscardDraft, deleteWithConfirm, saveToEngine, validateArtifactFilename } from './panel.helpers.js';
 // Import cycle with editArtifact.command.ts is safe: the constant is read only at call time, never at module load.
 import { EDIT_ARTIFACT_COMMAND_ID } from '../../../commands/editArtifact.command.js';
 import { FormBlockExpandController } from './blockExpand.js';
-import { extractVars } from '../../../services/parser.service.js';
-import { validateArtifactFilename } from '../../../services/filename.service.js';
+import { extractVars } from '../../../services/render.service.js';
 import { getNonce } from '../../../utils/helpers.js';
 import { getEntry, getTypeSingular } from '../../../services/artifact-type-config.service.js';
 import { renderCodeRowsHtml } from '../../../services/render.service.js';

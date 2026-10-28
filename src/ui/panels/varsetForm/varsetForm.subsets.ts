@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
 import { jsStr } from '../artifactPicker/webviewSnippets.js';
-import { DEFAULT_SUBSET_NAME } from '../../../services/variables-crud.service.js';
 import { buildReorderButtons, REORDER_CLIENT_JS } from '../shared/reorderControls.js';
+
+// ponytail: engine `vars.subset.add` names the flat file's untitled block the same; pinned by varset-shape-engine.test.ts.
+export const DEFAULT_SUBSET_NAME = 'Default';
 
 // Resolved at import time — the display language is fixed at activation.
 const RENAME_LABEL = vscode.l10n.t('Rename sub-set');

@@ -1,0 +1,14 @@
+{
+  "filePath": "Snippets/buttons-1.md",
+  "fileName": "buttons-1",
+  "relativePath": "buttons-1.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Demo",
+    "language": "typescript"
+  },
+  "code": "const answer = 42;",
+  "vars": [],
+  "blocks": [],
+  "hash": "89ec566f9dde0fd9af1cfc949ac10080d625e76a585ea913c339d0019bdc289c"
+}

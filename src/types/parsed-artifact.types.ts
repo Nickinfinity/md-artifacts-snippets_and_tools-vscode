@@ -54,7 +54,7 @@ export interface ParsedFrontmatter {
      * (`template` / `agent`), since a run can only write files. Its body lists
      * links to sibling artifacts that one run scaffolds.
      *
-     * **Read-side only:** the parser reads it, `serializeArtifact` never emits it
+     * **Read-side only:** the engine reads it, its writer never emits it
      * (the create form does not author indexes). Bound by the guard in
      * `test/frontmatter-keys.test.ts`.
      */
@@ -125,7 +125,7 @@ export interface ParsedBlock {
 /**
  * Full parsed representation of a single `.md` vault artifact file.
  *
- * Returned by `parseArtifactFile()` and passed to the picker webview for
+ * Returned by the engine's `artifact.read` and passed to the picker webview for
  * display and insert-time variable resolution.
  *
  * @example

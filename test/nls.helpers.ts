@@ -62,7 +62,7 @@ interface PackageManifest {
 		commands: { command: string; title: string; category?: string }[];
 		submenus: { id: string; label: string }[];
 		viewsWelcome: { view: string; contents: string }[];
-		configuration: { title: string; properties: Record<string, { description: string }> };
+		configuration: { title: string; properties: Record<string, { description: string; markdownDeprecationMessage?: string }> };
 		views: Record<string, { id: string; name: string }[]>;
 		viewsContainers: { activitybar: { title: string }[] };
 	};
@@ -73,7 +73,8 @@ interface PackageManifest {
  * would need to localise, deriving each site's nls key by the naming rule
  * this task fixes: `cmd.<id-tail>.title`, one shared `cmd.category`,
  * `submenu.<id-tail>.label`, `viewsWelcome.<viewId-tail>.contents`,
- * `config.<full property key>.description`, `config.title`,
+ * `config.<full property key>.description`, one shared `config.mdArtifacts.legacy.deprecated`
+ * (every `markdownDeprecationMessage`), `config.title`,
  * `view.<viewId-tail>.name`, `container.title`.
  *
  * The **sole** derivation of "what in `package.json` is localisable" — H4.1
@@ -107,6 +108,9 @@ export function everyLocalisableManifestSites(): ManifestSite[] {
 	}
 	for (const [propKey, prop] of Object.entries(pkg.contributes.configuration.properties)) {
 		sites.push({ key: `config.${propKey}.description`, value: prop.description });
+		if (prop.markdownDeprecationMessage !== undefined) {
+			sites.push({ key: 'config.mdArtifacts.legacy.deprecated', value: prop.markdownDeprecationMessage });
+		}
 	}
 	sites.push({ key: 'config.title', value: pkg.contributes.configuration.title });
 	for (const viewArr of Object.values(pkg.contributes.views)) {

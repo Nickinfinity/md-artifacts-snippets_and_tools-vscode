@@ -1,0 +1,13 @@
+{
+  "filePath": "Variables/vars-blank-localdev.md",
+  "fileName": "vars-blank-localdev",
+  "relativePath": "vars-blank-localdev.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Local Dev"
+  },
+  "code": "",
+  "vars": [],
+  "blocks": [],
+  "hash": "01f8ed048a2c4cda6ed8250569d9da2943b3adc6aac73956b6b42e2be5bf0c7a"
+}

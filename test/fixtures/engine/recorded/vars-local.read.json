@@ -1,0 +1,19 @@
+{
+  "filePath": "Variables/vars-local.md",
+  "fileName": "vars-local",
+  "relativePath": "vars-local.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Local",
+    "language": "yaml VKs"
+  },
+  "code": "VK-host: localhost",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [],
+  "hash": "7a9852f812974b19fceef6a6d09c888a7daa2d3dc3d44387e2134f5f897764a0"
+}

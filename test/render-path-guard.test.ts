@@ -52,10 +52,10 @@ suite('render-path guard (W4)', () => {
     // ponytail: stripComments' `/\*…\*/` can start inside a string such as `'**/*.md'`
     // (vault-watch.service.ts) and eat to the next `*/` — the same blind spot the W2/W3 guards
     // carry. A tokenizer would close it; not worth one for a grep guard.
-    test('L-5: no src file but parser.service.ts references resolveVars in code', () => {
+    test('L-5: no src file references resolveVars in code', () => {
         const srcRoot = path.resolve(__dirname, '..', '..', 'src');
         const offenders = fs.readdirSync(srcRoot, { recursive: true, encoding: 'utf8' })
-            .filter(rel => rel.endsWith('.ts') && rel !== path.join('services', 'parser.service.ts'))
+            .filter(rel => rel.endsWith('.ts'))
             .filter(rel => /\bresolveVars\b/.test(stripComments(fs.readFileSync(path.join(srcRoot, rel), 'utf8'))));
         assert.deepStrictEqual(offenders, []);
     });

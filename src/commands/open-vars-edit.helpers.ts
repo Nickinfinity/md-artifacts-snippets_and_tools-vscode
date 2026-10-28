@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { getVaultRootUri } from '../services/config.service.js';
-import { validateVarSetForm } from '../services/varset-form.service.js';
 import { engineMeta, toEngineModel } from '../engine/model.js';
 import { sendWrite } from '../services/conflict.service.js';
 import { variablesFileToEditPayload, editPayloadToModel } from '../services/varset.service.js';
@@ -21,7 +20,7 @@ import type { ParsedArtifactFile } from '../types/parsed-artifact.types.js';
  * loop rather than as an error the user sees.
  *
  * `vaultRoot` comes from `getVaultRootUri()` and never from the artifact's own
- * directory — `writeArtifact`'s containment check is performed *against* that
+ * directory — the engine's containment check is performed *against* that
  * root, so substituting the file's own folder would neuter it.
  *
  * @param artifact     - The Variables file as the parser produced it.
@@ -49,11 +48,9 @@ export async function openVarsEditForm(
     const payload = variablesFileToEditPayload(artifact);
 
     openVarSetFormPanel(extensionUri, {
-        // Edit mode never reaches validate/write — the panel's `mode` branch
-        // routes it to writeEdit. Both are supplied inert because the bag's
-        // members are required and making them optional would retype the
-        // create path (varSetController.ts's handleSaveAsVarSet).
-        validate: validateVarSetForm,
+        // Edit mode never reaches write — the panel's `mode` branch routes it to
+        // writeEdit. It is supplied inert because the bag's members are required
+        // and making it optional would retype the create path.
         write:    async () => false, // unreachable in edit mode
         post:     () => {},
         close:    () => {},

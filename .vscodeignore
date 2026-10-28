@@ -21,3 +21,6 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+
+# Agent guidance split out of AGENTS.md (W5 H5.2) — repo docs, never shipped
+agents/**

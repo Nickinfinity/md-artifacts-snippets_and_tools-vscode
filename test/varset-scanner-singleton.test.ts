@@ -12,7 +12,7 @@ import * as path from 'node:path';
  * QuickPick stale. Both caches were "correct"; they just disagreed.
  *
  * Cache *identity* is not observable from a fixture test, so this is a source
- * grep instead — the same idiom `flags.service.test.ts` and
+ * grep instead — the same idiom the retired flag-marker guard and
  * `path-containment.test.ts` already use for facts that live in the shape of
  * the code rather than its behaviour. Every consumer calls `getVarSetScanner()`.
  */

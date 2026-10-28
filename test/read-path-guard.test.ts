@@ -47,4 +47,11 @@ suite('read-path guard (W2)', () => {
             assert.deepStrictEqual(readPathViolations(src), [], `${rel} regained direct vault I/O`);
         }
     });
+
+    // T5.5: the engine only selects Obsidian vaults (`vault.not_obsidian`), so no `.obsidian` re-check.
+    // Not in READ_PATH_FILES: its size-check `workspace.fs.stat` is a recorded E-1 exception.
+    test('create-from-surface imports no vault.service', () => {
+        const src = stripComments(fs.readFileSync(path.resolve(__dirname, '..', '..', 'src', 'commands', 'create-from-surface.command.ts'), 'utf8'));
+        assert.ok(!readPathViolations(src).includes('vault.service.js'), 'create-from-surface regained the vault.service import');
+    });
 });

@@ -135,12 +135,6 @@
   "Language": "Lenguaje",
   "Plain text": "Texto plano",
   "\"{0}\" is not a valid Obsidian vault. The selected folder must contain a .obsidian directory.": "\"{0}\" no es una bóveda de Obsidian válida. La carpeta seleccionada debe contener un directorio .obsidian.",
-  "Failed to create directory: {0}": "No se pudo crear el directorio: {0}",
-  "Failed to delete directory: {0}": "No se pudo eliminar el directorio: {0}",
-  "Destination \"{0}\" is outside the workspace folder.": "El destino \"{0}\" está fuera de la carpeta del espacio de trabajo.",
-  "Resolved path \"{0}\" escapes the workspace folder.": "La ruta resuelta \"{0}\" escapa de la carpeta del espacio de trabajo.",
-  "Destination \"{0}\" is outside the vault root.": "El destino \"{0}\" está fuera de la raíz de la bóveda.",
-  "Filename \"{0}\" resolves outside the destination directory.": "El nombre de archivo \"{0}\" se resuelve fuera del directorio de destino.",
   "variable": "variable",
   "variables": "variables",
   "Delete {0} and its {1} {2}? This cannot be undone.": "¿Eliminar {0} y sus {1} {2}? Esta acción no se puede deshacer.",
@@ -170,8 +164,6 @@
   "Refusing to edit a file outside the configured vault.": "Se rechaza editar un archivo fuera de la bóveda configurada.",
   "Could not open artifact for editing: unrecognised artifact type.": "No se pudo abrir el artefacto para editarlo: tipo de artefacto no reconocido.",
   "{0} artifacts have no form — open the .md directly to edit one.": "Los artefactos {0} no tienen formulario — abra el .md directamente para editar uno.",
-  "This artifact uses Obsidian comment flags, which the form cannot represent. Editing it here would discard the flags and any notes around them — open the .md directly instead.": "Este artefacto usa marcadores de comentario de Obsidian, que el formulario no puede representar. Editarlo aquí descartaría los marcadores y cualquier nota a su alrededor — abra el .md directamente en su lugar.",
-  "This artifact is a template index. The form does not carry index links, so saving would stop it being an index — open the .md directly instead.": "Este artefacto es un índice de plantillas. El formulario no incluye enlaces de índice, por lo que guardarlo haría que dejara de ser un índice — abra el .md directamente en su lugar.",
   "Used clipboard contents — verify before saving.": "Se usó el contenido del portapapeles — verifíquelo antes de guardar.",
   "That file is {0} KiB — too large to load into a create form (limit {1} KiB).": "Ese archivo tiene {0} KiB — demasiado grande para cargarlo en un formulario de creación (límite {1} KiB).",
   "Add variable": "Añadir variable",
@@ -196,7 +188,6 @@
   "Description (optional)": "Descripción (opcional)",
   "MD Artifacts: this description spans several lines — edit it in the editor (pencil icon) to keep them.": "MD Artifacts: esta descripción ocupa varias líneas — edítala en el editor (icono de lápiz) para conservarlas.",
   "Description (leave empty to remove)": "Descripción (déjala vacía para quitarla)",
-  "A line cannot start with ``` or \"## \".": "Una línea no puede empezar con ``` ni con \"## \".",
   "Tags, separated by commas": "Etiquetas, separadas por comas",
   "Move up": "Subir",
   "Move down": "Bajar",
@@ -317,5 +308,6 @@
   "The destination folder is outside the vault.": "La carpeta de destino está fuera de la bóveda.",
   "\"{0}\" changed on disk since it was opened.": "\"{0}\" cambió en el disco desde que se abrió.",
   "Reload": "Recargar",
-  "Overwrite \"{0}\"?": "¿Sobrescribir \"{0}\"?"
+  "Overwrite \"{0}\"?": "¿Sobrescribir \"{0}\"?",
+  "This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.": "Esta línea contiene caracteres de control. Se pegará en la terminal como un solo bloque, sin pulsar Intro. Si la shell receptora no admite el pegado entre corchetes, podría ejecutarse por sí sola."
 }

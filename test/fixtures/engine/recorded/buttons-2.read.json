@@ -1,0 +1,19 @@
+{
+  "filePath": "Snippets/buttons-2.md",
+  "fileName": "buttons-2",
+  "relativePath": "buttons-2.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Demo",
+    "language": "typescript"
+  },
+  "code": "const host = \"<VK-host>\";",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [],
+  "hash": "0eb3f0c61493b4bd988aab8f9e0f213d31ec58cfd370dac5716f853b645b7146"
+}

@@ -7,6 +7,10 @@ import { locateEngine } from '../src/engine/locate.js';
 import { toParsedArtifactFile } from '../src/engine/adapt.js';
 import { toEngineModel } from '../src/engine/model.js';
 import { artifactToFormModel } from '../src/commands/create-prefill.helpers.js';
+import { EngineRequestError } from '../src/engine/request-error.js';
+import { editPayloadToModel } from '../src/services/varset.service.js';
+import { recordedSource } from './recorded.js';
+import type { VarsEditPayload } from '../src/types/varset.types.js';
 import { pruneVarsForSave } from '../src/ui/panels/artifactForm/panel.helpers.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 import { engineKnownTypes, isExecutableFile, spawnEngineProcess } from '../src/engine/engine.vscode.js';
@@ -83,6 +87,48 @@ suite('engine smoke (real binary)', () => {
         assert.strictEqual(fs.readFileSync(file, 'utf8'), REFACTOR, 'an unchanged save altered the bytes');
         await save('W2');
         assert.strictEqual(fs.readFileSync(file, 'utf8'), REFACTOR.replace('title: W', 'title: W2'));
+    });
+    // W5 T5.6: the editor's TS content guards are gone; each removed rule is the engine's refusal and writes nothing.
+    test('the var-set editor rules the panel no longer checks are refused by the engine, file bytes unchanged', async function () {
+        this.timeout(30_000);
+        const found = locateEngine({
+            settingPath: process.env['MDA_BIN'] ?? '', envPath: process.env['PATH'],
+            platform: process.platform, isExecutableFile,
+        });
+        if (found.kind === 'not-found') {
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.10.0 mda binary');
+            this.skip();
+            return;
+        }
+        assert.strictEqual(found.kind, 'found', `MDA_BIN is not an executable absolute path: ${found.path}`);
+        tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-smoke-'));
+        fs.mkdirSync(path.join(tmp, '.obsidian'));
+        fs.mkdirSync(path.join(tmp, 'Variables'));
+        const file = path.join(tmp, 'Variables', 'flat.md');
+        const bytes = recordedSource('ve-flat');
+        fs.writeFileSync(file, bytes);
+        sup = new EngineSupervisor({
+            spawn: spawnEngineProcess, binPath: found.path,
+            args: ['serve', '--vault', tmp], knownTypes: engineKnownTypes(),
+        });
+        const pairs: [string, string][] = [['VK-host', 'localhost']];
+        const cases: [string, VarsEditPayload['subSets'], string][] = [
+            ['heading with a newline', [{ heading: 'A\nB', description: '', pairs }], 'artifact.unrepresentable'],
+            ['description line ```', [{ heading: 'A', description: 'x\n```\ny', pairs }], 'artifact.unrepresentable'],
+            ['description line "## "', [{ heading: 'A', description: 'x\n## Evil', pairs }], 'artifact.unrepresentable'],
+            ['two empty headings', [{ heading: '', pairs }, { heading: '', pairs }], 'artifact.unrepresentable'],
+            ['variable name with "="', [{ heading: '', pairs: [['VK-a=b', 'x']] }], 'vks.bad_key'],
+        ];
+        for (const [label, subSets, code] of cases) {
+            const read = toParsedArtifactFile(await sup.request('artifact.read', { path: 'Variables/flat.md' }), tmp);
+            const model = toEngineModel(editPayloadToModel({ title: 'Flat', description: '', tags: [], subSets }, read), read);
+            await assert.rejects(
+                sup.request('artifact.update', { path: read.relPath, expectedHash: read.hash, model }),
+                (e: unknown) => e instanceof EngineRequestError && e.data.code === code,
+                label,
+            );
+            assert.strictEqual(fs.readFileSync(file, 'utf8'), bytes, `${label}: the file was written`);
+        }
     });
 });
 

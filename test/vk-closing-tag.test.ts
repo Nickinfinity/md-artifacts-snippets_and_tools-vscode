@@ -1,6 +1,8 @@
 import * as assert from 'node:assert';
-import { extractVars, resolveVars, VK_TOKEN_RE } from '../src/services/parser.service.js';
-import { renderCodeHtml } from '../src/services/render.service.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { extractVars, renderCodeHtml, VK_TOKEN_RE } from '../src/services/render.service.js';
+import { stripComments } from './read-path-guard.test.js';
 import { CODE_BLOCK_CLIENT_JS } from '../src/ui/panels/artifactPicker/codeBlock.js';
 
 /**
@@ -38,40 +40,6 @@ suite('extractVars — closing tags are the same variable', () => {
 
     test('a closing tag that is not a VK token is ignored', () => {
         assert.deepStrictEqual(extractVars('</div> </VKfoo> <a href="x">'), []);
-    });
-});
-
-suite('resolveVars — a pair emits the value once', () => {
-
-    const VARS = { 'VK-repo': 'my-app', 'VK-branch': 'main' };
-
-    test('an adjacent pair collapses to a single value', () => {
-        assert.strictEqual(resolveVars('Review <VK-repo></VK-repo> now.', VARS), 'Review my-app now.');
-    });
-
-    test('a lone closing tag resolves like an opening one', () => {
-        assert.strictEqual(resolveVars('Review </VK-repo> now.', VARS), 'Review my-app now.');
-    });
-
-    test('mismatched names are two separate tokens, not a pair', () => {
-        assert.strictEqual(resolveVars('<VK-repo></VK-branch>', VARS), 'my-appmain');
-    });
-
-    test('a pair split by text is two tokens', () => {
-        assert.strictEqual(resolveVars('<VK-repo> on </VK-repo>', VARS), 'my-app on my-app');
-    });
-
-    test('an unknown variable is left literal in both spellings', () => {
-        assert.strictEqual(resolveVars('<VK-nope></VK-nope> </VK-nope>', VARS), '<VK-nope></VK-nope> </VK-nope>');
-    });
-
-    test('an empty value blanks the pair rather than leaving markup behind', () => {
-        assert.strictEqual(resolveVars('a<VK-x></VK-x>b', { 'VK-x': '' }), 'ab');
-    });
-
-    test('real markdown payload resolves to clean prose', () => {
-        const payload = 'You are working on <VK-repo></VK-repo>, branch </VK-branch>.';
-        assert.strictEqual(resolveVars(payload, VARS), 'You are working on my-app, branch main.');
     });
 });
 
@@ -127,4 +95,139 @@ suite('webview vkWrap matches VK_TOKEN_RE', () => {
             assert.strictEqual(webviewTokenRe().test(token), false, `webview matched ${token}`);
         });
     }
+});
+
+suite('extractVars — token detection', () => {
+
+    // ── Positive matches ─────────────────────────────────────────────────────
+
+    test('single var returns one ParsedVar with the full token as name and empty defaultValue', () => {
+        const result = extractVars('<VK-items>');
+        assert.deepStrictEqual(result, [{ name: 'VK-items', defaultValue: '' }]);
+    });
+
+    test('multiple distinct vars in one string are all returned in order of first appearance', () => {
+        const result = extractVars('<VK-host> <VK-port> <VK-path>');
+        assert.deepStrictEqual(result, [
+            { name: 'VK-host',  defaultValue: '' },
+            { name: 'VK-port',  defaultValue: '' },
+            { name: 'VK-path',  defaultValue: '' },
+        ]);
+    });
+
+    test('repeated var is deduplicated — only the first occurrence is kept', () => {
+        const result = extractVars('<VK-items> and <VK-items> and <VK-items>');
+        assert.deepStrictEqual(result, [{ name: 'VK-items', defaultValue: '' }]);
+    });
+
+    test('camelCase hint <VK-myVar> is valid', () => {
+        const result = extractVars('<VK-myVar>');
+        assert.deepStrictEqual(result, [{ name: 'VK-myVar', defaultValue: '' }]);
+    });
+
+    test('UPPER_SNAKE_CASE hint <VK-MY_VAR> is valid', () => {
+        const result = extractVars('<VK-MY_VAR>');
+        assert.deepStrictEqual(result, [{ name: 'VK-MY_VAR', defaultValue: '' }]);
+    });
+
+    test('PascalCase hint <VK-MyComponent> is valid', () => {
+        const result = extractVars('<VK-MyComponent>');
+        assert.deepStrictEqual(result, [{ name: 'VK-MyComponent', defaultValue: '' }]);
+    });
+
+    test('mixed-casing vars in one string all extracted correctly', () => {
+        const result = extractVars('<VK-myVar> <VK-MY_VAR> <VK-MyComponent>');
+        assert.deepStrictEqual(result, [
+            { name: 'VK-myVar',       defaultValue: '' },
+            { name: 'VK-MY_VAR',      defaultValue: '' },
+            { name: 'VK-MyComponent', defaultValue: '' },
+        ]);
+    });
+
+    test('vars embedded in real JS code are all extracted', () => {
+        const code = 'const x = <VK-items>.filter(i => i.<VK-prop> === <VK-value>)';
+        const result = extractVars(code);
+        assert.deepStrictEqual(result, [
+            { name: 'VK-items', defaultValue: '' },
+            { name: 'VK-prop',  defaultValue: '' },
+            { name: 'VK-value', defaultValue: '' },
+        ]);
+    });
+
+    // ── Negative matches — nothing should be extracted ───────────────────────
+
+    test('plain HTML tags <div> and <span> produce no matches', () => {
+        assert.deepStrictEqual(
+            extractVars('<div><span>Hello</span></div>'),
+            [],
+        );
+    });
+
+    test('Vue-style components <v-btn> and <v-card> produce no matches', () => {
+        assert.deepStrictEqual(
+            extractVars('<v-btn @click="go"><v-card></v-card></v-btn>'),
+            [],
+        );
+    });
+
+    test('TypeScript generics Array<string> and Map<K,V> produce no matches', () => {
+        assert.deepStrictEqual(
+            extractVars('const a: Array<string> = []; const m: Map<K,V> = new Map();'),
+            [],
+        );
+    });
+
+    test('JSX component <MyComponent> produces no match', () => {
+        assert.deepStrictEqual(
+            extractVars('<MyComponent prop="val" />'),
+            [],
+        );
+    });
+
+    test('old {{variable}} placeholder syntax produces no matches', () => {
+        assert.deepStrictEqual(
+            extractVars('Hello {{name}}, your order {{orderId}} is ready.'),
+            [],
+        );
+    });
+
+    test('<VK> with no hyphen and no hint produces no match', () => {
+        assert.deepStrictEqual(extractVars('<VK>'), []);
+    });
+
+    test('<VK-> with empty hint produces no match', () => {
+        assert.deepStrictEqual(extractVars('<VK->'), []);
+    });
+
+    test('empty string returns empty array', () => {
+        assert.deepStrictEqual(extractVars(''), []);
+    });
+
+});
+
+// ── One owner ───────────────────────────────────────────────────────────────────
+
+/**
+ * `VK_TOKEN_RE` is token syntax for UI highlighting and live detection; a second
+ * declaration is a second dialect. Held in `render.service.ts`, nowhere else.
+ */
+suite('VK_TOKEN_RE has one declaration', () => {
+
+    /** Every `.ts` file under `dir`. */
+    function walk(dir: string): string[] {
+        return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) { return walk(full); }
+            return e.name.endsWith('.ts') ? [full] : [];
+        });
+    }
+
+    test('exactly one `VK_TOKEN_RE =` in comment-stripped src/, in services/render.service.ts', () => {
+        const src = path.join(__dirname, '..', '..', 'src');
+        const owners = walk(src)
+            .filter(f => /\bVK_TOKEN_RE\s*=/.test(
+                stripComments(fs.readFileSync(f, 'utf8'))))
+            .map(f => path.relative(src, f).split(path.sep).join('/'));
+        assert.deepStrictEqual(owners, ['services/render.service.ts']);
+    });
 });

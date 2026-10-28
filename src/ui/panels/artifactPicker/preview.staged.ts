@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import { confirmModal } from '../../../services/confirm.service.js';
 import { engineMeta } from '../../../engine/model.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';

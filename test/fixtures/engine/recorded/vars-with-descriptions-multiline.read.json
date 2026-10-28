@@ -1,0 +1,171 @@
+{
+  "filePath": "Variables/vars-with-descriptions-multiline.md",
+  "fileName": "vars-with-descriptions-multiline",
+  "relativePath": "vars-with-descriptions-multiline.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "JavaScript Array Domains",
+    "description": "Real-world collections for the JavaScript Array Utilities snippet — each sub-set names the array, the field to work on, a sample value and the result variable",
+    "language": "yaml VKs",
+    "tags": [
+      "javascript",
+      "array",
+      "utils",
+      "collections"
+    ]
+  },
+  "code": "VK-array: users\nVK-result: activeUsers\nVK-property: status\nVK-value: '\"active\"'",
+  "vars": [
+    {
+      "name": "VK-array",
+      "defaultValue": "users"
+    },
+    {
+      "name": "VK-result",
+      "defaultValue": "activeUsers"
+    },
+    {
+      "name": "VK-property",
+      "defaultValue": "status"
+    },
+    {
+      "name": "VK-value",
+      "defaultValue": "\"active\""
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Users",
+      "description": "Active users keyed by `status`; works for\nfilter, find, map, group and dedupe.",
+      "code": "VK-array: users\nVK-result: activeUsers\nVK-property: status\nVK-value: '\"active\"'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "users"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "activeUsers"
+        },
+        {
+          "name": "VK-property",
+          "defaultValue": "status"
+        },
+        {
+          "name": "VK-value",
+          "defaultValue": "\"active\""
+        }
+      ]
+    },
+    {
+      "heading": "Products",
+      "description": "A product catalogue grouped or filtered by `category`.",
+      "code": "VK-array: products\nVK-result: stationery\nVK-property: category\nVK-value: '\"stationery\"'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "products"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "stationery"
+        },
+        {
+          "name": "VK-property",
+          "defaultValue": "category"
+        },
+        {
+          "name": "VK-value",
+          "defaultValue": "\"stationery\""
+        }
+      ]
+    },
+    {
+      "heading": "Orders",
+      "description": "Orders summed or sorted by their numeric `total`.",
+      "code": "VK-array: orders\nVK-result: revenue\nVK-property: total\nVK-value: '100'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "orders"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "revenue"
+        },
+        {
+          "name": "VK-property",
+          "defaultValue": "total"
+        },
+        {
+          "name": "VK-value",
+          "defaultValue": "100"
+        }
+      ]
+    },
+    {
+      "heading": "Tasks",
+      "description": "A to-do list filtered by `priority`.",
+      "code": "VK-array: tasks\nVK-result: urgentTasks\nVK-property: priority\nVK-value: '\"high\"'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "tasks"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "urgentTasks"
+        },
+        {
+          "name": "VK-property",
+          "defaultValue": "priority"
+        },
+        {
+          "name": "VK-value",
+          "defaultValue": "\"high\""
+        }
+      ]
+    },
+    {
+      "heading": "API page",
+      "description": "Chunk an API response into pages of 25.",
+      "code": "VK-array: response.data\nVK-result: pages\nVK-size: '25'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "response.data"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "pages"
+        },
+        {
+          "name": "VK-size",
+          "defaultValue": "25"
+        }
+      ]
+    },
+    {
+      "heading": "Tags",
+      "description": "A flat array of strings — for Deduplicate primitives and Flatten one level.",
+      "code": "VK-array: tags\nVK-result: uniqueTags",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-array",
+          "defaultValue": "tags"
+        },
+        {
+          "name": "VK-result",
+          "defaultValue": "uniqueTags"
+        }
+      ]
+    }
+  ],
+  "hash": "50bbfaeb88dd5d93cef39a0d46f57a40f16733ee19bf3b902d7dc40337ff55ca"
+}

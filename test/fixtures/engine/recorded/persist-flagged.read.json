@@ -1,0 +1,41 @@
+{
+  "filePath": "AIPrompts/persist-flagged.md",
+  "fileName": "persist-flagged",
+  "relativePath": "persist-flagged.md",
+  "frontmatter": {
+    "artifactType": "AIPrompt",
+    "title": "Flagged",
+    "language": "markdown"
+  },
+  "code": "first",
+  "vars": [],
+  "blocks": [
+    {
+      "heading": "One",
+      "description": "",
+      "code": "first",
+      "fenceLang": "markdown",
+      "vars": []
+    },
+    {
+      "heading": "Two",
+      "description": "",
+      "code": "second",
+      "fenceLang": "markdown",
+      "vars": []
+    }
+  ],
+  "layout": {
+    "payload": "flags",
+    "regions": [
+      {
+        "name": "One",
+        "notes": "notes"
+      },
+      {
+        "name": "Two"
+      }
+    ]
+  },
+  "hash": "30eda061f65a4f12f0c00a902255815633ce693f6551633070621420762efad2"
+}

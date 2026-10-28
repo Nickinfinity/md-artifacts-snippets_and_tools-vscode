@@ -9,8 +9,8 @@ import { writesWholeFile, isTerminalOnly } from '../../../services/artifact-type
 // ── Var-merge helper ─────────────────────────────────────────────────────────
 
 /**
- * Three-tier resolution: user-typed value → defaultValue → omit (so `resolveVars`
- * leaves the `<VK-xxx>` token intact).
+ * Three-tier resolution: user-typed value → defaultValue → omit (so the engine's
+ * render leaves the `<VK-xxx>` token intact).
  *
  * @param raw  - Raw `{ name → value }` map collected from the webview inputs.
  * @param vars - Parsed vars from the artifact (each carries a `defaultValue`).

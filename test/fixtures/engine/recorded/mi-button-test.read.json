@@ -1,0 +1,20 @@
+{
+  "filePath": "Templates/mi/dir_2/subdir1/Button.test.md",
+  "fileName": "Button.test",
+  "relativePath": "mi/dir_2/subdir1/Button.test.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "title": "Button Test",
+    "language": "tsx",
+    "extension": ".tsx"
+  },
+  "code": "test('<VK-language> renders', () => {});",
+  "vars": [
+    {
+      "name": "VK-language",
+      "defaultValue": "python"
+    }
+  ],
+  "blocks": [],
+  "hash": "a6e5b9af062dc9c5bff26f96c5ab0ae466571c0b1dbd63871b72cf7afaf969eb"
+}

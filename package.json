@@ -828,43 +828,44 @@
           "type": "string",
           "default": "",
           "description": "%config.mdArtifacts.vaultPath.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%",
           "scope": "machine-overridable"
-        },
-        "mdArtifacts.defaultEnvironment": {
-          "type": "string",
-          "default": "",
-          "description": "%config.mdArtifacts.defaultEnvironment.description%",
-          "scope": "language-overridable"
         },
         "mdArtifacts.features.snippets": {
           "type": "boolean",
           "default": true,
-          "description": "%config.mdArtifacts.features.snippets.description%"
+          "description": "%config.mdArtifacts.features.snippets.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.features.aiagentsconf": {
           "type": "boolean",
           "default": true,
-          "description": "%config.mdArtifacts.features.aiagentsconf.description%"
+          "description": "%config.mdArtifacts.features.aiagentsconf.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.features.commands": {
           "type": "boolean",
           "default": false,
-          "description": "%config.mdArtifacts.features.commands.description%"
+          "description": "%config.mdArtifacts.features.commands.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.features.templates": {
           "type": "boolean",
           "default": false,
-          "description": "%config.mdArtifacts.features.templates.description%"
+          "description": "%config.mdArtifacts.features.templates.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.features.aiprompts": {
           "type": "boolean",
           "default": true,
-          "description": "%config.mdArtifacts.features.aiprompts.description%"
+          "description": "%config.mdArtifacts.features.aiprompts.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.features.variables": {
           "type": "boolean",
           "default": false,
-          "description": "%config.mdArtifacts.features.variables.description%"
+          "description": "%config.mdArtifacts.features.variables.description%",
+          "markdownDeprecationMessage": "%config.mdArtifacts.legacy.deprecated%"
         },
         "mdArtifacts.mainPane.previewWidthSteps": {
           "type": "number",

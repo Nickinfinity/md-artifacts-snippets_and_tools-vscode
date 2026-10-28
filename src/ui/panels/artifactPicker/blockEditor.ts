@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { parseFromContent } from '../../../services/parser.service.js';
-import { patchBlockCode, type BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { blockAsArtifact } from './preview.helpers.js';
 import { openScratchFile, disposeScratchFile } from '../../../services/scratch-file.service.js';
@@ -19,7 +18,7 @@ export const BLOCK_EDIT_SUBDIR = 'blockEdit';
 
 /** Callback bag the controller uses to push state back to the preview owner. */
 export interface BlockEditCallbacks {
-    /** Absolute filesystem path of the artifact root (passed to `parseFromContent`). */
+    /** Absolute filesystem path of the artifact root. */
     rootFs: string;
     /** Extension storage directory under which temp edit files are written. */
     storageUri: vscode.Uri;
@@ -44,8 +43,8 @@ export interface BlockEditCallbacks {
 /**
  * Opens a single code block as a real temp file in extension storage, giving the
  * user the full VS Code editor (highlighting, IntelliSense, formatting) scoped to
- * that one block. On explicit save the matching code fence in the source `.md` is
- * patched via `patchBlockCode`; on teardown the temp file is deleted.
+ * that one block. On explicit save the edited code is
+ * staged for the preview to Overwrite; on teardown the temp file is deleted.
  *
  * - Temp file lives at `<storageUri>/blockEdit/<slug>.<ext>` — never in the vault.
  * - Language is set explicitly with `setTextDocumentLanguage` (guarded by

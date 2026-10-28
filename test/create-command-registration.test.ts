@@ -2,7 +2,9 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { buildCreateCommandIds } from '../src/commands/create-from-surface.command.js';
+import { startVarsEngine } from './vars-engine.js';
+import { setSessionVault } from '../src/services/vault-watch.service.js';
+import { buildCreateCommandIds, createCommandId } from '../src/commands/create-from-surface.command.js';
 
 /**
  * Extension-host counterpart to `package-create-menus.test.ts`.
@@ -138,6 +140,25 @@ suite('create surface registration — extension host', () => {
 				source.includes(id) || new RegExp(`${constantName}`, 'i').test(source),
 				`${id} is contributed but extension.ts never names it — the view renders permanently empty with no error`,
 			);
+		}
+	});
+
+	// T5.5 sink: no session vault => handler returns; no engine request, no form tab.
+	test('no session vault: create command sends zero artifact.prefill and opens no form', async function () {
+		this.timeout(60_000);
+		await vscode.extensions.all.find(e => e.packageJSON?.name === 'md-artifacts-snippets-and-tools-vscode')?.activate();
+		const eng = startVarsEngine();
+		setSessionVault(undefined);
+		try {
+			await vscode.commands.executeCommand(createCommandId('Snippets'));
+			const formTabs = (): number => vscode.window.tabGroups.all.flatMap(g => g.tabs)
+				.filter(t => t.input instanceof vscode.TabInputWebview && t.input.viewType.includes('artifactForm')).length;
+			for (let i = 0; i < 40 && formTabs() === 0; i++) { await new Promise(r => setTimeout(r, 50)); }
+			assert.strictEqual(formTabs(), 0, 'a form opened without a session vault');
+			assert.strictEqual(eng.fake.received.filter(r => r.method === 'artifact.prefill').length, 0);
+		} finally {
+			await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+			eng.dispose();
 		}
 	});
 });

@@ -1,0 +1,36 @@
+{
+  "filePath": "Variables/fx-ve-one-heading.md",
+  "fileName": "fx-ve-one-heading",
+  "relativePath": "fx-ve-one-heading.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Lonely Heading",
+    "description": "Exactly one heading, still a blocks-shaped file",
+    "language": "yaml VKs",
+    "tags": [
+      "edge"
+    ]
+  },
+  "code": "VK-token: xyz",
+  "vars": [
+    {
+      "name": "VK-token",
+      "defaultValue": "xyz"
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Only",
+      "description": "",
+      "code": "VK-token: xyz",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-token",
+          "defaultValue": "xyz"
+        }
+      ]
+    }
+  ],
+  "hash": "5fa9b722f75f3df75f469cbb5fafd6bed09152f67a2901420e8bd2660d70230e"
+}

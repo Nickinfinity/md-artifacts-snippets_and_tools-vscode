@@ -3,12 +3,11 @@ import {
     resolveTemplateFileName,
     resolveAgentFileName,
     resolveOutputFileName,
-    validateSingleBlock,
 } from '../src/services/template.service.js';
 import type { ParsedArtifactFile, ParsedBlock } from '../src/types/parsed-artifact.types.js';
 
 /**
- * T2 — extension precedence (D3) + single-block guard (D1). Security-critical:
+ * T2 — extension precedence (D3). Security-critical:
  * `frontmatterExt` and `typed` are path-injection vectors and must **throw**,
  * never be sanitised (plan §5.2). The hostile table below is the whole point.
  */
@@ -91,11 +90,7 @@ suite('resolveTemplateFileName — path-injection is rejected, not sanitised', (
     }
 });
 
-// ── validateSingleBlock — single-block guard (D1) ─────────────────────────────
-
-function block(heading: string): ParsedBlock {
-    return { heading, description: '', code: 'x', fenceLang: 'ts', vars: [] };
-}
+// ── fixtures ──────────────────────────────────────────────────────────────────
 
 function parsedWith(blocks: ParsedBlock[]): ParsedArtifactFile {
     return {
@@ -173,24 +168,5 @@ suite('resolveOutputFileName', () => {
     test('a hostile frontmatter value throws through the dispatcher too', () => {
         assert.throws(() => resolveOutputFileName(artifactWith({ artifactType: 'AIAgentsConfig', target: '../../etc/passwd' })), /path separator/);
         assert.throws(() => resolveOutputFileName(artifactWith({ artifactType: 'Template', extension: '../x' })), /path separator/);
-    });
-});
-
-suite('validateSingleBlock', () => {
-
-    test('a single-block file (empty blocks array) is ok', () => {
-        assert.deepStrictEqual(validateSingleBlock(parsedWith([])), { ok: true });
-    });
-
-    test('exactly one ## block is ok', () => {
-        assert.deepStrictEqual(validateSingleBlock(parsedWith([block('One')])), { ok: true });
-    });
-
-    test('two or more blocks is rejected with the count named', () => {
-        const res = validateSingleBlock(parsedWith([block('One'), block('Two'), block('Three')]));
-        assert.strictEqual(res.ok, false);
-        if (!res.ok) {
-            assert.ok(res.reason.includes('3'), `reason should name the block count, got: ${res.reason}`);
-        }
     });
 });

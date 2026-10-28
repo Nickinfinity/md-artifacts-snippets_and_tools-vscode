@@ -1,6 +1,4 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { handleViewInfo } from '../src/commands/variables-info.command.js';
 import { handleAddVar } from '../src/commands/variables.command.js';
@@ -8,7 +6,7 @@ import type { CommandIO } from '../src/commands/variables.command.helpers.js';
 import { renderInfoHtml } from '../src/ui/panels/infoPanel/infoPanel.render.js';
 import { VariablesViewProvider, type VariableNode } from '../src/ui/views/variablesView.provider.js';
 import type { InfoModel } from '../src/types/info.types.js';
-import { useVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
+import { useVarsEngine, recordedSource, VAULT, type VarsEngine } from './vars-engine.js';
 
 /**
  * View Info — the artifact-agnostic summary popup (`types/info.types.ts` +
@@ -17,7 +15,7 @@ import { useVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
  * exactly the model the popup would render.
  */
 
-const FIXTURE = fs.readFileSync(path.join(__dirname, '../../test/fixtures/vars-edit/with-descriptions.md'), 'utf8');
+const FIXTURE = recordedSource('vars-with-descriptions');
 
 let eng: () => VarsEngine;
 /** Serves `content` as `Variables/x.md`; the tree node id carries its absolute path. */
@@ -68,7 +66,7 @@ suite('View Info (engine)', () => {
         });
 
         test('a one-block set lists its variables without a sub-set level', async () => {
-            const flat = '---\nartifactType: Variables\ntitle: Local\n---\n\n```vks\nVK-host=localhost\n```\n';
+            const flat = recordedSource('vars-local');
             const m = await infoFor(f => ({ id: f, parentId: null, kind: 'file', label: 'x', shape: 'flat' }), flat);
             assert.strictEqual(m.fields[0].value, 'One list of variables, no sub-sets');
             assert.deepStrictEqual(m.sections.map(s => [s.heading, s.fields.length]), [['Variables', 1]]);
@@ -100,7 +98,7 @@ suite('View Info (engine)', () => {
 
     suite('Create rules — Add Variable on a blank set', () => {
         test('the right-click Add Variable on a blank file sends vars.var.add with no subset (the engine makes it a one-block file)', async () => {
-            const content = '---\nartifactType: Variables\ntitle: New\n---\n';
+            const content = recordedSource('vars-blank-new');
             const { root, file } = vault(content);
             const answers = ['host', 'localhost'];
             const bag: CommandIO = { ...quiet, showInputBox: () => Promise.resolve(answers.shift()) };

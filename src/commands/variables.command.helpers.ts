@@ -172,13 +172,13 @@ export function at<T>(arr: readonly T[], i: number | undefined): T | undefined {
  * mutators, never a heading):
  *
  * - `blank` → no blocks.
- * - `flat`  → one block headed `''`. It must stay untitled: the serializer
+ * - `flat`  → one block headed `''`. It must stay untitled: the engine's writer
  *   writes a `## ` heading for any single block that has one, so the set's
  *   title used to leak in here and every pane edit silently turned a
  *   one-block file into a titled sub-set.
  * - `sets`  → one block per `## ` sub-set.
  *
- * @param parsed - Result of `parseArtifactFile`/`parseFromContent` for an `artifactType: Variables` file.
+ * @param parsed - The engine's `artifact.read` result for an `artifactType: Variables` file.
  * @returns Equivalent `ArtifactFormModel`, ready for the T14 mutators.
  *
  * @example
@@ -300,8 +300,8 @@ type VarsEditMethod = Extract<WriteMethod, `vars.${'meta' | 'subset' | 'var'}.${
  * here before touching disk.
  *
  * `vaultRoot` is a parameter, not read from `vscode.workspace.getConfiguration`
- * in here — matching how every writer in this codebase (`writeArtifact`,
- * `writeVariablesFile`) takes it explicitly rather than re-reading global
+ * in here — matching how every writer in this codebase (the engine-backed
+ * write path) takes it explicitly rather than re-reading global
  * config, and the only thing that makes this function testable against a
  * temp-directory vault instead of the real, process-wide configured one.
  *

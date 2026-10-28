@@ -98,7 +98,7 @@ export async function runMigrateFrontmatter(confirm: (n: number) => Promise<bool
 /**
  * Registers the `md-artifacts.migrateFrontmatter` command.
  *
- * Every invocation starts with a dry run: `planMigration` is read-only, and
+ * Every invocation starts with a dry run: the engine's migration plan is read-only, and
  * its report is printed to the `'MD Artifacts: Migration'` output
  * channel before anything is written. Applying requires the user to accept an
  * explicit modal confirmation naming the file count — dismissing it (Cancel

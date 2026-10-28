@@ -1,0 +1,18 @@
+{
+  "filePath": "AIAgentsConf/edit-4.md",
+  "fileName": "edit-4",
+  "relativePath": "edit-4.md",
+  "frontmatter": {
+    "artifactType": "AIAgentsConfig",
+    "title": "Claude",
+    "language": "markdown",
+    "target": "CLAUDE.md",
+    "provider": "anthropic",
+    "model": "opus",
+    "version": "1.0"
+  },
+  "code": "# Rules",
+  "vars": [],
+  "blocks": [],
+  "hash": "89f65b9fbdbb7fe4eb29d2829307b8faa382726fd9b4b06cacf5abf5dc27883d"
+}

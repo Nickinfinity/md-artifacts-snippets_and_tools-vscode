@@ -1,17 +1,12 @@
 import * as assert from 'node:assert';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import * as vscode from 'vscode';
 import { handleAddVar, handleNewSubSet } from '../src/commands/variables.command.js';
 import { handleAddToBlank } from '../src/commands/variables-add-blank.command.js';
 import type { CommandIO } from '../src/commands/variables.command.helpers.js';
-import { addSubSet, uniqueDefaultName, DEFAULT_SUBSET_NAME } from '../src/services/variables-crud.service.js';
 import { getVarsFileShape } from '../src/services/varset.service.js';
-import { parseArtifactFile } from '../src/services/parser.service.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
 import { VariablesViewProvider, buildVariableNodes, type VariableNode } from '../src/ui/views/variablesView.provider.js';
-import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
-import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
+import { startVarsEngine, recordedSource, VAULT, type VarsEngine } from './vars-engine.js';
+import { recordedRead } from './recorded.js';
 
 /**
  * The three Variables file shapes — blank, flat (one untitled block), sets
@@ -20,18 +15,8 @@ import { startVarsEngine, VAULT, type VarsEngine } from './vars-engine.js';
  * expected file on disk + expected pane rows.
  */
 
-const HEADER = '---\nartifactType: Variables\ntitle: Local Dev\n---\n';
-const FLAT   = `${HEADER}\n\`\`\`vks\nVK-host=localhost\n\`\`\`\n`;
-const TITLED = `${HEADER}\n## Dev\n\n\`\`\`vks\nVK-host=localhost\n\`\`\`\n`;
-
-function vaultWith(content: string): { root: vscode.Uri; file: string; dir: string } {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vars-shapes-'));
-    const dir = path.join(root, 'Variables');
-    fs.mkdirSync(dir);
-    const file = path.join(dir, 'local.md');
-    fs.writeFileSync(file, content, 'utf8');
-    return { root: vscode.Uri.file(root), file, dir };
-}
+const HEADER = recordedSource('vars-blank-localdev');
+const FLAT = recordedSource('vars-flat');
 
 /** Canned IO: queued input-box answers, a fixed quick-pick index, captured errors. */
 function io(inputs: (string | undefined)[], pick?: number): { io: CommandIO; errors: string[] } {
@@ -47,32 +32,30 @@ function io(inputs: (string | undefined)[], pick?: number): { io: CommandIO; err
     };
 }
 
-function rows(file: string, dir: string): [string, string][] {
-    const parsed = parseArtifactFile(file, dir)!;
-    return buildVariableNodes([parsed]).map(n => [n.kind, n.label]);
+/** The pane rows for a recorded engine read — the shape the engine reported, adapted at the one edge. */
+function rows(name: string): [string, string][] {
+    return buildVariableNodes([toParsedArtifactFile(recordedRead(name), VAULT.fsPath)]).map(n => [n.kind, n.label]);
 }
+const shapeOf = (name: string): string => getVarsFileShape(toParsedArtifactFile(recordedRead(name), VAULT.fsPath));
 
 function fileNode(file: string, shape: VariableNode['shape']): VariableNode {
     return { id: file, parentId: null, kind: 'file', label: 'Local Dev', shape };
 }
 
-suite('Variables file shapes — classification and pane rows', () => {
+suite('Variables file shapes — classification and pane rows (recorded engine reads)', () => {
     test('blank: header only → just the file row', () => {
-        const { file, dir } = vaultWith(HEADER);
-        assert.strictEqual(getVarsFileShape(parseArtifactFile(file, dir)!), 'blank');
-        assert.deepStrictEqual(rows(file, dir), [['file', 'Local Dev']]);
+        assert.strictEqual(shapeOf('vars-blank-localdev'), 'blank');
+        assert.deepStrictEqual(rows('vars-blank-localdev'), [['file', 'Local Dev']]);
     });
 
     test('flat: one untitled block → variables straight under the file', () => {
-        const { file, dir } = vaultWith(FLAT);
-        assert.strictEqual(getVarsFileShape(parseArtifactFile(file, dir)!), 'flat');
-        assert.deepStrictEqual(rows(file, dir), [['file', 'Local Dev'], ['var', 'VK-host = localhost']]);
+        assert.strictEqual(shapeOf('vars-flat'), 'flat');
+        assert.deepStrictEqual(rows('vars-flat'), [['file', 'Local Dev'], ['var', 'VK-host = localhost']]);
     });
 
     test('sets: a single TITLED sub-set is still listed as a sub-set', () => {
-        const { file, dir } = vaultWith(TITLED);
-        assert.strictEqual(getVarsFileShape(parseArtifactFile(file, dir)!), 'sets');
-        assert.deepStrictEqual(rows(file, dir), [['file', 'Local Dev'], ['subset', 'Dev'], ['var', 'VK-host = localhost']]);
+        assert.strictEqual(shapeOf('vars-titled-dev'), 'sets');
+        assert.deepStrictEqual(rows('vars-titled-dev'), [['file', 'Local Dev'], ['subset', 'Dev'], ['var', 'VK-host = localhost']]);
     });
 });
 
@@ -114,26 +97,5 @@ suite('Variables file shapes — transitions from the pane (requests; the shape 
         const file = eng.serve('Variables/local.md', FLAT);
         await handleNewSubSet(fileNode(file, 'flat'), new VariablesViewProvider(), io(['Prod']).io, VAULT);
         assert.deepStrictEqual(sent('vars.subset.add'), [{ path: 'Variables/local.md', expectedHash: eng.hashOf(FLAT), heading: 'Prod' }]);
-    });
-});
-
-suite('Variables file shapes — the naming rule (addSubSet)', () => {
-    const model = (blocks: { heading: string; vars?: { name: string; defaultValue: string }[] }[]): ArtifactFormModel => ({
-        artifactType: 'Variables', title: 'T', description: '', tags: [],
-        blocks: blocks.map(b => ({ heading: b.heading, description: '', language: '', code: '', vars: b.vars ?? [] })),
-    });
-
-    test('an untitled sole block is named Default; a new "Default" pushes it to "Default 2"', () => {
-        assert.deepStrictEqual(addSubSet(model([{ heading: '' }]), 'Prod').blocks.map(b => b.heading), ['Default', 'Prod']);
-        assert.deepStrictEqual(addSubSet(model([{ heading: '' }]), 'Default').blocks.map(b => b.heading), ['Default 2', 'Default']);
-    });
-
-    test('a titled sole block and a blank model are left alone', () => {
-        assert.deepStrictEqual(addSubSet(model([{ heading: 'Dev' }]), 'Prod').blocks.map(b => b.heading), ['Dev', 'Prod']);
-        assert.deepStrictEqual(addSubSet(model([]), 'Prod').blocks.map(b => b.heading), ['Prod']);
-    });
-
-    test('uniqueDefaultName skips taken numbers', () => {
-        assert.strictEqual(uniqueDefaultName(['Default', 'Default 2']), 'Default 3');
     });
 });

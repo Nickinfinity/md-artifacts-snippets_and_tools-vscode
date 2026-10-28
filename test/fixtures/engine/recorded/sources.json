@@ -1,0 +1,356 @@
+[
+ {
+  "name": "vars-flat",
+  "path": "Variables/vars-flat.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Local Dev",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-host",
+       "defaultValue": "localhost"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-sets",
+  "path": "Variables/vars-sets.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Env Bundle",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "Dev",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-host",
+       "defaultValue": "localhost"
+      }
+     ]
+    },
+    {
+     "heading": "Prod",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-host",
+       "defaultValue": "prod.example.com"
+      },
+      {
+       "name": "VK-port",
+       "defaultValue": "443"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-users",
+  "path": "Variables/vars-users.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Users",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-array",
+       "defaultValue": "users"
+      },
+      {
+       "name": "VK-result",
+       "defaultValue": "activeUsers"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-users-empty",
+  "path": "Variables/vars-users-empty.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Users",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-a",
+       "defaultValue": ""
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-local",
+  "path": "Variables/vars-local.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Local",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-host",
+       "defaultValue": "localhost"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-envs",
+  "path": "Variables/vars-envs.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Envs",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "Dev",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-a",
+       "defaultValue": "1"
+      }
+     ]
+    },
+    {
+     "heading": "Prod",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-a",
+       "defaultValue": "1"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-titled-dev",
+  "path": "Variables/vars-titled-dev.md",
+  "model": {
+   "artifactType": "Variables",
+   "title": "Local Dev",
+   "description": "",
+   "tags": [],
+   "blocks": [
+    {
+     "heading": "Dev",
+     "description": "",
+     "language": "",
+     "code": "",
+     "vars": [
+      {
+       "name": "VK-host",
+       "defaultValue": "localhost"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "vars-blank-new",
+  "path": "Variables/vars-blank-new.md",
+  "md": "---\nartifactType: Variables\ntitle: New\n---\n"
+ },
+ {
+  "name": "vars-blank-localdev",
+  "path": "Variables/vars-blank-localdev.md",
+  "md": "---\nartifactType: Variables\ntitle: Local Dev\n---\n"
+ },
+ {
+  "name": "shape-empty-flat",
+  "path": "Variables/shape-empty-flat.md",
+  "md": "---\nartifactType: Variables\ntitle: Empty\n---\n\n```yaml VKs\n```\n"
+ },
+ {
+  "name": "shape-empty-set",
+  "path": "Variables/shape-empty-set.md",
+  "md": "---\nartifactType: Variables\ntitle: Empty Set\n---\n\n## Empty\n\n```yaml VKs\n```\n"
+ },
+ {
+  "name": "ve-flat",
+  "path": "Variables/ve-flat.md",
+  "md": "---\nartifactType: Variables\ntitle: Flat\n---\n\n```yaml VKs\nVK-host: localhost\n```\n"
+ },
+ {
+  "name": "vars-with-descriptions",
+  "path": "Variables/vars-with-descriptions.md",
+  "md": "---\nartifactType: Variables\ntitle: JavaScript Array Domains\ndescription: Real-world collections for the JavaScript Array Utilities snippet — each sub-set names the array, the field to work on, a sample value and the result variable\ntags:\n  - javascript\n  - array\n  - utils\n  - collections\n---\n\n## Users\nActive users keyed by `status`; works for filter, find, map, group and dedupe.\n\n```yaml VKs\nVK-array: users\nVK-result: activeUsers\nVK-property: status\nVK-value: '\"active\"'\n```\n\n## Products\nA product catalogue grouped or filtered by `category`.\n\n```yaml VKs\nVK-array: products\nVK-result: stationery\nVK-property: category\nVK-value: '\"stationery\"'\n```\n\n## Orders\nOrders summed or sorted by their numeric `total`.\n\n```yaml VKs\nVK-array: orders\nVK-result: revenue\nVK-property: total\nVK-value: '100'\n```\n\n## Tasks\nA to-do list filtered by `priority`.\n\n```yaml VKs\nVK-array: tasks\nVK-result: urgentTasks\nVK-property: priority\nVK-value: '\"high\"'\n```\n\n## API page\nChunk an API response into pages of 25.\n\n```yaml VKs\nVK-array: response.data\nVK-result: pages\nVK-size: '25'\n```\n\n## Tags\nA flat array of strings — for Deduplicate primitives and Flatten one level.\n\n```yaml VKs\nVK-array: tags\nVK-result: uniqueTags\n```\n",
+  "converted": true
+ },
+ {
+  "name": "vars-with-descriptions-multiline",
+  "path": "Variables/vars-with-descriptions-multiline.md",
+  "from": "vars-with-descriptions",
+  "replace": [
+   "works for filter",
+   "works for\nfilter"
+  ]
+ },
+ {
+  "name": "fx-ve-one-heading",
+  "path": "Variables/fx-ve-one-heading.md",
+  "md": "---\nartifactType: Variables\ntitle: Lonely Heading\ndescription: Exactly one heading, still a blocks-shaped file\ntags:\n  - edge\n---\n\n## Only\n\n```yaml VKs\nVK-token: xyz\n```\n",
+  "converted": true
+ },
+ {
+  "name": "fx-ve-single-subset",
+  "path": "Variables/fx-ve-single-subset.md",
+  "md": "---\nartifactType: Variables\ntitle: Solo\ndescription: A single, heading-less variable set\ntags:\n  - solo\n---\n\n```yaml VKs\nVK-api_key: abc123\nVK-region: us-east-1\n```\n",
+  "converted": true
+ },
+ {
+  "name": "fx-ve-with-env",
+  "path": "Variables/fx-ve-with-env.md",
+  "md": "---\nartifactType: Variables\ntitle: Bundles\ndescription: Per-environment settings\nenv: staging\ntags:\n  - api\n  - dev\n---\n\n## Dev\n\n```yaml VKs\nVK-host: localhost\nVK-port: '3000'\n```\n\n## Prod\n\n```yaml VKs\nVK-host: prod.example.com\nVK-port: '443'\n```\n",
+  "converted": true
+ },
+ {
+  "name": "snippet-demo",
+  "path": "Snippets/snippet-demo.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\nlanguage: bash\n---\n\n```bash\necho hi\n```\n"
+ },
+ {
+  "name": "persist-single",
+  "path": "Snippets/persist-single.md",
+  "md": "---\nartifactType: Snippet\ntitle: Solo\nlanguage: ts\n---\n\n```ts\nlet a = 1;\n```\n"
+ },
+ {
+  "name": "persist-multi",
+  "path": "AIAgentsConf/persist-multi.md",
+  "md": "---\nartifactType: AIAgentsConfig\ntitle: Multi\n---\n\n## One\n\n```bash\necho one\n```\n\n## Two\n\n```bash\necho 2\n```\n"
+ },
+ {
+  "name": "persist-flagged",
+  "path": "AIPrompts/persist-flagged.md",
+  "md": "---\nartifactType: AIPrompt\ntitle: Flagged\n---\n\nnotes\n\n%%oa:start One%%\nfirst\n%%oa:end%%\n\n%%oa:start Two%%\nsecond\n%%oa:end%%\n"
+ },
+ {
+  "name": "edit-1",
+  "path": "Snippets/edit-1.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\ndescription: A demo snippet.\nlanguage: typescript\ntags: [a, b]\n---\n\n```typescript\nconst answer = 42;\n```\n"
+ },
+ {
+  "name": "edit-2",
+  "path": "Snippets/edit-2.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\ndescription: A demo snippet.\nlanguage: typescript\ntags: [a, b]\n---\n\n```typescript\nconst answer = 42;\n```\n"
+ },
+ {
+  "name": "edit-3",
+  "path": "Snippets/edit-3.md",
+  "md": "---\nartifactType: Snippet\ntitle: Two\nlanguage: bash\n---\n\n## Development\n\nLocal dev.\n\n```bash\nnpm run dev\n```\n\n## Production\n\n```bash\nnpm run build\n```\n"
+ },
+ {
+  "name": "edit-4",
+  "path": "AIAgentsConf/edit-4.md",
+  "md": "---\nartifactType: AIAgentsConfig\ntitle: Claude\ntarget: CLAUDE.md\nprovider: anthropic\nmodel: opus\nversion: 1.0\n---\n\n```markdown\n# Rules\n```\n"
+ },
+ {
+  "name": "buttons-1",
+  "path": "Snippets/buttons-1.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\nlanguage: typescript\n---\n\n```typescript\nconst answer = 42;\n```\n"
+ },
+ {
+  "name": "buttons-2",
+  "path": "Snippets/buttons-2.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\nlanguage: typescript\n---\n\n```typescript\nconst host = \"<VK-host>\";\n```\n\nvars:\n```yaml VKs\nVK-host: localhost\n```\n",
+  "converted": true
+ },
+ {
+  "name": "availability-1",
+  "path": "Snippets/availability-1.md",
+  "md": "---\nartifactType: Snippet\ntitle: Demo\nlanguage: typescript\n---\n\n```typescript\nconst answer = 42;\n```\n"
+ },
+ {
+  "name": "availability-2",
+  "path": "Commands/availability-2.md",
+  "md": "---\nartifactType: Command\ntitle: Deploy\nlanguage: bash\n---\n\n```bash\nnpm run deploy\n```\n"
+ },
+ {
+  "name": "availability-3",
+  "path": "Templates/availability-3.md",
+  "md": "---\nartifactType: Template\ntitle: Readme\nlanguage: markdown\nextension: md\n---\n\n```markdown\n# Title\n```\n"
+ },
+ {
+  "name": "mi-index",
+  "path": "Templates/mi/index.md",
+  "md": "---\nartifactType: Template\nlanguage: markdown\n---\n\n```markdown\n1. [[dir_2/subdir1/Button]]\n2. [T](dir_2/subdir1/Button.test.md)\n3. [[../escape]]\n4. [[dir_1/barrel]]\n```\n",
+  "converted": true
+ },
+ {
+  "name": "mi-hostile-index",
+  "path": "Templates/mi/hostile-index.md",
+  "md": "---\nartifactType: Template\nlanguage: markdown\n---\n\n```markdown\n[[dir_2/subdir1/Button]]\n[[../../etc/passwd]]\n[[/etc/passwd]]\n```\n",
+  "converted": true
+ },
+ {
+  "name": "mi-barrel",
+  "path": "Templates/mi/dir_1/barrel.md",
+  "md": "---\nartifactType: Template\ntitle: Barrel\nlanguage: ts\nextension: .ts\n---\n\n```ts\nexport * from './Button';\n```\n",
+  "converted": true
+ },
+ {
+  "name": "mi-button",
+  "path": "Templates/mi/dir_2/subdir1/Button.md",
+  "md": "---\nartifactType: Template\ntitle: Button\nlanguage: tsx\nextension: .tsx\n---\n\n```tsx\nexport const Button = () => console.log('<VK-language>');\n```\n\nvars:\n```yaml VKs\nVK-language: javascript\n```\n",
+  "converted": true
+ },
+ {
+  "name": "mi-button-test",
+  "path": "Templates/mi/dir_2/subdir1/Button.test.md",
+  "md": "---\nartifactType: Template\ntitle: Button Test\nlanguage: tsx\nextension: .tsx\n---\n\n```tsx\ntest('<VK-language> renders', () => {});\n```\n\nvars:\n```yaml VKs\nVK-language: python\n```\n",
+  "converted": true
+ }
+]

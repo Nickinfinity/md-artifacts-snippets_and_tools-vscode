@@ -1,0 +1,4 @@
+---
+artifactType: Variables
+title: New
+---

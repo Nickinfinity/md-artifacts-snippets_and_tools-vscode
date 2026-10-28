@@ -1,0 +1,48 @@
+{
+  "filePath": "Variables/vars-sets.md",
+  "fileName": "vars-sets",
+  "relativePath": "vars-sets.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Env Bundle",
+    "language": "yaml VKs"
+  },
+  "code": "VK-host: localhost",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Dev",
+      "description": "",
+      "code": "VK-host: localhost",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-host",
+          "defaultValue": "localhost"
+        }
+      ]
+    },
+    {
+      "heading": "Prod",
+      "description": "",
+      "code": "VK-host: prod.example.com\nVK-port: '443'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-host",
+          "defaultValue": "prod.example.com"
+        },
+        {
+          "name": "VK-port",
+          "defaultValue": "443"
+        }
+      ]
+    }
+  ],
+  "hash": "cb2ef38ef1d7b197913ee5a926b447c9a47262c85ebce8b278505921165b12cd"
+}

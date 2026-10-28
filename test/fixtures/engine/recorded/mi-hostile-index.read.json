@@ -1,0 +1,13 @@
+{
+  "filePath": "Templates/mi/hostile-index.md",
+  "fileName": "hostile-index",
+  "relativePath": "mi/hostile-index.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "language": "markdown"
+  },
+  "code": "[[dir_2/subdir1/Button]]\n[[../../etc/passwd]]\n[[/etc/passwd]]",
+  "vars": [],
+  "blocks": [],
+  "hash": "ef60be69912f7597ee4724860a8c54bf6a1ab1779cfbbc0f75bb3ee5b202682c"
+}

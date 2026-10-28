@@ -1,0 +1,15 @@
+{
+  "filePath": "Templates/mi/dir_1/barrel.md",
+  "fileName": "barrel",
+  "relativePath": "mi/dir_1/barrel.md",
+  "frontmatter": {
+    "artifactType": "Template",
+    "title": "Barrel",
+    "language": "ts",
+    "extension": ".ts"
+  },
+  "code": "export * from './Button';",
+  "vars": [],
+  "blocks": [],
+  "hash": "d2019689923dc5b6c5f784e6c835fc3de3d5058601faba5bd001db23e02decc7"
+}

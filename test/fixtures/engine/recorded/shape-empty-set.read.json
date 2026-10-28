@@ -1,0 +1,22 @@
+{
+  "filePath": "Variables/shape-empty-set.md",
+  "fileName": "shape-empty-set",
+  "relativePath": "shape-empty-set.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Empty Set",
+    "language": "yaml VKs"
+  },
+  "code": "",
+  "vars": [],
+  "blocks": [
+    {
+      "heading": "Empty",
+      "description": "",
+      "code": "",
+      "fenceLang": "yaml VKs",
+      "vars": []
+    }
+  ],
+  "hash": "a194a61780ff75de4ef3cbefe20257346169effb639a2c1c6aa2d641079b4402"
+}

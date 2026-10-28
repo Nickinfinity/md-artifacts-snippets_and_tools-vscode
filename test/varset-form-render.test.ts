@@ -105,7 +105,6 @@ suite('handleVarSetFormMessage — callback-bag contract', () => {
     } {
         const calls = { write: [] as unknown[], post: [] as unknown[], closed: false };
         const bag: VarSetFormCallbacks = {
-            validate: () => ({ ok: true }),
             write: async (p) => { calls.write.push(p); return true; },
             post: (msg) => { calls.post.push(msg); },
             close: () => { calls.closed = true; },
@@ -125,13 +124,5 @@ suite('handleVarSetFormMessage — callback-bag contract', () => {
         const { bag, calls } = makeBag();
         await handleVarSetFormMessage({ command: 'save', payload }, bag);
         assert.strictEqual(calls.write.length, 1);
-    });
-
-    test('an invalid save calls write zero times and posts the failure reason', async () => {
-        const { bag, calls } = makeBag({ validate: () => ({ ok: false, reason: 'bad title' }) });
-        await handleVarSetFormMessage({ command: 'save', payload }, bag);
-        assert.strictEqual(calls.write.length, 0, 'write must not run when validate fails');
-        assert.strictEqual(calls.post.length, 1);
-        assert.deepStrictEqual(calls.post[0], { command: 'saveFailed', reason: 'bad title' });
     });
 });

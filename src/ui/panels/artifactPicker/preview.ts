@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { writesWholeFile, isTerminalOnly } from '../../../services/artifact-type-config.service.js';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import { PreviewModeController, type SectionKey } from '../../../services/preview-mode.service.js';
 import type { ParsedArtifactFile } from '../../../types/parsed-artifact.types.js';
 import { out } from './shared.js';

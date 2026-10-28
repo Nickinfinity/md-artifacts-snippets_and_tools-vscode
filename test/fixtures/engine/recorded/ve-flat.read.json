@@ -1,0 +1,19 @@
+{
+  "filePath": "Variables/ve-flat.md",
+  "fileName": "ve-flat",
+  "relativePath": "ve-flat.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Flat",
+    "language": "yaml VKs"
+  },
+  "code": "VK-host: localhost",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [],
+  "hash": "a9cd89cc7d3e4d4a82dcfc502b1389334852ea03ed77a65bb165f3d9e565bc81"
+}

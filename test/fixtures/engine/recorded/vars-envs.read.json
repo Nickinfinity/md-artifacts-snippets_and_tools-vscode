@@ -1,0 +1,44 @@
+{
+  "filePath": "Variables/vars-envs.md",
+  "fileName": "vars-envs",
+  "relativePath": "vars-envs.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Envs",
+    "language": "yaml VKs"
+  },
+  "code": "VK-a: '1'",
+  "vars": [
+    {
+      "name": "VK-a",
+      "defaultValue": "1"
+    }
+  ],
+  "blocks": [
+    {
+      "heading": "Dev",
+      "description": "",
+      "code": "VK-a: '1'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-a",
+          "defaultValue": "1"
+        }
+      ]
+    },
+    {
+      "heading": "Prod",
+      "description": "",
+      "code": "VK-a: '1'",
+      "fenceLang": "yaml VKs",
+      "vars": [
+        {
+          "name": "VK-a",
+          "defaultValue": "1"
+        }
+      ]
+    }
+  ],
+  "hash": "1d2c058f73d7df7b27c0367af2fa0e5fbf7c505fba96c9a18b0159b2c92fdda9"
+}

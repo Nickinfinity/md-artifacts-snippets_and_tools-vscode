@@ -4,7 +4,7 @@ import type { ArtifactsArray } from './artifact.types.js';
  * All Obsidian vault artifact directories known to this extension.
  *
  * Each entry drives four things simultaneously:
- *  1. Which vault directories are created / detected (vault.service.ts)
+ *  1. Which vault directories are created / detected (the engine's `types.list` / `vault.inspect`)
  *  2. Which VS Code context keys are set (context.service.ts)
  *  3. Which insert commands are registered and where they appear (insert.command.ts + package.json)
  *  4. Per-type create-form behaviour — language mode, label, multi-block (artifact-type-config.service.ts)
@@ -109,9 +109,9 @@ export const ARTIFACTS: ArtifactsArray = [
 		contexts: ['editor', 'terminal'],
 		createForm: true,
 		form: {
-			// The payload is flagged markdown (the syntax `flags.service.ts`
-			// owns), so there is no language to pick — that service already
-			// defaults it to markdown.
+			// The payload is flagged markdown (the syntax the engine owns), so
+			// there is no language to pick — the engine already defaults it
+			// to markdown.
 			language: { mode: 'hidden', default: 'markdown' },
 			label: { singular: 'AI prompt' },
 			// Flags' named regions already become ParsedBlocks; no new UI needed.

@@ -105,16 +105,16 @@ export function buildFilePrefill(
  * writes is carried back so a round trip through the form is lossless for the
  * fields the form owns. A multi-block file maps one `ParsedBlock` per form
  * block; a single-block file yields exactly one block with an empty heading,
- * which is the shape `serializeArtifact` reads to choose the output form.
+ * which is the shape the engine's writer reads to choose the output form.
  *
  * Pure and `vscode`-free like its sibling builders — the caller reads and
  * parses the file.
  *
- * @param parsed - The artifact as `parser.service` produced it.
+ * @param parsed - The artifact as the engine's `artifact.read` returned it.
  * @returns A prefill carrying the artifact's current content.
  *
  * @example
- * artifactToFormModel(parseArtifactFile('/v/Snippets/demo.md')).title // → 'Demo'
+ * artifactToFormModel(parsedDemo).title // → 'Demo'  (parsedDemo: an `artifact.read` reply)
  */
 export function artifactToFormModel(parsed: ParsedArtifactFile): Partial<ArtifactFormModel> {
     const fm = parsed.frontmatter;

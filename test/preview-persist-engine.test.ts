@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { getEngine } from '../src/engine/engine.vscode.js';
 import { toParsedArtifactFile } from '../src/engine/adapt.js';
 import { blockAsArtifact, persistBlockCode } from '../src/ui/panels/artifactPicker/preview.helpers.js';
-import type { BlockRef } from '../src/services/artifact-patcher.service.js';
+import type { BlockRef } from '../src/ui/panels/artifactPicker/preview.types.js';
 import { useVarsEngine } from './vars-engine.js';
 
 const MULTI = '---\nartifactType: AIAgentsConfig\ntitle: Multi\n---\n\n## One\n\n```bash\necho one\n```\n\n## Two\n\n```bash\necho 2\n```\n';

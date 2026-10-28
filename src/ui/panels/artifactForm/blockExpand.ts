@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { openScratchFile, disposeScratchFile } from '../../../services/scratch-file.service.js';
 import { extForLang, normalizeLangId } from '../../../services/language-map.service.js';
-import { slugify } from '../../../services/filename.service.js';
+import { slugify } from '../../../services/scratch-file.service.js';
 import type { ArtifactFormBlock } from '../../../types/artifact-form.types.js';
 import { out } from './shared.js';
 

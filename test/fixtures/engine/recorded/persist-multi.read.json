@@ -1,0 +1,29 @@
+{
+  "filePath": "AIAgentsConf/persist-multi.md",
+  "fileName": "persist-multi",
+  "relativePath": "persist-multi.md",
+  "frontmatter": {
+    "artifactType": "AIAgentsConfig",
+    "title": "Multi",
+    "language": "bash"
+  },
+  "code": "echo one",
+  "vars": [],
+  "blocks": [
+    {
+      "heading": "One",
+      "description": "",
+      "code": "echo one",
+      "fenceLang": "bash",
+      "vars": []
+    },
+    {
+      "heading": "Two",
+      "description": "",
+      "code": "echo 2",
+      "fenceLang": "bash",
+      "vars": []
+    }
+  ],
+  "hash": "d8b4b8f2de4b05e593a749091553142c4a6dfd0ba5f087c9d94ba1881364cd1f"
+}

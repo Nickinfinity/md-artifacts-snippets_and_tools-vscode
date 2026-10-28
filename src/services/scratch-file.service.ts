@@ -1,6 +1,5 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { slugify } from './filename.service.js';
 import { isPathWithin } from '../utils/path-containment.js';
 
 /**
@@ -207,3 +206,29 @@ export async function sweepOrphans(storageUri: vscode.Uri, subdir: string): Prom
         /* dir does not exist yet — nothing to sweep */
     }
 }
+
+const SLUG_NON_ALNUM_RE  = /[^a-z0-9]+/g;
+const SLUG_TRIM_DASH_RE  = /^-+|-+$/g;
+
+/**
+ * Lowercases and dash-separates a title into a filesystem-safe slug.
+ *
+ * Strategy: lowercase → replace every run of non-`[a-z0-9]` characters with
+ * a single `-` → strip leading/trailing `-`. No transliteration — non-ASCII
+ * letters collapse into separators along with punctuation and whitespace.
+ *
+ * @param title - Raw title string.
+ * @returns Slug string (may be empty if `title` has no `[a-z0-9]` chars).
+ *
+ * @example
+ * slugify('Hello World!!');  // → 'hello-world'
+ * slugify('   ');            // → ''
+ * slugify('Phase 0.5');      // → 'phase-0-5'
+ */
+export function slugify(title: string): string {
+    return title
+        .toLowerCase()
+        .replaceAll(SLUG_NON_ALNUM_RE, '-')
+        .replaceAll(SLUG_TRIM_DASH_RE, '');
+}
+

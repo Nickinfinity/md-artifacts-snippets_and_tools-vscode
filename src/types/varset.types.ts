@@ -1,38 +1,6 @@
 import type { ParsedArtifactFile, ParsedVar } from './parsed-artifact.types.js';
 
 /**
- * Score and overlap report produced by `scoreVarSet`.
- *
- * The report compares one artifact's variable + tag profile against one
- * candidate variable set's profile so the picker can rank sub-sets by
- * combined similarity.
- *
- * @example
- * {
- *   matchedVars:   ['VK-host', 'VK-port'],
- *   unmatchedVars: ['VK-token'],
- *   extraVars:     ['VK-debug'],
- *   matchRatio:    0.6667,
- *   tagMatches:    1,
- *   score:         0.5667,
- * }
- */
-export interface VarSetMatch {
-    /** Var names present in both the artifact and the set. */
-    matchedVars: string[];
-    /** Artifact var names that the set does not provide. */
-    unmatchedVars: string[];
-    /** Set var names that the artifact does not require. */
-    extraVars: string[];
-    /** Fraction of artifact vars matched by the set — `matched / totalArtifact`, 0 when artifact has no vars. */
-    matchRatio: number;
-    /** Number of artifact tags that also appear in the set's tag list. */
-    tagMatches: number;
-    /** Combined score: `matchRatio * 0.7 + (tagMatches / totalArtifactTags) * 0.3`. */
-    score: number;
-}
-
-/**
  * One independently-applicable variable set extracted from a `ParsedArtifactFile`.
  *
  * For multi-block files, one `VarSubSet` is produced per `## Heading` block.
@@ -74,7 +42,7 @@ export interface ApplyChange {
 }
 
 /**
- * Result of `applyVarSet` — merged values plus per-var change log.
+ * Result of applying a variable set — merged values plus per-var change log.
  */
 export interface ApplyResult {
     /** Final merged value map, keyed by full var name. */
@@ -93,8 +61,8 @@ export interface ApplyResult {
  *
  * **Untrusted on the inbound path.** A payload arriving from the webview is
  * shape-guarded before use — `pairs` entries carry user-typed variable *names*
- * as well as values, and both halves are emitted verbatim into a ` ```vks `
- * fence, so both are validated (rejected, never sanitised) before any write.
+ * as well as values, so the shape is guarded (rejected, never sanitised) before
+ * use; the engine refuses names and values it cannot write.
  *
  * @example
  * const payload: VarSetFormPayload = {

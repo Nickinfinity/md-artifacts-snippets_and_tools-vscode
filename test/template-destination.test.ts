@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import {
     classifyDestination,
     resolveDestination,
-} from '../src/services/template-destination.service.js';
+} from '../src/ui/panels/destFolderPicker.panel.js';
 
 /**
  * T4 — destination resolution from an Explorer URI (D2).

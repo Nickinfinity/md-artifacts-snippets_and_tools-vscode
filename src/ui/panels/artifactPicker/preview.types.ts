@@ -48,3 +48,17 @@ export interface PreviewCallbacks {
     /** Which context-menu surface the insert command was invoked from (T3); threaded to `performInsert`. */
     invocationSurface: InvocationSurface;
 }
+
+/**
+ * Identifies which code block of an artifact the preview is showing.
+ *
+ * - `{ kind: 'single' }` — the lone code block of a single-block file.
+ * - `{ kind: 'multi', heading }` — the block under the `## <heading>` section of a
+ *   multi-block file (first match wins when headings repeat).
+ *
+ * @example
+ * const ref: BlockRef = { kind: 'multi', heading: 'Two' };
+ */
+export type BlockRef =
+    | { kind: 'single' }
+    | { kind: 'multi'; heading: string };

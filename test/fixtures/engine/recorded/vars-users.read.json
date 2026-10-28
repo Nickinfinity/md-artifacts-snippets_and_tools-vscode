@@ -1,0 +1,23 @@
+{
+  "filePath": "Variables/vars-users.md",
+  "fileName": "vars-users",
+  "relativePath": "vars-users.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Users",
+    "language": "yaml VKs"
+  },
+  "code": "VK-array: users\nVK-result: activeUsers",
+  "vars": [
+    {
+      "name": "VK-array",
+      "defaultValue": "users"
+    },
+    {
+      "name": "VK-result",
+      "defaultValue": "activeUsers"
+    }
+  ],
+  "blocks": [],
+  "hash": "ea57ae7b07357a25bb84e545e24f0132eb41abc8724a956390b878ddf2bd8f15"
+}

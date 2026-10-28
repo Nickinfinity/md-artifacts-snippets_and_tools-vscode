@@ -5,8 +5,8 @@ import { buildReorderButtons, REORDER_CLIENT_JS } from '../src/ui/panels/shared/
 import { buildVarSetFormClientJs, renderVarSetFormHtml } from '../src/ui/panels/varsetForm/varsetForm.render.js';
 import { FORM_CLIENT_JS } from '../src/ui/panels/artifactForm/form.clientJs.js';
 import { editPayloadToModel } from '../src/services/varset.service.js';
-import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { recordedRead } from './recorded.js';
 import { makeWebviewDom } from './webview-dom-harness.js';
 import type { VarsEditPayload } from '../src/types/varset.types.js';
 
@@ -109,10 +109,10 @@ suite('reorder control — var-set form', () => {
         assert.strictEqual(d.all('.subset-group')[1].querySelector('[data-action="up"]')!.hasAttribute('disabled'), false);
     });
 
-    test('the posted order is the order written to the file', () => {
+    test('the posted order is the order of the model handed to the engine', () => {
         const swapped: VarsEditPayload = { ...twoSets, subSets: [twoSets.subSets[1], twoSets.subSets[0]] };
-        const text = serializeArtifact(editPayloadToModel(swapped, parseFromContent('---\nartifactType: Variables\n---\n', '/v/Variables/b.md', '/v/Variables')));
-        assert.ok(text.indexOf('## Prod') < text.indexOf('## Dev'), text);
+        const blocks = editPayloadToModel(swapped, toParsedArtifactFile(recordedRead('vars-blank-new'), '/v')).blocks;
+        assert.deepStrictEqual(blocks.map(b => b.heading), ['Prod', 'Dev']);
     });
 });
 

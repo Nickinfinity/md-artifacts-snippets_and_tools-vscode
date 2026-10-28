@@ -1,0 +1,596 @@
+{
+  "files": [
+    {
+      "path": "Variables/fx-ve-one-heading.md",
+      "name": "fx-ve-one-heading",
+      "title": "Lonely Heading",
+      "description": "Exactly one heading, still a blocks-shaped file",
+      "tags": [
+        "edge"
+      ],
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Only",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-token",
+              "defaultValue": "xyz"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/fx-ve-single-subset.md",
+      "name": "fx-ve-single-subset",
+      "title": "Solo",
+      "description": "A single, heading-less variable set",
+      "tags": [
+        "solo"
+      ],
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-api_key",
+              "defaultValue": "abc123"
+            },
+            {
+              "name": "VK-region",
+              "defaultValue": "us-east-1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/fx-ve-with-env.md",
+      "name": "fx-ve-with-env",
+      "title": "Bundles",
+      "description": "Per-environment settings",
+      "tags": [
+        "api",
+        "dev"
+      ],
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Dev",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            },
+            {
+              "name": "VK-port",
+              "defaultValue": "3000"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "heading": "Prod",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "prod.example.com"
+            },
+            {
+              "name": "VK-port",
+              "defaultValue": "443"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/shape-empty-flat.md",
+      "name": "shape-empty-flat",
+      "title": "Empty",
+      "shape": "blank",
+      "subsets": []
+    },
+    {
+      "path": "Variables/shape-empty-set.md",
+      "name": "shape-empty-set",
+      "title": "Empty Set",
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Empty",
+          "description": "",
+          "vars": []
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-blank-localdev.md",
+      "name": "vars-blank-localdev",
+      "title": "Local Dev",
+      "shape": "blank",
+      "subsets": []
+    },
+    {
+      "path": "Variables/vars-blank-new.md",
+      "name": "vars-blank-new",
+      "title": "New",
+      "shape": "blank",
+      "subsets": []
+    },
+    {
+      "path": "Variables/vars-envs.md",
+      "name": "vars-envs",
+      "title": "Envs",
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Dev",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-a",
+              "defaultValue": "1"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "heading": "Prod",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-a",
+              "defaultValue": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-flat.md",
+      "name": "vars-flat",
+      "title": "Local Dev",
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-local.md",
+      "name": "vars-local",
+      "title": "Local",
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-sets.md",
+      "name": "vars-sets",
+      "title": "Env Bundle",
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Dev",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "heading": "Prod",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "prod.example.com"
+            },
+            {
+              "name": "VK-port",
+              "defaultValue": "443"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-titled-dev.md",
+      "name": "vars-titled-dev",
+      "title": "Local Dev",
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Dev",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-users-empty.md",
+      "name": "vars-users-empty",
+      "title": "Users",
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-a",
+              "defaultValue": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-users.md",
+      "name": "vars-users",
+      "title": "Users",
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "users"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "activeUsers"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-with-descriptions-multiline.md",
+      "name": "vars-with-descriptions-multiline",
+      "title": "JavaScript Array Domains",
+      "description": "Real-world collections for the JavaScript Array Utilities snippet — each sub-set names the array, the field to work on, a sample value and the result variable",
+      "tags": [
+        "javascript",
+        "array",
+        "utils",
+        "collections"
+      ],
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Users",
+          "description": "Active users keyed by `status`; works for\nfilter, find, map, group and dedupe.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "users"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "activeUsers"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "status"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"active\""
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "heading": "Products",
+          "description": "A product catalogue grouped or filtered by `category`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "products"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "stationery"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "category"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"stationery\""
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "heading": "Orders",
+          "description": "Orders summed or sorted by their numeric `total`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "orders"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "revenue"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "total"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "100"
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "heading": "Tasks",
+          "description": "A to-do list filtered by `priority`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "tasks"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "urgentTasks"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "priority"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"high\""
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "heading": "API page",
+          "description": "Chunk an API response into pages of 25.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "response.data"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "pages"
+            },
+            {
+              "name": "VK-size",
+              "defaultValue": "25"
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "heading": "Tags",
+          "description": "A flat array of strings — for Deduplicate primitives and Flatten one level.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "tags"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "uniqueTags"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/vars-with-descriptions.md",
+      "name": "vars-with-descriptions",
+      "title": "JavaScript Array Domains",
+      "description": "Real-world collections for the JavaScript Array Utilities snippet — each sub-set names the array, the field to work on, a sample value and the result variable",
+      "tags": [
+        "javascript",
+        "array",
+        "utils",
+        "collections"
+      ],
+      "shape": "sets",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "Users",
+          "description": "Active users keyed by `status`; works for filter, find, map, group and dedupe.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "users"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "activeUsers"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "status"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"active\""
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "heading": "Products",
+          "description": "A product catalogue grouped or filtered by `category`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "products"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "stationery"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "category"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"stationery\""
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "heading": "Orders",
+          "description": "Orders summed or sorted by their numeric `total`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "orders"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "revenue"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "total"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "100"
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "heading": "Tasks",
+          "description": "A to-do list filtered by `priority`.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "tasks"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "urgentTasks"
+            },
+            {
+              "name": "VK-property",
+              "defaultValue": "priority"
+            },
+            {
+              "name": "VK-value",
+              "defaultValue": "\"high\""
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "heading": "API page",
+          "description": "Chunk an API response into pages of 25.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "response.data"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "pages"
+            },
+            {
+              "name": "VK-size",
+              "defaultValue": "25"
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "heading": "Tags",
+          "description": "A flat array of strings — for Deduplicate primitives and Flatten one level.",
+          "vars": [
+            {
+              "name": "VK-array",
+              "defaultValue": "tags"
+            },
+            {
+              "name": "VK-result",
+              "defaultValue": "uniqueTags"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Variables/ve-flat.md",
+      "name": "ve-flat",
+      "title": "Flat",
+      "shape": "flat",
+      "subsets": [
+        {
+          "index": 0,
+          "heading": "",
+          "description": "",
+          "vars": [
+            {
+              "name": "VK-host",
+              "defaultValue": "localhost"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

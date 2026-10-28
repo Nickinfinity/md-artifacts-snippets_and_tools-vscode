@@ -2,45 +2,28 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { artifactToFormModel } from '../src/commands/create-prefill.helpers.js';
-import { parseFromContent } from '../src/services/parser.service.js';
-import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
-import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { recordedRead } from './recorded.js';
 
 /**
  * Guards Edit opening the artifact form instead of the raw `.md`.
  *
- * The load-bearing property is the **round trip**: the form is now an editing
+ * The load-bearing property is **losslessness**: the form is now an editing
  * surface for existing files, so anything `artifactToFormModel` drops is
  * silently deleted from the user's vault the first time they press Save. A
  * field-by-field assertion is the only thing standing between a missing key
- * here and data loss on disk.
+ * here and data loss on disk. The serialize round trip itself is the engine's
+ * (`serialize/form-*`, `rs-idem-*`).
  */
 suite('edit mode — artifact → form model', () => {
 
-    /** Parses a `.md` body the way the edit command does. */
-    function parse(md: string) {
-        const parsed = parseFromContent(md, '/v/Snippets/demo.md', '/v');
-        assert.ok(parsed, 'fixture failed to parse');
-        return parsed;
+    /** The pinned engine's `artifact.read` of a recorded source, as the edit command adapts it. */
+    function parse(name: string) {
+        return toParsedArtifactFile(recordedRead(name), '/v');
     }
 
     test('a single-block snippet round-trips through the form model', () => {
-        const original = [
-            '---',
-            'artifactType: Snippet',
-            'title: Demo',
-            'description: A demo snippet.',
-            'language: typescript',
-            'tags: [a, b]',
-            '---',
-            '',
-            '```typescript',
-            'const answer = 42;',
-            '```',
-            '',
-        ].join('\n');
-
-        const model = artifactToFormModel(parse(original));
+        const model = artifactToFormModel(parse('edit-1'));
 
         assert.strictEqual(model.artifactType, 'Snippet');
         assert.strictEqual(model.title, 'Demo');
@@ -52,60 +35,8 @@ suite('edit mode — artifact → form model', () => {
         assert.strictEqual(model.blocks?.[0]?.heading, '', 'single-block must carry an empty heading');
     });
 
-    test('re-serializing an unedited model preserves the content fields', () => {
-        // The strongest available statement of "editing loses nothing": parse →
-        // model → serialize → parse, and compare the second parse to the first.
-        const original = [
-            '---',
-            'artifactType: Snippet',
-            'title: Demo',
-            'description: A demo snippet.',
-            'language: typescript',
-            'tags: [a, b]',
-            '---',
-            '',
-            '```typescript',
-            'const answer = 42;',
-            '```',
-            '',
-        ].join('\n');
-
-        const first = parse(original);
-        const model = artifactToFormModel(first) as ArtifactFormModel;
-        const round = parse(serializeArtifact(model));
-
-        assert.strictEqual(round.frontmatter.title, first.frontmatter.title);
-        assert.strictEqual(round.frontmatter.description, first.frontmatter.description);
-        assert.deepStrictEqual(round.frontmatter.tags, first.frontmatter.tags);
-        assert.strictEqual(round.frontmatter.artifactType, first.frontmatter.artifactType);
-        assert.strictEqual(round.code, first.code);
-    });
-
     test('a multi-block artifact keeps every block, heading and fence language', () => {
-        const original = [
-            '---',
-            'artifactType: Snippet',
-            'title: Two',
-            'language: bash',
-            '---',
-            '',
-            '## Development',
-            '',
-            'Local dev.',
-            '',
-            '```bash',
-            'npm run dev',
-            '```',
-            '',
-            '## Production',
-            '',
-            '```bash',
-            'npm run build',
-            '```',
-            '',
-        ].join('\n');
-
-        const model = artifactToFormModel(parse(original));
+        const model = artifactToFormModel(parse('edit-3'));
 
         assert.strictEqual(model.blocks?.length, 2, 'lost a block — Save would delete it from the vault');
         assert.strictEqual(model.blocks?.[0]?.heading, 'Development');
@@ -116,31 +47,12 @@ suite('edit mode — artifact → form model', () => {
     });
 
     test('whole-file type keeps its type-only frontmatter', () => {
-        const original = [
-            '---',
-            'artifactType: AIAgentsConfig',
-            'title: Claude',
-            'target: CLAUDE.md',
-            'provider: anthropic',
-            'model: opus',
-            'version: 1.0',
-            '---',
-            '',
-            '```markdown',
-            '# Rules',
-            '```',
-            '',
-        ].join('\n');
-
-        const model = artifactToFormModel(parse(original));
+        const model = artifactToFormModel(parse('edit-4'));
 
         // These feed resolveOutputFileName; dropping target: renames the file.
         assert.strictEqual(model.target, 'CLAUDE.md');
         assert.strictEqual(model.provider, 'anthropic');
         assert.strictEqual(model.model, 'opus');
-        // Unquoted on purpose: `parser.service` keeps a quoted YAML scalar's
-        // quote characters in the value ("1" parses to '"1"'), so a quoted
-        // fixture would be asserting that quirk rather than this conversion.
         assert.strictEqual(model.version, '1.0');
     });
 });

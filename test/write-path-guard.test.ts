@@ -41,9 +41,6 @@ export function writePathViolations(src: string): string[] {
     const bad: string[] = [];
     if (/\bworkspace\.fs\b/.test(src)) { bad.push('workspace.fs'); }
     if (/from\s+['"](node:)?fs(\/promises)?['"]/.test(src)) { bad.push('fs import'); }
-    for (const name of ['serializeArtifact', 'writeArtifact', 'writeVariablesFile', 'writeTemplateFile', 'parseArtifactFile', 'renderVariablesFile']) {
-        if (new RegExp(`\\b${name}\\b`).test(src)) { bad.push(name); }
-    }
     if (/\bpatch[A-Z]\w*\(/.test(src)) { bad.push('patch*('); }
     return bad;
 }
@@ -65,9 +62,6 @@ suite('write-path guard (W3)', () => {
         assert.deepStrictEqual(writePathViolations('await vscode.workspace.fs.writeFile(u, b)'), ['workspace.fs']);
         assert.deepStrictEqual(writePathViolations("import * as fs from 'node:fs'"), ['fs import']);
         assert.deepStrictEqual(writePathViolations("import { promises } from 'fs'"), ['fs import']);
-        assert.deepStrictEqual(writePathViolations('serializeArtifact(model)'), ['serializeArtifact']);
-        assert.deepStrictEqual(writePathViolations('await writeVariablesFile(u, m)'), ['writeVariablesFile']);
-        assert.deepStrictEqual(writePathViolations('parseArtifactFile(p, d)'), ['parseArtifactFile']);
         assert.deepStrictEqual(writePathViolations('patchBlockCode(text, ref, code)'), ['patch*(']);
         assert.deepStrictEqual(writePathViolations("import type { BlockRef } from '../../services/artifact-patcher.service.js'"), []);
         assert.deepStrictEqual(workspaceWriteViolations('await vscode.workspace.fs.stat(u)'), []);

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { BlockRef } from '../../../services/artifact-patcher.service.js';
+import type { BlockRef } from './preview.types.js';
 import { getEngine } from '../../../engine/engine.vscode.js';
 import { engineMeta, toEngineModel } from '../../../engine/model.js';
 import { EngineRequestError } from '../../../engine/request-error.js';

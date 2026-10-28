@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import { CODE_BLOCK_MIN_LINES } from '../src/types/constants.js';
 import { PREVIEW_CLIENT_JS } from '../src/ui/panels/artifactPicker/preview.clientJs.js';
 import { renderPreviewHtml } from '../src/ui/panels/artifactPicker/preview.render.js';
-import { parseFromContent } from '../src/services/parser.service.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { recordedRead } from './recorded.js';
 import { renderCodeRowsHtml } from '../src/services/render.service.js';
 
 /**
@@ -21,20 +22,7 @@ import { renderCodeRowsHtml } from '../src/services/render.service.js';
  */
 /** The rendered preview document for a minimal single-block artifact. */
 function renderedHtml(): string {
-    const md = [
-        '---',
-        'artifactType: Snippet',
-        'title: Demo',
-        'language: typescript',
-        '---',
-        '',
-        '```typescript',
-        'const answer = 42;',
-        '```',
-        '',
-    ].join('\n');
-    const parsed = parseFromContent(md, '/v/Snippets/demo.md', '/v');
-    assert.ok(parsed, 'fixture failed to parse');
+    const parsed = toParsedArtifactFile(recordedRead('buttons-1'), '/v');
     return renderPreviewHtml(
         parsed,
         renderCodeRowsHtml(parsed.code, 'typescript'),
@@ -47,23 +35,7 @@ function renderedHtml(): string {
 
 /** The rendered preview document for a minimal single-block artifact carrying one `<VK-xxx>` var. */
 function renderedHtmlWithVars(): string {
-    const md = [
-        '---',
-        'artifactType: Snippet',
-        'title: Demo',
-        'language: typescript',
-        '---',
-        '',
-        '```typescript',
-        'const host = "<VK-host>";',
-        '```',
-        '',
-        'vars:',
-        'VK-host=localhost',
-        '',
-    ].join('\n');
-    const parsed = parseFromContent(md, '/v/Snippets/demo.md', '/v');
-    assert.ok(parsed, 'fixture failed to parse');
+    const parsed = toParsedArtifactFile(recordedRead('buttons-2'), '/v');
     return renderPreviewHtml(
         parsed,
         renderCodeRowsHtml(parsed.code, 'typescript'),

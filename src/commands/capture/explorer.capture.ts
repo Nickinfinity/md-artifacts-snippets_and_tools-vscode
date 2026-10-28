@@ -8,7 +8,7 @@ import type { CaptureResult } from '../../types/artifact-form.types.js';
  * file's name, its already-read contents, and its `languageId`.
  * Deliberately not a `vscode.Uri`: this module stays `vscode`-free so it is
  * unit-testable without a host, and the caller (not this function) does the
- * `workspace.fs.readFile`.
+ * file read.
  */
 export interface ExplorerFileInput {
     /**

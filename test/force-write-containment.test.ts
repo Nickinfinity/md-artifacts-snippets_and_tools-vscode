@@ -12,7 +12,7 @@ import * as path from 'node:path';
  * user's artifact is not a batch decision, and a collision there must degrade to
  * a skip.
  *
- * Same idiom as `varset-scanner-singleton.test.ts` and `flags.service.test.ts`:
+ * Same idiom as `varset-scanner-singleton.test.ts` and the retired flag-marker guard:
  * the fact lives in the shape of the code, so a source grep is the check that
  * can actually fail.
  *
@@ -41,8 +41,6 @@ function stripComments(source: string): string {
 
 /** Files permitted to pass `force: true`, and why. */
 const ALLOWED = new Map<string, string>([
-    ['services/variables-writer.service.ts', 'the Variables edit path — overwriting the file being edited is the point'],
-    ['services/artifact-writer.service.ts',  'declares the `force?: boolean` parameter itself'],
 ]);
 
 /**

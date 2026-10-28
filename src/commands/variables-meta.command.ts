@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { getVaultRootUri } from '../services/config.service.js';
 import { sendWrite } from '../services/conflict.service.js';
-import { validateSubSetDescriptions } from '../services/varset-form.service.js';
 import {
     EDIT_DESCRIPTION_COMMAND_ID, EDIT_TAGS_COMMAND_ID,
     resolveTarget, sendVarsEdit, defaultIO, type CommandIO, type ResolvedTarget,
@@ -44,9 +43,6 @@ async function promptDescription(io: CommandIO, current: string): Promise<string
     const text = await io.showInputBox({
         prompt: vscode.l10n.t('Description (leave empty to remove)'),
         value: current,
-        validateInput: t => validateSubSetDescriptions([t]).ok
-            ? undefined
-            : vscode.l10n.t('A line cannot start with ``` or "## ".'),
     });
     if (text === undefined) { return undefined; }
     const trimmed = text.trim();

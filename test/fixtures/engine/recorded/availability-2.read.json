@@ -1,0 +1,14 @@
+{
+  "filePath": "Commands/availability-2.md",
+  "fileName": "availability-2",
+  "relativePath": "availability-2.md",
+  "frontmatter": {
+    "artifactType": "Command",
+    "title": "Deploy",
+    "language": "bash"
+  },
+  "code": "npm run deploy",
+  "vars": [],
+  "blocks": [],
+  "hash": "1d0706c87767e21014727214847aed0dd69efeb2cdeebfb806582cdd7766bcc7"
+}

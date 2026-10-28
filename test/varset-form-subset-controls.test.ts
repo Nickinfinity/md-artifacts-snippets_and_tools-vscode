@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import { renderVarSetFormHtml, buildVarSetFormClientJs } from '../src/ui/panels/varsetForm/varsetForm.render.js';
 import { handleVarSetFormMessage, type VarSetFormCallbacks } from '../src/ui/panels/varsetForm/varsetForm.panel.js';
 import { makeWebviewDom } from './webview-dom-harness.js';
-import { serializeArtifact } from '../src/services/artifact-serializer.service.js';
-import { parseFromContent } from '../src/services/parser.service.js';
-import { editPayloadToModel, variablesFileToEditPayload } from '../src/services/varset.service.js';
+import { toParsedArtifactFile } from '../src/engine/adapt.js';
+import { editPayloadToModel } from '../src/services/varset.service.js';
+import { recordedRead } from './recorded.js';
 import type { VarsEditPayload } from '../src/types/varset.types.js';
 
 /**
@@ -175,7 +175,6 @@ suite('varset form — sub-set controls: client', () => {
 suite('varset form — sub-set controls: panel', () => {
     function bag(onWrite: (p: VarsEditPayload) => void, posted: Record<string, unknown>[] = []): VarSetFormCallbacks {
         return {
-            validate: () => ({ ok: true }),
             write: async () => true,
             post: (m) => { posted.push(m); },
             close: () => { /* noop */ },
@@ -194,18 +193,16 @@ suite('varset form — sub-set controls: panel', () => {
         assert.strictEqual(got?.env, 'staging');
     });
 
-    test('deleting every sub-set writes an empty set that reopens as one empty sub-set', async () => {
+    test('deleting every sub-set writes an empty set (no blocks)', async () => {
         let got: VarsEditPayload | undefined;
         await handleVarSetFormMessage({ command: 'save', payload: {
             title: 'Bundles', description: '', tags: [], pairs: [], headings: [],
         } }, bag(p => { got = p; }), 'edit', twoSets);
         assert.deepStrictEqual(got?.subSets, []);
 
-        const original = parseFromContent('---\nartifactType: Variables\ntitle: Bundles\n---\n', '/v/Variables/b.md', '/v/Variables');
-        const text = serializeArtifact(editPayloadToModel(got!, original));
-        assert.ok(!text.includes('```vks') && !text.includes('## '), `empty set still emits a body: ${text}`);
-        const reopened = variablesFileToEditPayload(parseFromContent(text, '/v/Variables/b.md', '/v/Variables'));
-        assert.deepStrictEqual(reopened.subSets, [{ heading: '', pairs: [] }]);
+        // The reopen-as-blank half is the engine's (vars.list shape: empty → blank, recorded `shape-empty-flat`).
+        const original = toParsedArtifactFile(recordedRead('vars-blank-new'), '/v');
+        assert.deepStrictEqual(editPayloadToModel(got!, original).blocks, []);
     });
 
     test('a rename that collides with another sub-set is refused, not written', async () => {

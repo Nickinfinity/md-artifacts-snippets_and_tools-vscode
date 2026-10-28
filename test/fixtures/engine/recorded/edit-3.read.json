@@ -1,0 +1,29 @@
+{
+  "filePath": "Snippets/edit-3.md",
+  "fileName": "edit-3",
+  "relativePath": "edit-3.md",
+  "frontmatter": {
+    "artifactType": "Snippet",
+    "title": "Two",
+    "language": "bash"
+  },
+  "code": "npm run dev",
+  "vars": [],
+  "blocks": [
+    {
+      "heading": "Development",
+      "description": "Local dev.",
+      "code": "npm run dev",
+      "fenceLang": "bash",
+      "vars": []
+    },
+    {
+      "heading": "Production",
+      "description": "",
+      "code": "npm run build",
+      "fenceLang": "bash",
+      "vars": []
+    }
+  ],
+  "hash": "7bc3ca91471ccb7eee66b3f52883488cbf49b2d170c702d83339e8ecea2d5a2b"
+}

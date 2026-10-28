@@ -1,0 +1,19 @@
+{
+  "filePath": "Variables/vars-flat.md",
+  "fileName": "vars-flat",
+  "relativePath": "vars-flat.md",
+  "frontmatter": {
+    "artifactType": "Variables",
+    "title": "Local Dev",
+    "language": "yaml VKs"
+  },
+  "code": "VK-host: localhost",
+  "vars": [
+    {
+      "name": "VK-host",
+      "defaultValue": "localhost"
+    }
+  ],
+  "blocks": [],
+  "hash": "ab7ac14adfd3d17b4f6957499cb60b9741bda30b6a4f15f8161259f7227cebb2"
+}
