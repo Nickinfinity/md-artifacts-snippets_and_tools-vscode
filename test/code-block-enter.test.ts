@@ -33,6 +33,15 @@ suite('code block — Enter and paste', () => {
         assert.strictEqual(d.el('#overwriteBtn')!.hidden, false);
     });
 
+    test('an empty line re-renders as <br> (caret-holdable) and extracts as empty', () => {
+        const d = previewDom();
+        d.fire(d.el('#codeWrapper'), 'keydown', { key: 'Enter' });
+        const cells = d.all('.code-content');
+        assert.strictEqual(cells[0]!.innerHTML, '<br>');
+        assert.strictEqual(cells[1]!.textContent, 'echo one');
+        assert.strictEqual(codeOf(d), '\necho one');
+    });
+
     test('multi-line paste normalises CRLF and keeps every line', () => {
         const d = previewDom('X\r\nY');
         d.fire(d.el('#codeWrapper'), 'paste', {});

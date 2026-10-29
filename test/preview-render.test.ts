@@ -486,3 +486,13 @@ suite('renderPreviewHtml — Create File button for templates', () => {
         assert.ok(!/Create File/.test(html));
     });
 });
+
+suite('empty code line renders a <br> so Chromium can hold a caret', () => {
+    test('renderCodeRowsHtml: exactly one <br> cell for "a\\n\\nb"', () => {
+        const html = renderCodeRowsHtml('a\n\nb');
+        assert.strictEqual(html.split('<span class="code-content"><br></span>').length - 1, 1);
+    });
+    test('renderCodeHtml: same <br> cell', () => {
+        assert.ok(renderCodeHtml('a\n\nb').includes('<span class="code-content"><br></span>'));
+    });
+});

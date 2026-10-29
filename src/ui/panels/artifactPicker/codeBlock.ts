@@ -86,11 +86,12 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
   function vkWrap(html) {
     return html.replace(/&lt;(\/?)VK-([A-Za-z]\w*)&gt;/g, '<span class="vk-var">&lt;$1VK-$2&gt;</span>');
   }
+  // An empty line renders a br: an empty inline span cannot hold a caret in Chromium.
   function renderRows(code) {
     const lines = code.split('\n');
     return lines.map(function (line, i) {
       return '<div class="code-line-row"><span class="line-number" contenteditable="false">' +
-        (i + 1) + '</span><span class="code-content">' + vkWrap(esc(line)) + '</span></div>';
+        (i + 1) + '</span><span class="code-content">' + (line ? vkWrap(esc(line)) : '<br>') + '</span></div>';
     }).join('');
   }
 
@@ -146,7 +147,8 @@ export const CODE_BLOCK_CLIENT_JS = /* javascript */ String.raw`${WEBVIEW_ESC_LB
     })(el);
     const range = document.createRange();
     if (target) { range.setStart(target, targetOffset); range.collapse(true); }
-    else        { range.selectNodeContents(el); range.collapse(false); }
+    // No text node: an empty line holds only a br — collapse before it, or Chromium moves the caret to a neighbour.
+    else        { range.setStart(el, 0); range.collapse(true); }
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);

@@ -147,7 +147,7 @@ function renderLineHtml(line: string, fenceLang?: string): string {
 export function renderCodeRowsHtml(code: string, fenceLang?: string): string {
     if (!code) { return ''; }
     return code.split('\n').map((line, i) => {
-        const content = renderLineHtml(line, fenceLang);
+        const content = line ? renderLineHtml(line, fenceLang) : '<br>'; // br: an empty inline span cannot hold a caret
         const num     = i + 1;
         return `<div class="code-line-row"><span class="line-number" contenteditable="false">${num}</span><span class="code-content">${content}</span></div>`;
     }).join('');
@@ -157,7 +157,7 @@ export function renderCodeHtml(code: string, fenceLang?: string): string {
     if (!code) { return ''; }
 
     const rows = code.split('\n').map((line, i) => {
-        const content = renderLineHtml(line, fenceLang);
+        const content = line ? renderLineHtml(line, fenceLang) : '<br>'; // br: an empty inline span cannot hold a caret
         const num     = i + 1;
         // code-line-row contains the substring "code-line", so the row element
         // satisfies both the code-line-row test and the code-line count test.
