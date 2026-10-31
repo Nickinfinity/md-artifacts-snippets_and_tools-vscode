@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.not_nfc",
+      "params": {}
+    },
+    "fileName": "Cafe\u0301",
+    "ok": false
+  },
+  "params": {
+    "fileName": "Cafe\u0301",
+    "type": "Snippet"
+  }
+}

@@ -3,7 +3,7 @@
   "params": {
     "path": "Templates/index.md",
     "steps": [],
-    "workspaceRoot": "/nonexistent-mda-ws-3b2a"
+    "workspaceRoot": "$MISSING"
   },
   "vault": "vault"
 }

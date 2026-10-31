@@ -1,0 +1,22 @@
+{
+  "expect": {
+    "hash": "b3a5548add9ebcfe78f71e709bbead861714da9d1a132ea6398f8f5f9d1d0439",
+    "path": "Snippets/a#b^c[d].md"
+  },
+  "expect_files": {
+    "Snippets/a#b^c[d].md": "---\nartifactType: Snippet\ntitle: x\n---\n\n```\ny\n```\n"
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Snippets/a#b^c[d].md"
+  },
+  "vault": "vault"
+}

@@ -1,0 +1,13 @@
+{
+  "expect": {
+    "hash": "d7238fc0aae10f367bd239219dc2d9f09895ddd5ad7aece7615fd749641d1b2b",
+    "path": "Variables/caf\u00e9-notes.md"
+  },
+  "expect_files": {
+    "Variables/caf\u00e9-notes.md": "---\nartifactType: Variables\ntitle: Caf\u00e9 Notes\n---\n"
+  },
+  "params": {
+    "title": "Caf\u00e9 Notes"
+  },
+  "vault": "vault"
+}

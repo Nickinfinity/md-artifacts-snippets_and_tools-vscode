@@ -1,0 +1,18 @@
+{
+  "expect": {
+    "hash": "c1d3ea2a626b7d7668c6429daaed77b8aaf22dad9b19570b6d579584d82adb24",
+    "path": "Templates/users2.md",
+    "updatedIndexes": [],
+    "warnings": []
+  },
+  "expect_files": {
+    "Templates/users.md": false
+  },
+  "params": {
+    "expectedHash": "c1d3ea2a626b7d7668c6429daaed77b8aaf22dad9b19570b6d579584d82adb24",
+    "newPath": "Templates/users2.md",
+    "path": "Templates/users.md",
+    "updateLinks": true
+  },
+  "vault": "vault"
+}

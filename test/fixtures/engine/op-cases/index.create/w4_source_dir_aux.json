@@ -1,0 +1,19 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {
+    "segment": "aux"
+  },
+  "expect_files": {
+    "Templates/gen": false,
+    "Templates/gen/aux": false,
+    "Templates/gen/index.md": false
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "aux/x.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

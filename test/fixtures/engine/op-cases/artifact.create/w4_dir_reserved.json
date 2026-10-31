@@ -1,0 +1,23 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {
+    "segment": "CON"
+  },
+  "expect_files": {
+    "Snippets/CON": false,
+    "Snippets/CON/x.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Snippets/CON/x.md"
+  },
+  "vault": "vault"
+}

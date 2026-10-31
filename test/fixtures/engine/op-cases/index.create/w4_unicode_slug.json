@@ -1,0 +1,35 @@
+{
+  "expect": {
+    "results": [
+      {
+        "containsEscape": false,
+        "hash": "1ea2ae4590cd094fe8f8831ecfdbcc078a3c07c3dfbb25d46e9392a487afe38b",
+        "path": "Templates/gen/src/caf\u00e9.md",
+        "relPath": "src/Caf\u00e9.ts",
+        "status": "written",
+        "warnings": []
+      },
+      {
+        "containsEscape": false,
+        "hash": "7a5ad109160d532e88e85830fe9713959de75662ebeb9c7165611e7f514e33fd",
+        "path": "Templates/gen/index.md",
+        "relPath": "",
+        "status": "written",
+        "warnings": []
+      }
+    ],
+    "skipped": 0,
+    "written": 2
+  },
+  "expect_files": {
+    "Templates/gen/src/caf\u00e9.md": "---\nartifactType: Template\ntitle: caf\u00e9\nextension: ts\n---\n"
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "src/Caf\u00e9.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

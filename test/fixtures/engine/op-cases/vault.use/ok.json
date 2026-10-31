@@ -3,9 +3,9 @@
     "path": "$VAULT"
   },
   "expect_config_files": {
-    "config.toml": "default = \"$VAULT\"\nvaults = [\"/other\", \"$VAULT\"]\n"
+    "config.toml": "default = \"$VAULT\"\nvaults = [\"$OTHER\", \"$VAULT\"]\n"
   },
-  "machine_config": "default = \"/other\"\nvaults = [\"/other\", \"$VAULT\"]\n",
+  "machine_config": "default = \"$OTHER\"\nvaults = [\"$OTHER\", \"$VAULT\"]\n",
   "params": {
     "path": "$VAULT"
   },

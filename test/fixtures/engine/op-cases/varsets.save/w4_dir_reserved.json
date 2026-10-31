@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {
+    "segment": "aux"
+  },
+  "expect_files": {
+    "Variables/aux": false
+  },
+  "params": {
+    "dir": "Variables/aux",
+    "title": "T"
+  },
+  "vault": "vault"
+}

@@ -6,12 +6,12 @@ import { createFakeEngine, loadOpCases } from './fake-engine.js';
 const cases = loadOpCases();
 
 suite('engine op cases through EngineSession', () => {
-    test('case count is pinned', () => assert.strictEqual(cases.length, 449));
+    test('case count is pinned', () => assert.strictEqual(cases.length, 476));
     for (const c of cases) {
         test(`${c.method}/${c.name}`, async () => {
             const fake = createFakeEngine();
             const session = new EngineSession(fake, { timeoutMs: 5000 });
-            await session.initialize('2.3');
+            await session.initialize('2.4');
             fake.on(c.method, () => c.expectError === undefined
                 ? { result: c.expect }
                 : { error: { code: c.expectError, params: c.expectErrorParams ?? {} } });

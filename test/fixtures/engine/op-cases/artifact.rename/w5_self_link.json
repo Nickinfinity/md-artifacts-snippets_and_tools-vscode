@@ -1,0 +1,19 @@
+{
+  "expect": {
+    "hash": "246ef974143fb3083e03157a11989ef5d8e3637f727e7a07a795bf5524e537e8",
+    "path": "Templates/self2.md",
+    "updatedIndexes": [],
+    "warnings": []
+  },
+  "expect_files": {
+    "Templates/self.md": false,
+    "Templates/self2.md": "---\nartifactType: Template\ntitle: Self\nindex: true\n---\n\n[[self]]\n"
+  },
+  "params": {
+    "expectedHash": "246ef974143fb3083e03157a11989ef5d8e3637f727e7a07a795bf5524e537e8",
+    "newPath": "Templates/self2.md",
+    "path": "Templates/self.md",
+    "updateLinks": true
+  },
+  "vault": "vault_links"
+}

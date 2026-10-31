@@ -1,0 +1,17 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {
+    "segment": "CON"
+  },
+  "expect_files": {
+    "Templates/CON": false
+  },
+  "params": {
+    "dir": "Templates/CON",
+    "paths": [
+      "a.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

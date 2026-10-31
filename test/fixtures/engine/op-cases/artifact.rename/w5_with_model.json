@@ -1,0 +1,37 @@
+{
+  "expect": {
+    "hash": "141bd1ccfd42032167f67279eec820b7eb7e785ab8d6c0226c30f613c4ed5315",
+    "path": "Templates/sub/w2.md",
+    "updatedIndexes": [
+      {
+        "hash": "eb48ff15d1fb70185af220ab82273425a1c63bb7840af9e3b7fa5d634c6e8421",
+        "path": "Templates/index.md"
+      },
+      {
+        "hash": "2e59023e9e2aa551e279cc1c17e0e73615c1f38e491172102fa94d863f4f111e",
+        "path": "Templates/sub/nested-index.md"
+      }
+    ],
+    "warnings": []
+  },
+  "expect_files": {
+    "Templates/sub/w2.md": "---\nartifactType: Template\ntitle: Widget 2\n---\n\n```\nexport const x = 1;\n```\n",
+    "Templates/sub/widget.md": false
+  },
+  "params": {
+    "expectedHash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "model": {
+      "artifactType": "Template",
+      "blocks": [
+        {
+          "code": "export const x = 1;"
+        }
+      ],
+      "title": "Widget 2"
+    },
+    "newPath": "Templates/sub/w2.md",
+    "path": "Templates/sub/widget.md",
+    "updateLinks": true
+  },
+  "vault": "vault"
+}

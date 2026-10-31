@@ -1,0 +1,50 @@
+{
+  "expect": {
+    "hash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "path": "Templates/sub/a#b.md",
+    "updatedIndexes": [],
+    "warnings": [
+      {
+        "code": "rename.link_update_failed",
+        "params": {
+          "index": "Templates/index.md",
+          "reason": "unlinkable"
+        }
+      },
+      {
+        "code": "rename.index_link",
+        "params": {
+          "index": "Templates/index.md",
+          "link": "sub/widget.md"
+        }
+      },
+      {
+        "code": "rename.link_update_failed",
+        "params": {
+          "index": "Templates/sub/nested-index.md",
+          "reason": "unlinkable"
+        }
+      },
+      {
+        "code": "rename.index_link",
+        "params": {
+          "index": "Templates/sub/nested-index.md",
+          "link": "widget"
+        }
+      }
+    ]
+  },
+  "expect_files": {
+    "Templates/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\npaths: [src/components, ../escape, src/components]\n---\n\n1. [[edit]]\n2. [Widget](sub/widget.md)\n3. [[edit#Usage|again]]\n4. ![[esc]]\n5. [[../x]]\n6. [[sub/snip]]\n7. [[sub/nested-index]]\n",
+    "Templates/sub/a#b.md": "---\nartifactType: Template\ntitle: Widget\nextension: ts\n---\n\n```ts\nexport const <VK-label> = 2;\n```\n\nvars:\n```yaml VKs\nVK-label: w\n```\n",
+    "Templates/sub/nested-index.md": "---\nartifactType: Template\ntitle: Nested\nindex: true\n---\n\n[[widget]]\n",
+    "Templates/sub/widget.md": false
+  },
+  "params": {
+    "expectedHash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "newPath": "Templates/sub/a#b.md",
+    "path": "Templates/sub/widget.md",
+    "updateLinks": true
+  },
+  "vault": "vault"
+}

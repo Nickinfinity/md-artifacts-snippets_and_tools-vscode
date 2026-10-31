@@ -1,0 +1,20 @@
+{
+  "expect_error": "naming.not_nfc",
+  "expect_error_params": {},
+  "expect_files": {
+    "Snippets/Cafe\u0301.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Snippets/Cafe\u0301.md"
+  },
+  "vault": "vault"
+}

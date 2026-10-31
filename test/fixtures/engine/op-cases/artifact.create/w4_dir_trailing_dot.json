@@ -1,0 +1,23 @@
+{
+  "expect_error": "naming.edge_dot",
+  "expect_error_params": {
+    "segment": "d."
+  },
+  "expect_files": {
+    "Snippets/d.": false,
+    "Snippets/d./x.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Snippets/d./x.md"
+  },
+  "vault": "vault"
+}

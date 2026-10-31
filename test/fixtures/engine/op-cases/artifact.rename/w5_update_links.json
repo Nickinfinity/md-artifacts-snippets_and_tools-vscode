@@ -1,0 +1,30 @@
+{
+  "expect": {
+    "hash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "path": "Templates/sub/w2.md",
+    "updatedIndexes": [
+      {
+        "hash": "eb48ff15d1fb70185af220ab82273425a1c63bb7840af9e3b7fa5d634c6e8421",
+        "path": "Templates/index.md"
+      },
+      {
+        "hash": "2e59023e9e2aa551e279cc1c17e0e73615c1f38e491172102fa94d863f4f111e",
+        "path": "Templates/sub/nested-index.md"
+      }
+    ],
+    "warnings": []
+  },
+  "expect_files": {
+    "Templates/index.md": "---\nartifactType: Template\ntitle: Index\nindex: true\npaths: [src/components, ../escape, src/components]\n---\n\n1. [[edit]]\n2. [Widget](sub/w2.md)\n3. [[edit#Usage|again]]\n4. ![[esc]]\n5. [[../x]]\n6. [[sub/snip]]\n7. [[sub/nested-index]]\n",
+    "Templates/sub/nested-index.md": "---\nartifactType: Template\ntitle: Nested\nindex: true\n---\n\n[[w2]]\n",
+    "Templates/sub/w2.md": "---\nartifactType: Template\ntitle: Widget\nextension: ts\n---\n\n```ts\nexport const <VK-label> = 2;\n```\n\nvars:\n```yaml VKs\nVK-label: w\n```\n",
+    "Templates/sub/widget.md": false
+  },
+  "params": {
+    "expectedHash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "newPath": "Templates/sub/w2.md",
+    "path": "Templates/sub/widget.md",
+    "updateLinks": true
+  },
+  "vault": "vault"
+}

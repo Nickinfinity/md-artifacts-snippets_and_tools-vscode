@@ -1,12 +1,12 @@
 {
   "expect_config_files": {
-    "config.toml": "default = \"/other\"\nvaults = [\"/other\"]\n"
+    "config.toml": "default = \"$OTHER\"\nvaults = [\"$OTHER\"]\n"
   },
   "expect_error": "vault.unknown",
   "expect_error_params": {
     "path": "$VAULT"
   },
-  "machine_config": "default = \"/other\"\nvaults = [\"/other\"]\n",
+  "machine_config": "default = \"$OTHER\"\nvaults = [\"$OTHER\"]\n",
   "params": {
     "path": "$VAULT"
   },

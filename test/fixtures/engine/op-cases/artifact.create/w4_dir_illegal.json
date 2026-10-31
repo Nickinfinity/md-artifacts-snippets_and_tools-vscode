@@ -1,0 +1,23 @@
+{
+  "expect_error": "naming.illegal_char",
+  "expect_error_params": {
+    "segment": "a:b"
+  },
+  "expect_files": {
+    "Snippets/a:b": false,
+    "Snippets/a:b/x.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "blocks": [
+        {
+          "code": "y"
+        }
+      ],
+      "title": "x"
+    },
+    "path": "Snippets/a:b/x.md"
+  },
+  "vault": "vault"
+}

@@ -9,7 +9,7 @@
   "params": {
     "destDir": "",
     "path": "Templates/component.md",
-    "workspaceRoot": "/nonexistent-mda-ws-7c1f"
+    "workspaceRoot": "$MISSING"
   },
   "vault": "vault"
 }

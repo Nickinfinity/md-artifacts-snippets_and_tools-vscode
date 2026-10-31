@@ -261,6 +261,8 @@
   "Line {0} cannot be joined into one command.": "La línea {0} no se puede unir en un solo comando.",
   "Index {0} still links to {1}.": "El índice {0} todavía enlaza a {1}.",
   "Not every index was checked for links to the renamed file.": "No se revisaron todos los índices en busca de enlaces al archivo renombrado.",
+  "Name is not in Unicode NFC form.": "El nombre no está en forma Unicode NFC.",
+  "Index {0} could not be updated.": "No se pudo actualizar el índice {0}.",
   "Name is reserved by the operating system.": "El nombre está reservado por el sistema operativo.",
   "Name is too long (max {0}).": "El nombre es demasiado largo (máximo {0}).",
   "Variables syntax error at line {0}: {1}": "Error de sintaxis de variables en la línea {0}: {1}",
