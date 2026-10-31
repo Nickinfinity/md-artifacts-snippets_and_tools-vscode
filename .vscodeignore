@@ -24,3 +24,7 @@ vsc-extension-quickstart.md
 
 # Agent guidance split out of AGENTS.md (W5 H5.2) — repo docs, never shipped
 agents/**
+AGENTS.md
+CREATING_A_PLAN.md
+ARTIFACT_FILE_FORMAT.md
+docs/**

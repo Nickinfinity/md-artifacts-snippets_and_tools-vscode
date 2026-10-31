@@ -79,10 +79,12 @@ suite('needsTerminalConfirmation (T3 — terminal-send confirmation)', () => {
         assert.strictEqual(needsTerminalConfirmation('Command', 'ls -la'), false);
     });
 
-    test('🔒 Command with a bare CR, DEL or Ctrl-O (no newline) → true; tab alone → false', () => {
-        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\rtouch x'), true);
-        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x7f'), true);
-        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x0f'), true);
+    // The engine's `containsEscape` refuses ESC and C1 earlier; a bare CR, DEL or Ctrl-O is no longer this predicate's to catch.
+    test('🔒 LF → true; CR, DEL, Ctrl-O, tab → false ("refused earlier by the engine")', () => {
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\ntouch x'), true);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\rtouch x'), false);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x7f'), false);
+        assert.strictEqual(needsTerminalConfirmation('Command', 'echo a\x0f'), false);
         assert.strictEqual(needsTerminalConfirmation('Command', 'echo\ta'), false);
     });
 
@@ -153,8 +155,9 @@ suite('wrapForTerminal — multi-line prompts paste as one block', () => {
         assert.strictEqual(wrapForTerminal('Command', 'ls'), 'ls');
     });
 
-    test('🔒 a CR-only Command is wrapped; a tab-only one is not', () => {
-        assert.strictEqual(wrapForTerminal('Command', 'echo a\rtouch x'), `${START}echo a\rtouch x${END}`);
+    test('🔒 an LF Command is wrapped; CR-only and tab-only are not (refused earlier by the engine)', () => {
+        assert.strictEqual(wrapForTerminal('Command', 'echo a\ntouch x'), `${START}echo a\ntouch x${END}`);
+        assert.strictEqual(wrapForTerminal('Command', 'echo a\rtouch x'), 'echo a\rtouch x');
         assert.strictEqual(wrapForTerminal('Command', 'echo\ta'), 'echo\ta');
     });
 

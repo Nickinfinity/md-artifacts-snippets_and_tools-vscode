@@ -177,14 +177,14 @@ const BRACKETED_PASTE_START = '\x1b[200~';
 const BRACKETED_PASTE_END = '\x1b[201~';
 
 /**
- * Any C0 control except tab (`\t`), plus DEL. A newline, a bare CR (Enter) and Ctrl-O (0x0F, which
- * also runs the line in bash) all submit what was typed, so none may reach a shell unpasted. ESC is
- * inside the range but is refused earlier, on the engine's `containsEscape`.
+ * A line feed: the only character that triggers the paste wrap and the confirm. ESC, the C1 controls, a
+ * bare CR, DEL and Ctrl-O are flagged by the engine and refused earlier on `containsEscape` (never
+ * re-derived here); a single-line payload is never pasted, since the wrap fires on LF only.
  */
-const TERMINAL_CONTROL = /[\0-\x08\x0a-\x1f\x7f]/;
+const TERMINAL_CONTROL = /\n/;
 
 /**
- * THE terminal-block predicate: `content` carries a control character and `type` can reach the
+ * THE terminal-block predicate: `content` carries a line feed and `type` can reach the
  * terminal. Shared by {@link wrapForTerminal} and {@link needsTerminalConfirmation} so they cannot disagree.
  *
  * @param type    - Canonical `ArtifactType` literal (looked up via `getEntry`).
@@ -202,11 +202,12 @@ function reachesTerminalAsBlock(type: ArtifactType, content: string): boolean {
  * submit themselves line by line.
  *
  * `terminal.sendText(content, false)` suppresses only the *trailing* newline;
- * every control character inside the payload still reaches the shell as if
- * typed. Bracketed paste (`ESC[200~ … ESC[201~`) makes the receiving program
+ * every line feed inside the payload still reaches the shell as if
+ * typed (other control characters are refused earlier on `containsEscape`).
+ * Bracketed paste (`ESC[200~ … ESC[201~`) makes the receiving program
  * treat everything between as literal text. Nothing runs until the user
  * presses Enter. Applies to every type that can reach the terminal (`Command`
- * and `AIPrompt`); single-line, control-free content has nothing to protect.
+ * and `AIPrompt`); single-line content has nothing to protect.
  *
  * ponytail: assumes the receiving program has bracketed paste enabled — true
  * for bash 4.4+, zsh, fish and the CLI agents this targets. A shell with it
@@ -235,8 +236,8 @@ export function wrapForTerminal(type: ArtifactType, content: string): string {
  *
  * Vault content is untrusted. {@link wrapForTerminal} stops a payload from
  * submitting itself, but bracketed-paste support cannot be detected from the
- * extension host, so a shell with it disabled would still act on each control
- * character. This confirmation is the backstop. Same predicate as the wrap.
+ * extension host, so a shell with it disabled would still act on each line.
+ * This confirmation is the backstop. Same predicate as the wrap.
  *
  * @param type    - Canonical `ArtifactType` literal (looked up via `getEntry`).
  * @param content - The fully variable-resolved text about to be sent.

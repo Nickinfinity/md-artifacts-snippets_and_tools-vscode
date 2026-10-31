@@ -34,6 +34,15 @@ suite('engine.vscode edge', () => {
         assert.doesNotThrow(() => getEngine());
     });
 
+    test('requestOrNotify resolves undefined while the error toast is still open (activation never stalls)', async () => {
+        let shown = 0;
+        const showError = (): Thenable<string | undefined> => { shown++; return new Promise(() => { /* never dismissed */ }); };
+        handles.push(startEngine({ spawn: () => createFakeEngine({ protocol: '2.0' }), enginePath: process.execPath, showError }));
+        const r = await Promise.race([requestOrNotify('config.get', {}), new Promise(res => setTimeout(() => res('STALLED'), 500))]);
+        assert.strictEqual(r, undefined);
+        assert.strictEqual(shown, 1);
+    });
+
     test('spawnEngineProcess on a missing binary fires onExit exactly once', async () => {
         const proc = spawnEngineProcess('/nonexistent/abs/mda', ['serve']);
         let n = 0;

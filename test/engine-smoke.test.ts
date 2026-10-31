@@ -13,7 +13,10 @@ import { recordedSource } from './recorded.js';
 import type { VarsEditPayload } from '../src/types/varset.types.js';
 import { pruneVarsForSave } from '../src/ui/panels/artifactForm/panel.helpers.js';
 import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
-import { engineKnownTypes, isExecutableFile, spawnEngineProcess } from '../src/engine/engine.vscode.js';
+import { engineKnownTypes, isExecutableFile, spawnEngineProcess, startEngine } from '../src/engine/engine.vscode.js';
+import { createFakeEngine } from './fake-engine.js';
+import { setConfirmSink } from '../src/services/confirm.service.js';
+import { performInsert, type DeliveryIO } from '../src/ui/panels/artifactPicker/preview.insert.js';
 
 suite('engine smoke (real binary)', () => {
     let tmp = '';
@@ -87,6 +90,56 @@ suite('engine smoke (real binary)', () => {
         assert.strictEqual(fs.readFileSync(file, 'utf8'), REFACTOR, 'an unchanged save altered the bytes');
         await save('W2');
         assert.strictEqual(fs.readFileSync(file, 'utf8'), REFACTOR.replace('title: W', 'title: W2'));
+    });
+    // W7 T7.1: C1 controls (U+0080, U+009B, U+009F) in a body or a typed value are the engine's `containsEscape`;
+    // the extension refuses on that flag alone. The body half is green before the change (the engine already flags C1).
+    test('🔒 C1 in a body or a typed value: engine flags containsEscape, performInsert sends nothing', async function () {
+        this.timeout(30_000);
+        const found = locateEngine({
+            settingPath: process.env['MDA_BIN'] ?? '', envPath: process.env['PATH'],
+            platform: process.platform, isExecutableFile,
+        });
+        if (found.kind === 'not-found') {
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.14.0 mda binary');
+            this.skip();
+            return;
+        }
+        assert.strictEqual(found.kind, 'found', `MDA_BIN is not an executable absolute path: ${found.path}`);
+        tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-smoke-'));
+        fs.cpSync(path.join(__dirname, '../../test/fixtures/engine/smoke-vault'), tmp, { recursive: true });
+        fs.mkdirSync(path.join(tmp, '.obsidian'));
+        sup = new EngineSupervisor({
+            spawn: spawnEngineProcess, binPath: found.path,
+            args: ['serve', '--vault', tmp], knownTypes: engineKnownTypes(),
+        });
+        const engine = sup;
+        const toasts: string[] = [];
+        let terminals = 0, confirms = 0;
+        const sent: string[] = [];
+        const io: DeliveryIO = {
+            terminal: () => { terminals++; return { sendText: (t: string) => { sent.push(t); }, show: () => undefined }; },
+            showWarning: () => undefined, writeClipboard: () => Promise.resolve(), showInfo: () => undefined,
+        };
+        const h = startEngine({ spawn: () => createFakeEngine(), enginePath: process.execPath, showError: m => { toasts.push(m); return Promise.resolve(undefined); } });
+        setConfirmSink(() => { confirms++; return Promise.resolve(true); });
+        try {
+            const render = (code: string, value: string) =>
+                engine.request('artifact.render', { path: 'Snippets/hello.md', code, values: { 'VK-greeting': value } });
+            for (const c1 of ['\u0080', '\u009b', '\u009f']) {
+                for (const [where, r] of [['body', await render(`echo ${c1}`, 'x')], ['value', await render('echo <VK-greeting>', c1)]] as const) {
+                    const label = `U+${c1.charCodeAt(0).toString(16)} in ${where}`;
+                    assert.strictEqual(r.containsEscape, true, label);
+                    await performInsert(undefined, 'Command', r, 'editor', io);
+                    assert.deepStrictEqual(sent, [], label);
+                    assert.strictEqual(terminals, 0, label);
+                    assert.strictEqual(confirms, 0, label);
+                }
+            }
+            assert.strictEqual(toasts.length, 6, 'one refusal toast per attempt');
+            for (const ok of ['a\tb', 'a\nb', 'a\r\nb']) {
+                assert.strictEqual((await render(ok, 'x')).containsEscape, false, JSON.stringify(ok));
+            }
+        } finally { setConfirmSink(undefined); h.dispose(); }
     });
     // W5 T5.6: the editor's TS content guards are gone; each removed rule is the engine's refusal and writes nothing.
     test('the var-set editor rules the panel no longer checks are refused by the engine, file bytes unchanged', async function () {

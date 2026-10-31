@@ -139,7 +139,7 @@ export function getEngine(): EngineSupervisor {
 }
 
 /**
- * Runs a request; on an engine error shows the localised message (with Restart / install hint) and resolves `undefined`.
+ * Runs a request; on an engine error shows the localised message (with Restart / install hint) without waiting for the toast to close, and resolves `undefined`.
  *
  * @param method - Engine method.
  * @param params - Its params.
@@ -153,7 +153,8 @@ export async function requestOrNotify<M extends EngineMethod>(method: M, params:
         return await getEngine().request(method, params);
     } catch (e) {
         if (!(e instanceof EngineRequestError)) { throw e; }
-        await notifyEngineError(e, engine);
+        // Not awaited: an open toast must not stall the caller (activation order in extension.ts).
+        void notifyEngineError(e, engine).catch(() => undefined);
         return undefined;
     }
 }

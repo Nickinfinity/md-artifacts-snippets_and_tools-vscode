@@ -56,14 +56,10 @@ function terminalConfirmDetail(content: string): string {
     const preview = lines.slice(0, CONFIRM_PREVIEW_LINE_COUNT).map(clamp).join('\n')
         + (lines.length > CONFIRM_PREVIEW_LINE_COUNT ? '\n…' : '');
 
-    // A single line reaches here only because it carries a control character (W-UI f);
-    // "1 lines" would be wrong and hide why the modal appeared.
-    const summary = lines.length === 1
-        ? vscode.l10n.t('This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.')
-        : vscode.l10n.t(
-            '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
-            lines.length,
-        );
+    const summary = vscode.l10n.t(
+        '{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.',
+        lines.length,
+    );
     return `${summary}\n\n${preview}`;
 }
 
@@ -101,7 +97,7 @@ export async function renderForDelivery(
  * Target by {@link resolveInsertTarget}. 🔒 A terminal send of output the engine flags
  * `containsEscape` is refused before the confirm and before any terminal exists (D-11);
  * the flag is read on the engine's `output`, never on the bracketed-paste wrapper (which
- * carries ESC itself). Any terminal payload carrying a control character (multi-line, bare CR, ...) is confirmed, then pasted as one block.
+ * carries ESC itself). Any multi-line terminal payload (a line feed) is confirmed, then pasted as one block.
  *
  * @param editor            - Editor to insert into, or `undefined`.
  * @param type              - Artifact type.
@@ -117,7 +113,8 @@ export async function performInsert(
     invocationSurface: InvocationSurface, io: DeliveryIO = DELIVERY_IO,
 ): Promise<void> {
     if (resolveInsertTarget(type, invocationSurface) === 'terminal') {
-        if (r.containsEscape) {
+        // Fail closed: engine replies are unguarded, so only an explicit `false` may pass.
+        if (r.containsEscape !== false) {
             await notifyEngineError(new EngineRequestError({ code: 'render.contains_escape', params: {} }));
             return;
         }

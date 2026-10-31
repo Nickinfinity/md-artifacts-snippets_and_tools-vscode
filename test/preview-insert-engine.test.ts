@@ -94,6 +94,19 @@ suite('Insert / Copy → artifact.render', () => {
         assert.deepStrictEqual(toasts, [refusal]);
     });
 
+    test('🔒 containsEscape absent or non-boolean ⇒ refused (fail closed on an unguarded engine reply)', async () => {
+        for (const bad of [undefined, 'false', 0, null]) {
+            toasts.length = 0;
+            // Test-only cast: engine replies are not shape-guarded, so the field can be anything.
+            const r = { output: 'echo a\rtouch x', warnings: [], containsEscape: bad } as unknown as Rendered;
+            await performInsert(undefined, 'Command', r, 'editor', io());
+            assert.strictEqual(sent.length, 0);
+            assert.strictEqual(terminals, 0);
+            assert.strictEqual(confirms, 0);
+            assert.deepStrictEqual(toasts, [refusal]);
+        }
+    });
+
     test('🔒 paired: containsEscape false ⇒ exactly one sendText', async () => {
         await performInsert(undefined, 'Command', { output: 'ls', warnings: [], containsEscape: false }, 'editor', io());
         assert.strictEqual(sent.length, 1);
@@ -161,19 +174,20 @@ suite('Insert / Copy → artifact.render', () => {
         assert.deepStrictEqual(toasts, [refusal]);
     });
 
-    test('🔒 hostile CR in a Command: confirm + bracketed paste; tab alone is sent plain', async () => {
-        const r: Rendered = { output: 'echo a\rtouch x', warnings: [], containsEscape: false };
-        await performInsert(undefined, 'Command', r, 'editor', io());
-        assert.strictEqual(confirms, 1);
-        assert.deepStrictEqual(sent, [{ text: '\x1b[200~echo a\rtouch x\x1b[201~', addNewLine: false }]);
-        sent.length = 0; confirmAnswer = false;
-        await performInsert(undefined, 'Command', r, 'editor', io());
-        assert.deepStrictEqual(sent, []);
+    test('🔒 CR / tab with containsEscape false: sent plain, zero confirms (the engine flag is the gate); LF still confirms + wraps', async () => {
+        await performInsert(undefined, 'Command', { output: 'echo a\rtouch x', warnings: [], containsEscape: false }, 'editor', io());
+        assert.strictEqual(confirms, 0);
+        assert.deepStrictEqual(sent, [{ text: 'echo a\rtouch x', addNewLine: false }]);
 
-        sent.length = 0; confirms = 0;
+        sent.length = 0;
         await performInsert(undefined, 'Command', { output: 'echo\ta', warnings: [], containsEscape: false }, 'editor', io());
         assert.strictEqual(confirms, 0);
         assert.deepStrictEqual(sent, [{ text: 'echo\ta', addNewLine: false }]);
+
+        sent.length = 0;
+        await performInsert(undefined, 'Command', { output: 'a\nb', warnings: [], containsEscape: false }, 'editor', io());
+        assert.strictEqual(confirms, 1);
+        assert.deepStrictEqual(sent, [{ text: '\x1b[200~a\nb\x1b[201~', addNewLine: false }]);
     });
 
     test('warnings ⇒ one joined toast, result still returned', async () => {

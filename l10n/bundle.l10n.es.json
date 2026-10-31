@@ -314,6 +314,5 @@
   "The destination folder is outside the vault.": "La carpeta de destino está fuera de la bóveda.",
   "\"{0}\" changed on disk since it was opened.": "\"{0}\" cambió en el disco desde que se abrió.",
   "Reload": "Recargar",
-  "Overwrite \"{0}\"?": "¿Sobrescribir \"{0}\"?",
-  "This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.": "Esta línea contiene caracteres de control. Se pegará en la terminal como un solo bloque, sin pulsar Intro. Si la shell receptora no admite el pegado entre corchetes, podría ejecutarse por sí sola."
+  "Overwrite \"{0}\"?": "¿Sobrescribir \"{0}\"?"
 }

@@ -77,4 +77,11 @@ suite('packaging: i18n assets ship', () => {
 		assert.strictEqual(excludesAsset(ignore, /(^|\/)l10n(\/|$)/), false,
 			'the l10n bundles are excluded from the package');
 	});
+
+	test('.vscodeignore excludes the repo-only agent and format docs (U-2)', () => {
+		const ignore = fs.readFileSync(path.join(ROOT, '.vscodeignore'), 'utf8');
+		for (const re of [/^AGENTS\.md$/, /^CREATING_A_PLAN\.md$/, /^ARTIFACT_FILE_FORMAT\.md$/, /^docs\//]) {
+			assert.ok(excludesAsset(ignore, re), `.vscodeignore does not exclude ${re.source}`);
+		}
+	});
 });

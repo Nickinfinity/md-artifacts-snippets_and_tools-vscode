@@ -88,7 +88,6 @@
   "Edit": "Edit",
   "Press Enter to choose a block.": "Press Enter to choose a block.",
   "Select a file to preview": "Select a file to preview",
-  "This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.": "This line contains control characters. It will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, it could run on its own.",
   "{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.": "{0} lines will be pasted into the terminal as one block, without pressing Enter. If the receiving shell does not support bracketed paste, each line could run on its own.",
   "Send multi-line content to the terminal?": "Send multi-line content to the terminal?",
   "Send": "Send",

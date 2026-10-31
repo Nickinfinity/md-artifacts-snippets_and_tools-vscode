@@ -70,7 +70,7 @@ before — never clobbering it silently.
 **🔒 Terminal send — one paste, not a line of keystrokes.**
 `terminal.sendText(content, false)` suppresses only the *trailing* newline;
 every embedded newline still reaches the shell as if the user pressed Enter
-after that line (and a bare CR, or Ctrl-O in bash, submits it just the same).
+after that line.
 That is wrong for any multi-line payload — an `AIPrompt` (multi-line flagged
 markdown from the vault, untrusted by this codebase's standing rule, routinely
 carrying a fenced ` ```bash ` block) and a `Command` alike: a `Command` with an
@@ -84,8 +84,10 @@ everything between them as literal text, so the newlines become part of the
 input instead of submitting it: the prompt lands as one block, the way
 Shift+Enter behaves in a CLI agent, and nothing runs until the user presses
 Enter. No trailing newline is added. Wrapping applies to every payload
-carrying a control character other than tab (any C0 — newline, CR, … — or DEL) of a type
-whose `contexts` include `'terminal'`; plain single-line content is sent
+carrying a line feed of a type whose `contexts` include `'terminal'`; every other
+control character (ESC, C1, bare CR, DEL, Ctrl-O) is flagged by the engine and
+refused on `containsEscape`, which fails closed on a malformed reply (user, 2026-10-31,
+after ER-3); plain single-line content is sent
 unwrapped and without a newline. One private predicate in `preview.helpers.ts`
 drives both the wrap and the confirm, so they cannot disagree. **Nothing sent
 to the terminal runs before the user presses Enter.**
@@ -94,7 +96,7 @@ Support cannot be detected from the extension host (a shell with bracketed
 paste disabled would show the markers literally and still act on each line), so
 the confirmation stays as the backstop: `needsTerminalConfirmation(type,
 content)` is `true` only when the target is `'terminal'` **and** the content
-carries such a control character **and** the type's `contexts` include
+carries a line feed **and** the type's `contexts` include
 `'terminal'` — `Command` and `AIPrompt` both prompt; the `containsEscape`
 refusal still runs first. A `true` result opens a modal with the line count and a truncated
 preview; Cancel or Escape sends nothing.
