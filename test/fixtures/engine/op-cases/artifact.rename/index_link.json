@@ -1,0 +1,31 @@
+{
+  "expect": {
+    "hash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "path": "Templates/sub/w2.md",
+    "warnings": [
+      {
+        "code": "rename.index_link",
+        "params": {
+          "index": "Templates/index.md",
+          "link": "sub/widget.md"
+        }
+      },
+      {
+        "code": "rename.index_link",
+        "params": {
+          "index": "Templates/sub/nested-index.md",
+          "link": "widget"
+        }
+      }
+    ]
+  },
+  "expect_files": {
+    "Templates/sub/widget.md": false
+  },
+  "params": {
+    "expectedHash": "dfb8eaca9f611de341f5176b4e6bc16256a221a5f0b89bbf812aaa96e1abc6a0",
+    "newPath": "Templates/sub/w2.md",
+    "path": "Templates/sub/widget.md"
+  },
+  "vault": "vault"
+}

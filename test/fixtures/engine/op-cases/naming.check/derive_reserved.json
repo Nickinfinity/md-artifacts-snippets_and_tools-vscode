@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.reserved",
+      "params": {}
+    },
+    "fileName": "con",
+    "ok": false
+  },
+  "params": {
+    "title": "Con",
+    "type": "Snippet"
+  }
+}

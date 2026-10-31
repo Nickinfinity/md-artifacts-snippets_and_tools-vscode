@@ -1,0 +1,12 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "joined": true,
+    "output": "a\rb && c",
+    "warnings": []
+  },
+  "params": {
+    "join": "and",
+    "text": "a\rb\nc"
+  }
+}

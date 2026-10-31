@@ -69,8 +69,8 @@ suite('locateEngine — binary lookup', () => {
 });
 
 suite('installHint', () => {
-	test('same line on every OS and pins v0.10.0', () => {
+	test('same line on every OS and pins v0.13.0', () => {
 		assert.strictEqual(installHint('darwin'), installHint('win32'));
-		assert.ok(installHint('linux').includes('--tag v0.10.0'));
+		assert.ok(installHint('linux').includes('--tag v0.13.0'));
 	});
 });

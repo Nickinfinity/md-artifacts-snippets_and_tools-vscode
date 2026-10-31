@@ -22,6 +22,10 @@
         "summary": "Parse one artifact file"
       },
       {
+        "name": "artifact.rename",
+        "summary": "Move an artifact file to a new name in its type directory"
+      },
+      {
         "name": "artifact.render",
         "summary": "Render a block with variable values"
       },
@@ -60,6 +64,14 @@
       {
         "name": "migrate.frontmatter.plan",
         "summary": "List files whose frontmatter type: needs migrating"
+      },
+      {
+        "name": "naming.check",
+        "summary": "Check a vault file name, or derive the default one"
+      },
+      {
+        "name": "naming.output",
+        "summary": "The output file name a whole-file artifact would write"
       },
       {
         "name": "render.text",

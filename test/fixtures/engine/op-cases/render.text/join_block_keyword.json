@@ -1,0 +1,11 @@
+{
+  "expect_error": "render.unjoinable",
+  "expect_error_params": {
+    "line": "1",
+    "reason": "block_keyword"
+  },
+  "params": {
+    "join": "and",
+    "text": "if x; then\necho a\nfi"
+  }
+}

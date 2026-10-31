@@ -1,0 +1,12 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "joined": true,
+    "output": "a \\\nb \\\nc",
+    "warnings": []
+  },
+  "params": {
+    "join": "continuation",
+    "text": "a\nb\nc"
+  }
+}

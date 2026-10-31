@@ -4,7 +4,7 @@ import { EngineRequestError } from './request-error.js';
 import { EngineSession } from './session.js';
 
 /** Protocol this client speaks; the engine must share `major` and have at least `minMinor`. */
-export const PROTOCOL = { major: 2, minMinor: 0, sent: '2.0' } as const;
+export const PROTOCOL = { major: 2, minMinor: 3, sent: '2.3' } as const;
 export const RESTART_BACKOFF_MS = [0, 1000, 5000] as const; // ponytail: fixed schedule; jitter if many windows ever matter
 export const FAILURE_WINDOW_MS = 60_000;
 const MAX_FAILURES = RESTART_BACKOFF_MS.length + 1;

@@ -17,16 +17,16 @@ function ask(fake: FakeEngine, method: string, params: unknown, id = 1): Promise
 
 suite('fake-engine', () => {
     test('major mismatch -> protocol.version_mismatch {client, server}', async () => {
-        const reply = await ask(createFakeEngine({ protocol: '2.0' }), 'initialize', { protocol: '1.0' });
+        const reply = await ask(createFakeEngine({ protocol: '2.3' }), 'initialize', { protocol: '1.0' });
         assert.strictEqual(reply.error.data.code, 'protocol.version_mismatch');
-        assert.deepStrictEqual(reply.error.data.params, { client: '1.0', server: '2.0' });
+        assert.deepStrictEqual(reply.error.data.params, { client: '1.0', server: '2.3' });
     });
 
     test('handshake ok, then unknown op; pre-init op is not_initialized', async () => {
         const fake = createFakeEngine();
         assert.strictEqual((await ask(fake, 'config.get', {})).error.code, -32002);
-        const ok = await ask(fake, 'initialize', { protocol: '2.0' }, 2);
-        assert.strictEqual(ok.result.engine, '0.10.0');
+        const ok = await ask(fake, 'initialize', { protocol: '2.3' }, 2);
+        assert.strictEqual(ok.result.engine, '0.13.0');
         assert.ok(ok.result.types.length > 0);
         const unk = await ask(fake, 'nope', {}, 3);
         assert.deepStrictEqual([unk.error.code, unk.error.data.params], [-32601, { name: 'nope' }]);
@@ -43,7 +43,7 @@ suite('fake-engine', () => {
 
     test('async handler: replies keep request order, nothing leaves before release', async () => {
         const fake = createFakeEngine();
-        await ask(fake, 'initialize', { protocol: '2.0' });
+        await ask(fake, 'initialize', { protocol: '2.3' });
         let release!: () => void;
         const gate = new Promise<void>(r => { release = r; });
         fake.on('a', async () => { await gate; return { result: 'A' }; });
@@ -60,7 +60,7 @@ suite('fake-engine', () => {
 
     test('a throwing handler answers op.internal and later requests are still answered', async () => {
         const fake = createFakeEngine();
-        await ask(fake, 'initialize', { protocol: '2.0' });
+        await ask(fake, 'initialize', { protocol: '2.3' });
         fake.on('boom', async () => { throw new Error('x'); });
         fake.on('b', () => ({ result: 'B' }));
         const boom = await ask(fake, 'boom', {}, 2);
@@ -75,6 +75,6 @@ suite('fake-engine', () => {
         assert.ok(Array.isArray(find('artifact.read', 'array_params')?.params));
         assert.strictEqual((find('artifact.read', 'flagged')?.expect as any).layout.payload, 'flags');
         assert.ok(cases.every(c => c.method !== 'system.ops'));
-        assert.strictEqual(cases.length, 358);
+        assert.strictEqual(cases.length, 449);
     });
 });

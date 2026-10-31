@@ -1,0 +1,6 @@
+{
+  "expect_error": "vault.not_selected",
+  "params": {
+    "path": "Templates/component.md"
+  }
+}

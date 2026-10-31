@@ -1,0 +1,16 @@
+{
+  "expect": {
+    "hash": "eb75aaf201a5107eba9f45e58d3c91cee417c68013e7db39c001023f2918bd23",
+    "path": "Snippets/b.md",
+    "warnings": []
+  },
+  "expect_files": {
+    "Snippets/bad-vars.md": false
+  },
+  "params": {
+    "expectedHash": "eb75aaf201a5107eba9f45e58d3c91cee417c68013e7db39c001023f2918bd23",
+    "newPath": "Snippets/b.md",
+    "path": "Snippets/bad-vars.md"
+  },
+  "vault": "vault"
+}

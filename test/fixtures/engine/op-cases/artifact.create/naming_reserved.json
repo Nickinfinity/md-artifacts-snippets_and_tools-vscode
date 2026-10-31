@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_files": {
+    "Snippets/CON.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "title": "x"
+    },
+    "path": "Snippets/CON.md"
+  },
+  "vault": "vault"
+}

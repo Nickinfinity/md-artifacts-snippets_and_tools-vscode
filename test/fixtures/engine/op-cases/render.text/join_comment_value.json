@@ -1,0 +1,14 @@
+{
+  "expect_error": "render.unjoinable",
+  "expect_error_params": {
+    "line": "2",
+    "reason": "comment"
+  },
+  "params": {
+    "join": "and",
+    "text": "a\n<VK-c>",
+    "values": {
+      "VK-c": "# x"
+    }
+  }
+}

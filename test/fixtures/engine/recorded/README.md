@@ -1,6 +1,6 @@
 # Engine recordings (plan W5 H5.0)
 
-Replies recorded from the pinned engine (`/Users/nick/.local/mda-v0.10.0/bin/mda`, `v0.10.0`, protocol 2.0). **Never edit by hand.** Re-record: `npm run compile && MDA_BIN=<pinned> node test/fixtures/engine/recorded/record.mjs`. Entries marked "engine-converted once" were older-format sources that the engine re-emitted once; they are now plain `md` entries holding those engine bytes.
+Replies recorded from the pinned engine (`/Users/nick/.local/mda-v0.13.0/bin/mda`, `v0.13.0`, protocol 2.3). **Never edit by hand.** Re-record: `npm run compile && MDA_BIN=<pinned> node test/fixtures/engine/recorded/record.mjs`. Entries marked "engine-converted once" were older-format sources that the engine re-emitted once; they are now plain `md` entries holding those engine bytes.
 
 Load through `test/recorded.ts`: `recordedSource(name)` (bytes), `recordedRead(name)` (`artifact.read` reply; adapt with `toParsedArtifactFile(read, "/v")`), `recordedReadsByHash()` (the fake engine lookup), `recordedVarsList()`.
 

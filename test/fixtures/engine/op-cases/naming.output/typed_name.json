@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "fileName": "Btn.tsx"
+  },
+  "params": {
+    "fileName": "Btn",
+    "path": "Templates/component.md"
+  },
+  "vault": "vault"
+}

@@ -2,7 +2,7 @@
 
 **The authority is the engine's spec, not this file:**
 `spec/ARTIFACT_FILE_FORMAT.md` in the `mda` engine repo at the pinned tag
-**`v0.10.0`** (`git -C <engine repo> show v0.10.0:spec/ARTIFACT_FILE_FORMAT.md`).
+**`v0.13.0`** (`git -C <engine repo> show v0.13.0:spec/ARTIFACT_FILE_FORMAT.md`).
 The engine reads and writes every artifact file; this extension never parses or
 emits one. If what you see on disk and the engine spec disagree, that is an
 engine question — requested as engine work, never patched here.

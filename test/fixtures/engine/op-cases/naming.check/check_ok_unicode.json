@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "fileName": "Caf\u00e9 notes",
+    "ok": true
+  },
+  "params": {
+    "fileName": "Caf\u00e9 notes",
+    "type": "Snippet"
+  }
+}

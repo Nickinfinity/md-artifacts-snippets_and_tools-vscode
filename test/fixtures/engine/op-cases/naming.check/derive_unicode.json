@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "fileName": "untitled",
+    "ok": true
+  },
+  "params": {
+    "title": "\u65e5\u672c",
+    "type": "Snippet"
+  }
+}

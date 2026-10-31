@@ -1,0 +1,9 @@
+{
+  "expect": {
+    "fileName": "CLAUDE.md"
+  },
+  "params": {
+    "path": "AIAgentsConf/reviewer.md"
+  },
+  "vault": "vault"
+}

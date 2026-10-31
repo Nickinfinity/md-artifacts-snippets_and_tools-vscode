@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.edge_dot",
+  "expect_files": {
+    "Snippets/.hidden.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "title": "x"
+    },
+    "path": "Snippets/.hidden.md"
+  },
+  "vault": "vault"
+}

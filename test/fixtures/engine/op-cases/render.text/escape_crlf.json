@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "a\r\nb",
+    "warnings": []
+  },
+  "params": {
+    "text": "a\r\nb"
+  }
+}

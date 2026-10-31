@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.empty",
+      "params": {}
+    },
+    "fileName": "",
+    "ok": false
+  },
+  "params": {
+    "fileName": "",
+    "type": "Snippet"
+  }
+}

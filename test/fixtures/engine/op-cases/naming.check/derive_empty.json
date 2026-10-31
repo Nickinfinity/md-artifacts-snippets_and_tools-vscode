@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "fileName": "untitled",
+    "ok": true
+  },
+  "params": {
+    "title": "",
+    "type": "Snippet"
+  }
+}

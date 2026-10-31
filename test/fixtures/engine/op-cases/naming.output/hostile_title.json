@@ -1,0 +1,10 @@
+{
+  "expect_error": "naming.path_injection",
+  "expect_error_params": {
+    "field": "title"
+  },
+  "params": {
+    "path": "Templates/hostile.md"
+  },
+  "vault": "vault"
+}

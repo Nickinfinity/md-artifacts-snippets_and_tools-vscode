@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.illegal_char",
+      "params": {}
+    },
+    "fileName": "a:b",
+    "ok": false
+  },
+  "params": {
+    "fileName": "a:b",
+    "type": "Snippet"
+  }
+}

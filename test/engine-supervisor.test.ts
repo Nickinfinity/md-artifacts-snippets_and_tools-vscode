@@ -53,7 +53,7 @@ suite('EngineSupervisor', () => {
         const r = rig();
         await Promise.all([r.get(), r.get()]);
         assert.strictEqual(r.fakes.length, 1);
-        assert.strictEqual(r.logs.includes('engine 0.10.0, protocol 2.0'), true);
+        assert.strictEqual(r.logs.includes('engine 0.13.0, protocol 2.3'), true);
         assert.strictEqual(r.logs.some(l => /^→ config\.get \(\d+ ms\)$/.test(l)), true);
     });
 
@@ -107,7 +107,7 @@ suite('EngineSupervisor', () => {
     });
 
     test('malformed types list is terminal client.protocol', async () => {
-        const r = rig({ setup: f => f.on('initialize', () => ({ result: { protocol: '2.0', engine: '1', types: [{ type: 1 }] } })) });
+        const r = rig({ setup: f => f.on('initialize', () => ({ result: { protocol: '2.3', engine: '1', types: [{ type: 1 }] } })) });
         assert.strictEqual((await err(r.get())).code, 'client.protocol');
         await err(r.get());
         assert.strictEqual(r.fakes.length, 1);

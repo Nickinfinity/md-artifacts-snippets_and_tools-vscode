@@ -1,0 +1,11 @@
+{
+  "expect_error": "naming.path_injection",
+  "expect_error_params": {
+    "field": "fileName"
+  },
+  "params": {
+    "fileName": "../x",
+    "path": "Templates/component.md"
+  },
+  "vault": "vault"
+}

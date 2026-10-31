@@ -46,8 +46,8 @@ export function locateEngine(opts: {
  * @param _platform Reserved; the hint is currently OS-independent.
  * @returns The install command.
  * @example
- * installHint('darwin'); // 'cargo install --git ... --tag v0.10.0 mda'
+ * installHint('darwin'); // 'cargo install --git ... --tag v0.13.0 mda'
  */
 export function installHint(_platform: NodeJS.Platform): string {
-	return 'cargo install --git https://github.com/Nickinfinity/md-artifacts-cli --tag v0.10.0 mda';
+	return 'cargo install --git https://github.com/Nickinfinity/md-artifacts-cli --tag v0.13.0 mda';
 }

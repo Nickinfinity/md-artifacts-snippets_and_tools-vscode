@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.md_extension",
+      "params": {}
+    },
+    "fileName": "x.md",
+    "ok": false
+  },
+  "params": {
+    "fileName": "x.md",
+    "type": "Snippet"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.path_injection",
+  "expect_error_params": {
+    "field": "target"
+  },
+  "expect_files": {
+    "AIAgentsConf/evil.md": "---\nartifactType: AIAgentsConfig\ntitle: Evil\ntarget: ../x\n---\n\nYou are a reviewer.\n",
+    "x": false
+  },
+  "params": {
+    "path": "AIAgentsConf/evil.md"
+  },
+  "vault": "vault_naming"
+}

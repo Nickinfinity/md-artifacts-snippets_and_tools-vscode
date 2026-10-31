@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.illegal_char",
+  "expect_files": {
+    "Snippets/a*b.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "title": "x"
+    },
+    "path": "Snippets/a*b.md"
+  },
+  "vault": "vault"
+}

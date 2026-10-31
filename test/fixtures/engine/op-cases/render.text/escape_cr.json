@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "output": "echo a\rtouch x",
+    "warnings": []
+  },
+  "params": {
+    "text": "echo a\rtouch x"
+  }
+}

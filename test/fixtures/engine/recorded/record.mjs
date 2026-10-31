@@ -1,6 +1,6 @@
 // Records engine replies for the test harness (plan W5 H5.0). Not part of the suite.
 //
-//   MDA_BIN=/Users/nick/.local/mda-v0.10.0/bin/mda npm run compile && node test/fixtures/engine/recorded/record.mjs
+//   MDA_BIN=/Users/nick/.local/mda-v0.13.0/bin/mda npm run compile && node test/fixtures/engine/recorded/record.mjs
 //
 // Reads sources.json beside this file: [{ name, path, md } | { name, path, model } |
 // { name, path, from, replace: [find, with] }].

@@ -1,0 +1,12 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "output": "x\u009b31m",
+    "warnings": []
+  },
+  "params": {
+    "code": "x\u009b31m",
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

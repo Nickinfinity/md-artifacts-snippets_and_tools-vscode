@@ -1,0 +1,19 @@
+{
+  "expect_error": "artifact.vars_invalid",
+  "expect_error_params": {
+    "path": "Snippets/bad-vars.md"
+  },
+  "expect_files": {
+    "Snippets/b.md": false
+  },
+  "params": {
+    "expectedHash": "eb75aaf201a5107eba9f45e58d3c91cee417c68013e7db39c001023f2918bd23",
+    "model": {
+      "artifactType": "Template",
+      "title": "x"
+    },
+    "newPath": "Snippets/b.md",
+    "path": "Snippets/bad-vars.md"
+  },
+  "vault": "vault"
+}

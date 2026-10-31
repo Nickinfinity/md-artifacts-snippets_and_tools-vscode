@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "fileName": "button-group",
+    "ok": true
+  },
+  "params": {
+    "title": "Button Group",
+    "type": "Snippet"
+  }
+}

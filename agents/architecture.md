@@ -24,7 +24,7 @@ src/
 │   └── variables-apply.command.ts · variables-search.command.ts
 ├── engine/                           # THE engine client — the only code that talks to `mda`
 │   ├── session.ts                    # NDJSON JSON-RPC framing, ids, pending, timeout (the only wire code)
-│   ├── supervisor.ts                 # spawn, handshake (protocol 2.0, O-2 type check), restart with backoff
+│   ├── supervisor.ts                 # spawn, handshake (protocol 2.3, O-2 type check), restart with backoff
 │   ├── engine.vscode.ts              # the VS Code edge: real spawn, Output channel, getEngine() (sole child_process)
 │   ├── locate.ts                     # find the binary (setting → PATH), install hint
 │   ├── errors.ts                     # THE code → vscode.l10n.t table (en + es)

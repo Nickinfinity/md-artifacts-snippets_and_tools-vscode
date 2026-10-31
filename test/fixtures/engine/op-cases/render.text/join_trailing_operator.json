@@ -1,0 +1,11 @@
+{
+  "expect_error": "render.unjoinable",
+  "expect_error_params": {
+    "line": "1",
+    "reason": "trailing_operator"
+  },
+  "params": {
+    "join": "and",
+    "text": "a &&\nb"
+  }
+}

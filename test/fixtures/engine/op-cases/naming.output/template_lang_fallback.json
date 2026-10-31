@@ -1,0 +1,9 @@
+{
+  "expect": {
+    "fileName": "Edit me.ts"
+  },
+  "params": {
+    "path": "Templates/edit.md"
+  },
+  "vault": "vault"
+}

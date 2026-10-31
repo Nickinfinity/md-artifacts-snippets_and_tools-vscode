@@ -28,7 +28,7 @@ pnpm install           # Install deps (no node_modules by default — run after 
 npm run compile        # One-off TypeScript build (outputs to dist/)
 npm run watch          # Watch mode for development
 npm run lint           # ESLint check (src/)
-npm run test           # Compile + lint + run all tests (1607 passing at W5)
+npm run test           # Compile + lint + run all tests (1701 passing at the v0.13.0 pin)
 rm -rf dist && npm test # REQUIRED after any file delete or rename — see below
 npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale
 ```
@@ -37,7 +37,7 @@ npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale
   test's stale compiled file keeps running and *inflates* the pass count (or fails
   against code that is gone). `rm -rf dist` after any delete or rename.
 - **Engine smoke tests** run only with `MDA_BIN` set (pinned binary,
-  `/Users/nick/.local/mda-v0.10.0/bin/mda`); without it they skip loudly
+  `/Users/nick/.local/mda-v0.13.0/bin/mda`); without it they skip loudly
   (`ENGINE SMOKE SKIPPED`). Tests use temp vaults with `MDA_CONFIG_DIR` in a temp dir.
 - **macOS socket-path caveat.** `.vscode-test.mjs` pins
   `--user-data-dir=/tmp/mda-vsct` (macOS caps unix socket paths at 103 chars).
@@ -52,7 +52,7 @@ templates, commands, agent configs, AI prompts and variables into VS Code: an
 activity-bar home (a main pane that lists create-form types and hosts the insert
 preview; a Variables pane), a QuickPick artifact picker, a create/edit form, and
 Variable Sets. **It requires the `mda` engine** (a separate Rust binary, `mda
-serve`, JSON-RPC over stdio, protocol 2.0): every vault and workspace file read
+serve`, JSON-RPC over stdio, protocol 2.3): every vault and workspace file read
 and write, every parse, render and vault rule is the engine's (R-4: no TS
 fallback). The extension owns only what is VS Code-specific — menus, panes,
 webviews, delivery to editor / terminal / clipboard, confirmations, localisation.
@@ -104,7 +104,7 @@ the regression this table exists to prevent.
 
 | Fact | Sole owner | Guard |
 |---|---|---|
-| Every vault rule — parse, serialize, flags, slugs for vault files, index links, frontmatter keys, migration, render, var-set apply / save, Variables mutation, vault-path containment | **the engine** (`mda` `v0.10.0`) | engine conformance + op cases; `w5-cleanup-guard.test.ts` (deleted services stay deleted) |
+| Every vault rule — parse, serialize, flags, slugs for vault files, index links, frontmatter keys, migration, render, var-set apply / save, Variables mutation, vault-path containment | **the engine** (`mda` `v0.13.0`) | engine conformance + op cases; `w5-cleanup-guard.test.ts` (deleted services stay deleted) |
 | Artifact types | `artifact-type-config.service.ts` — `getEntry` / `getAllTypes` (+ O-2 handshake vs the engine) | `constants.test.ts` · `engine-supervisor.test.ts` |
 | Settings section | `config.service.ts` — `CONFIG_SECTION`, `getVaultPath`, `getVaultRootUri` | — (never call `getConfiguration('mdArtifacts')` elsewhere) |
 | Engine wire / spawn / errors / shapes / write model | `src/engine/` (see above) | `engine-imports-guard.test.ts` |

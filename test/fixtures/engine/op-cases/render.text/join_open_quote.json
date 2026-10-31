@@ -1,0 +1,11 @@
+{
+  "expect_error": "render.unjoinable",
+  "expect_error_params": {
+    "line": "1",
+    "reason": "open_quote"
+  },
+  "params": {
+    "join": "and",
+    "text": "echo \"a\nb\""
+  }
+}

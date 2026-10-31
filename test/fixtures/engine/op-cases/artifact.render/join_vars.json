@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "joined": true,
+    "output": "a bob && b bob && c",
+    "warnings": []
+  },
+  "params": {
+    "code": "a <VK-name>\nb <VK-name>\nc",
+    "join": "and",
+    "path": "Snippets/hello.md",
+    "values": {
+      "VK-name": "bob"
+    }
+  },
+  "vault": "vault"
+}

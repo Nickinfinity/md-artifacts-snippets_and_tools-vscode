@@ -1,0 +1,10 @@
+{
+  "expect": {
+    "containsEscape": false,
+    "output": "a\tb\nc",
+    "warnings": []
+  },
+  "params": {
+    "text": "a\tb\nc"
+  }
+}

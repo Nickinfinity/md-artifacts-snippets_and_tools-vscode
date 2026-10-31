@@ -1,0 +1,9 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_error_params": {},
+  "params": {
+    "fileName": "CON.txt",
+    "path": "Templates/component.md"
+  },
+  "vault": "vault"
+}

@@ -40,7 +40,7 @@ install or `--no-dependencies` with the dependency bundled another way.
 | `.vscode/launch.json` | Debug launch with `--extensionDevelopmentPath`; other extensions disabled in the host |
 | `.vscode/tasks.json` | `npm watch` is the default build task (runs automatically on F5) |
 | `.vscode-test.mjs` | Test runner looks for compiled tests at `dist/test/**/*.test.js` |
-| [`ARTIFACT_FILE_FORMAT.md`](../ARTIFACT_FILE_FORMAT.md) | Short map of the artifact `.md` format. **The authority is the engine's `spec/ARTIFACT_FILE_FORMAT.md` at `v0.10.0`** — read it before touching fixtures, recordings or anything that writes. |
+| [`ARTIFACT_FILE_FORMAT.md`](../ARTIFACT_FILE_FORMAT.md) | Short map of the artifact `.md` format. **The authority is the engine's `spec/ARTIFACT_FILE_FORMAT.md` at `v0.13.0`** — read it before touching fixtures, recordings or anything that writes. |
 | [`CREATING_A_PLAN.md`](../CREATING_A_PLAN.md) | **Authoritative** plan-writing process — agent topology, prompt templates, task spec, refinement waves (§5.3), gate, ledger. Read before writing any plan or dispatching agents. |
 
 ---

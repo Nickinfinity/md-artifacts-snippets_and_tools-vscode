@@ -38,14 +38,14 @@ export interface FakeEngine extends EngineProcess {
 /**
  * Builds a fake engine that handshakes per PROTOCOL §2.
  *
- * @param opts - `protocol` it claims (default `2.0`), `types` it reports (default `initialize.json`'s).
+ * @param opts - `protocol` it claims (default `2.3`), `types` it reports (default `initialize.json`'s).
  * @returns The fake, already listening on its stdin.
  * @example
- * const fake = createFakeEngine({ protocol: '2.0' });
- * fake.stdin.write('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":"2.0"}}\n');
+ * const fake = createFakeEngine({ protocol: '2.3' });
+ * fake.stdin.write('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":"2.3"}}\n');
  */
 export function createFakeEngine(opts: { protocol?: string; types?: readonly TypeInfo[] } = {}): FakeEngine {
-    const protocol = opts.protocol ?? '2.0';
+    const protocol = opts.protocol ?? '2.3';
     const types = opts.types ?? (readJson('initialize.json') as { types: TypeInfo[] }).types;
     const stdin = new PassThrough(), stdout = new PassThrough(), stderr = new PassThrough();
     const handlers = new Map<string, FakeHandler>();
@@ -68,7 +68,7 @@ export function createFakeEngine(opts: { protocol?: string; types?: readonly Typ
         if (client.split('.')[0] !== protocol.split('.')[0]) {
             return { error: { code: 'protocol.version_mismatch', params: { client, server: protocol } } };
         }
-        return { result: { protocol, engine: '0.10.0', types } };
+        return { result: { protocol, engine: '0.13.0', types } };
     };
 
     type Req = { id: number | string; method: string; params?: unknown };

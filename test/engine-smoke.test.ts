@@ -31,7 +31,7 @@ suite('engine smoke (real binary)', () => {
             platform: process.platform, isExecutableFile,
         });
         if (found.kind === 'not-found') {
-            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.10.0 mda binary');
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.13.0 mda binary');
             this.skip();
             return;
         }
@@ -48,7 +48,7 @@ suite('engine smoke (real binary)', () => {
         });
         const art = await sup.request('artifact.read', { path: 'Snippets/hello.md' });
         assert.deepStrictEqual(art.vars[0], { name: 'VK-greeting', defaultValue: 'marker-7f3a' });
-        assert.strictEqual(sup.info?.engine, '0.10.0');
+        assert.strictEqual(sup.info?.engine, '0.13.0');
         assert.ok(sup.info?.protocol.startsWith('2.'), `protocol ${sup.info?.protocol}`);
     });
 
@@ -60,7 +60,7 @@ suite('engine smoke (real binary)', () => {
             platform: process.platform, isExecutableFile,
         });
         if (found.kind === 'not-found') {
-            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.10.0 mda binary');
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.13.0 mda binary');
             this.skip();
             return;
         }
@@ -96,7 +96,7 @@ suite('engine smoke (real binary)', () => {
             platform: process.platform, isExecutableFile,
         });
         if (found.kind === 'not-found') {
-            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.10.0 mda binary');
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.13.0 mda binary');
             this.skip();
             return;
         }

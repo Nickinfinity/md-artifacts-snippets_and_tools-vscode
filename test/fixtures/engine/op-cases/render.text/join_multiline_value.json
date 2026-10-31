@@ -1,0 +1,15 @@
+{
+  "expect_error": "render.unjoinable",
+  "expect_error_params": {
+    "line": "0",
+    "name": "VK-name",
+    "reason": "multiline_value"
+  },
+  "params": {
+    "join": "and",
+    "text": "echo <VK-name>",
+    "values": {
+      "VK-name": "a\nb"
+    }
+  }
+}

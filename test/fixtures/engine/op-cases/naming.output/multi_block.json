@@ -1,0 +1,10 @@
+{
+  "expect_error": "artifact.multi_block",
+  "expect_error_params": {
+    "count": "2"
+  },
+  "params": {
+    "path": "AIAgentsConf/multi.md"
+  },
+  "vault": "vault"
+}

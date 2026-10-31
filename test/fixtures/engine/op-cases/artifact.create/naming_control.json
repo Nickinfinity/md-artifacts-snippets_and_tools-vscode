@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.control_char",
+  "expect_files": {
+    "Snippets/a\u0085b.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "title": "x"
+    },
+    "path": "Snippets/a\u0085b.md"
+  },
+  "vault": "vault"
+}

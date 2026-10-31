@@ -1,0 +1,16 @@
+{
+  "expect_error": "file.exists",
+  "expect_error_params": {
+    "actual": "0949f3774403ac4c67723a3e2b949e0ad34c1ad85ef3bf8411b10cf6227cac94",
+    "path": "Snippets/sub/nested.md"
+  },
+  "expect_files": {
+    "Snippets/hello.md": "---\nartifactType: Snippet\ntitle: Hello\ndescription: Fixture snippet\ntags: [fixture]\n---\n\n```bash\necho <VK-greeting> <VK-name>\n```\n\nvars:\n```yaml VKs\nVK-greeting: marker-7f3a\n```\n"
+  },
+  "params": {
+    "expectedHash": "ec08b1ff85244ca852728e7bf761ccb8cfcaf796abd9ddfef6e5f8aef5082c1e",
+    "newPath": "Snippets/sub/nested.md",
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

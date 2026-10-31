@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "error": {
+      "code": "naming.edge_space",
+      "params": {}
+    },
+    "fileName": " a",
+    "ok": false
+  },
+  "params": {
+    "fileName": " a",
+    "type": "Snippet"
+  }
+}

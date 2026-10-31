@@ -1,0 +1,10 @@
+{
+  "expect_error": "artifact.not_whole_file",
+  "expect_error_params": {
+    "type": "Snippet"
+  },
+  "params": {
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

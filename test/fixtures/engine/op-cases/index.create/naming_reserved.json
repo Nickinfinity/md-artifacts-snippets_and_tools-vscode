@@ -1,0 +1,15 @@
+{
+  "expect_error": "naming.reserved",
+  "expect_files": {
+    "Templates/gen/con.md": false,
+    "Templates/gen/index.md": false
+  },
+  "params": {
+    "dir": "Templates/gen",
+    "paths": [
+      "con.ts"
+    ],
+    "type": "Template"
+  },
+  "vault": "vault"
+}

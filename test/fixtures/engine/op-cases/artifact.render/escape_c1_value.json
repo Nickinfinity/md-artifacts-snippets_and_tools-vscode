@@ -1,0 +1,14 @@
+{
+  "expect": {
+    "containsEscape": true,
+    "output": "echo marker-7f3a \u0085",
+    "warnings": []
+  },
+  "params": {
+    "path": "Snippets/hello.md",
+    "values": {
+      "VK-name": "\u0085"
+    }
+  },
+  "vault": "vault"
+}

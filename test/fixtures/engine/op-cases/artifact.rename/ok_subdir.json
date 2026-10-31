@@ -1,0 +1,17 @@
+{
+  "expect": {
+    "hash": "ec08b1ff85244ca852728e7bf761ccb8cfcaf796abd9ddfef6e5f8aef5082c1e",
+    "path": "Snippets/new/deep/hello.md",
+    "warnings": []
+  },
+  "expect_files": {
+    "Snippets/hello.md": false,
+    "Snippets/new/deep/hello.md": "---\nartifactType: Snippet\ntitle: Hello\ndescription: Fixture snippet\ntags: [fixture]\n---\n\n```bash\necho <VK-greeting> <VK-name>\n```\n\nvars:\n```yaml VKs\nVK-greeting: marker-7f3a\n```\n"
+  },
+  "params": {
+    "expectedHash": "ec08b1ff85244ca852728e7bf761ccb8cfcaf796abd9ddfef6e5f8aef5082c1e",
+    "newPath": "Snippets/new/deep/hello.md",
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

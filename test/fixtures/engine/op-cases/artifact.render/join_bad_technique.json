@@ -1,0 +1,8 @@
+{
+  "expect_error": "op.bad_request",
+  "params": {
+    "join": "nope",
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}

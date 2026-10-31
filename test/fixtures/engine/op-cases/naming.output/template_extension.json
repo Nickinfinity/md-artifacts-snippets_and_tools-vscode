@@ -1,0 +1,9 @@
+{
+  "expect": {
+    "fileName": "Button.tsx"
+  },
+  "params": {
+    "path": "Templates/component.md"
+  },
+  "vault": "vault"
+}

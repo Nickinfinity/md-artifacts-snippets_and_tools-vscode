@@ -1,0 +1,14 @@
+{
+  "expect_error": "naming.md_extension",
+  "expect_files": {
+    "Snippets/x.md.md": false
+  },
+  "params": {
+    "model": {
+      "artifactType": "Snippet",
+      "title": "x"
+    },
+    "path": "Snippets/x.md.md"
+  },
+  "vault": "vault"
+}

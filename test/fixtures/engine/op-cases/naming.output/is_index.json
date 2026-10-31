@@ -1,0 +1,8 @@
+{
+  "expect_error": "artifact.is_index",
+  "expect_error_params": {},
+  "params": {
+    "path": "Templates/index.md"
+  },
+  "vault": "vault"
+}

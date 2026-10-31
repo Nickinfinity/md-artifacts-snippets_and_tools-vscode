@@ -1,5 +1,5 @@
 /**
- * Wire types for the `mda` engine (protocol 2.0, engine tag `v0.10.0`).
+ * Wire types for the `mda` engine (protocol 2.3, engine tag `v0.13.0`).
  *
  * Every shape here mirrors the engine's serde structs as specified in the
  * engine's `spec/PROTOCOL.md`; paths on the wire are vault-relative POSIX and
@@ -303,7 +303,7 @@ export interface EngineOps {
     'artifact.render': { params: P<{ path: string; block?: number; code?: string; values?: Values }>; result: Rendered };
     'artifact.write_file': { params: P<{ path: string; block?: number; values?: Values; workspaceRoot: string; destDir: string; fileName?: string; expectedHash?: string }>;
         result: { path: string; hash: string } & Omit<Rendered, 'output'> };
-    /** Returns every string field present; `blocks[].vars` is never filled at v0.10.0 — W3 must not round-trip a vars array from it. */
+    /** Returns every string field present; `blocks[].vars` is never filled at v0.13.0 — W3 must not round-trip a vars array from it. */
     'artifact.prefill': { params: P<{ source: 'selection' | 'file' | 'terminal'; type: ArtifactType; text: string; languageId?: string; fileName?: string }>; result: EngineModel };
     'index.plan':      { params: P<{ path: string; mirrorFrom?: string }>; result: { steps: readonly { raw: string; relPath: string; relDir: string; candidates: readonly string[]; skip?: EngineErrorData }[]; rejected: readonly { raw: string; code: string }[] } };
     'index.run':       { params: P<{ path: string; workspaceRoot: string; steps: readonly { relPath: string; destDir: string; fileName?: string }[]; values?: Values }>; result: Batch<StepResult> };
@@ -357,6 +357,6 @@ export type EngineResult<M extends EngineMethod> = EngineOps[M]['result'];
  * The `initialize` handshake reply.
  *
  * @example
- * const info: InitializeResult = { protocol: '2.0', engine: '0.10.0', types: [] };
+ * const info: InitializeResult = { protocol: '2.3', engine: '0.13.0', types: [] };
  */
 export interface InitializeResult { readonly protocol: string; readonly engine: string; readonly types: readonly TypeInfo[] }

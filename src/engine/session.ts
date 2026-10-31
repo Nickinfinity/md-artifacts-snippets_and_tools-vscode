@@ -20,7 +20,7 @@ const isErrData = (v: unknown): v is EngineErrorData => isObj(v) && typeof v['co
  * @returns A session.
  * @example
  * const s = new EngineSession(proc, { timeoutMs: 30_000 });
- * await s.initialize('2.0');
+ * await s.initialize('2.3');
  */
 export class EngineSession {
     private nextId = 1;
@@ -54,7 +54,7 @@ export class EngineSession {
      * @param protocol - Protocol version the client speaks.
      * @returns The engine's reply, shape-checked.
      * @example
-     * const info = await session.initialize('2.0');
+     * const info = await session.initialize('2.3');
      */
     async initialize(protocol: string): Promise<InitializeResult> {
         const r = await this.send('initialize', { protocol });

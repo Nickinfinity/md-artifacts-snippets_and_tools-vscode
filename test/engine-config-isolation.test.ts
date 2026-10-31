@@ -4,7 +4,7 @@ import * as path from 'node:path';
 /**
  * The test host must run the engine against a throwaway config dir: `activate()` asks the engine
  * for its default vault, and the developer's real one must never become the suite's session vault.
- * Set by `.vscode-test.mjs` (`env`); the engine honours an absolute `MDA_CONFIG_DIR` at v0.10.0.
+ * Set by `.vscode-test.mjs` (`env`); the engine honours an absolute `MDA_CONFIG_DIR` at v0.13.0.
  */
 suite('engine config isolation', () => {
     test('MDA_CONFIG_DIR is set to an absolute temp dir in the test host', () => {

@@ -1,0 +1,15 @@
+{
+  "expect_error": "artifact.bad_path",
+  "expect_error_params": {
+    "path": "Snippets/x.txt"
+  },
+  "expect_files": {
+    "Snippets/hello.md": "---\nartifactType: Snippet\ntitle: Hello\ndescription: Fixture snippet\ntags: [fixture]\n---\n\n```bash\necho <VK-greeting> <VK-name>\n```\n\nvars:\n```yaml VKs\nVK-greeting: marker-7f3a\n```\n"
+  },
+  "params": {
+    "expectedHash": "ec08b1ff85244ca852728e7bf761ccb8cfcaf796abd9ddfef6e5f8aef5082c1e",
+    "newPath": "Snippets/x.txt",
+    "path": "Snippets/hello.md"
+  },
+  "vault": "vault"
+}
