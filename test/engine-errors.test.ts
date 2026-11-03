@@ -48,4 +48,38 @@ suite('engine errors', () => {
             assert.ok(engineErrorMessage({ code, params: {} }).length > 0, code);
         }
     });
+
+    suite('artifact.unrepresentable', () => {
+        const msg = (field: string, reason = 'round_trip') =>
+            engineErrorMessage({ code: 'artifact.unrepresentable', params: { field, reason } });
+        const generic = (field: string, reason = 'round_trip') =>
+            `Field "${field}" cannot be represented: ${reason}`;
+
+        test('known fields give advice, never the raw field or reason', () => {
+            const cases: [string, string][] = [
+                ['tags', 'round_trip'], ['blocks', 'multi_block'], ['blocks', 'round_trip'],
+                ['blocks/0/heading', 'round_trip'], ['blocks/12/description', 'round_trip'],
+                ['blocks/3/code', 'round_trip'], ['title', 'round_trip'],
+            ];
+            const seen = new Set<string>();
+            for (const [f, r] of cases) {
+                const m = msg(f, r);
+                assert.ok(m.startsWith('Incorrect format: '), `${f}/${r}: ${m}`);
+                assert.ok(!m.includes(`"${f}"`) && !m.includes(r), `${f}/${r} leaks: ${m}`);
+                seen.add(m);
+            }
+            assert.strictEqual(seen.size, cases.length, 'each case has its own message');
+        });
+
+        test('unknown field -> today\'s generic text', () => {
+            assert.strictEqual(msg('layout/notes'), generic('layout/notes'));
+            assert.strictEqual(msg('blocks/0/vars'), generic('blocks/0/vars'));
+        });
+
+        test('field is looked up through a Map: constructor / __proto__ -> generic', () => {
+            assert.strictEqual(msg('constructor'), generic('constructor'));
+            assert.strictEqual(msg('__proto__'), generic('__proto__'));
+            assert.strictEqual(msg('toString'), generic('toString'));
+        });
+    });
 });

@@ -18,6 +18,36 @@ const CLIENT_MESSAGES = {
     'client.closed': () => vscode.l10n.t('The engine session is closed.'),
 } satisfies Record<ClientErrorCode, (p: P) => string>;
 
+/**
+ * Advice per refused field; `blocks/N/...` is normalised to `blocks/...`. `reason` only selects, never shown.
+ * A Map because `field` is engine output (`'constructor'` must not hit `Object.prototype`).
+ */
+const UNREPRESENTABLE_ADVICE: ReadonlyMap<string, (reason: string) => string> = new Map<string, (reason: string) => string>([
+    ['tags', () => vscode.l10n.t('Incorrect format: a tag must fit on one line. Remove the line break.')],
+    ['blocks', r => r === 'multi_block'
+        ? vscode.l10n.t('Incorrect format: this type holds one code block. Keep a single block and remove the others.')
+        : vscode.l10n.t('Incorrect format: with several blocks, give each block a heading.')],
+    ['blocks/heading', () => vscode.l10n.t('Incorrect format: a block heading must be one line, and no line of its description may start with "##".')],
+    ['blocks/description', () => vscode.l10n.t('Incorrect format: a block description must not contain three backticks (```).')],
+    ['blocks/code', () => vscode.l10n.t('Incorrect format: the code must not contain three backticks (```).')],
+    ['title', () => vscode.l10n.t('Incorrect format: the title must be one line.')],
+]);
+
+/**
+ * Message for `artifact.unrepresentable`: advice for a known field, today's generic text otherwise.
+ *
+ * @param p - engine params `{field, reason}`.
+ * @returns the message.
+ * @example
+ * unrepresentableMessage({ field: 'blocks/2/code', reason: 'round_trip' });
+ */
+function unrepresentableMessage(p: P): string {
+    const advice = UNREPRESENTABLE_ADVICE.get((p.field ?? '').replace(/^blocks\/\d+\//, 'blocks/'));
+    return advice
+        ? advice(p.reason ?? '')
+        : vscode.l10n.t('Field "{0}" cannot be represented: {1}', p.field ?? '', p.reason ?? '');
+}
+
 /** Engine codes (spec/PROTOCOL.md §5). Literal `l10n.t` first arguments only. `op.bad_request` never shows `reason`. */
 const ENGINE_MESSAGES: Readonly<Record<string, (p: P) => string>> = {
     ...CLIENT_MESSAGES,
@@ -53,7 +83,7 @@ const ENGINE_MESSAGES: Readonly<Record<string, (p: P) => string>> = {
     'artifact.vars_invalid': p => vscode.l10n.t('Invalid variables in {0}.', p.path ?? ''),
     'artifact.block_not_found': p => vscode.l10n.t('Block not found: {0}', p.block ?? ''),
     'artifact.not_serializable': p => vscode.l10n.t('Artifact cannot be saved: {0}', p.reason ?? ''),
-    'artifact.unrepresentable': p => vscode.l10n.t('Field "{0}" cannot be represented: {1}', p.field ?? '', p.reason ?? ''),
+    'artifact.unrepresentable': unrepresentableMessage,
     'artifact.not_whole_file': p => vscode.l10n.t('{0} is not a whole-file artifact type.', p.type ?? ''),
     'artifact.multi_block': p => vscode.l10n.t('Artifact has {0} blocks; one is required.', p.count ?? ''),
     'artifact.is_index': () => vscode.l10n.t('This artifact is an index and cannot be written directly.'),

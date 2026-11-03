@@ -65,7 +65,8 @@ suite('artifact form — engine writes', () => {
     });
 
     test('edit without a read sends nothing', async () => {
-        assert.strictEqual(await saveToEngine(form(), { mode: 'edit', type: 'Snippet' }, () => undefined), false);
+        assert.strictEqual(await saveToEngine(form(), { mode: 'edit', type: 'Snippet' }, () => undefined, io()), false);
+        assert.deepStrictEqual(notes, [], 'a silent refusal must not toast');
         assert.strictEqual(eng.fake.received.filter(r => r.method.startsWith('artifact.') && r.method !== 'artifact.read').length, 0);
     });
 
@@ -134,6 +135,7 @@ suite('artifact form — engine writes', () => {
         assert.strictEqual(await saveToEngine(form(), { mode: 'create', type: 'Snippet' }, () => undefined, io('')), false);
         assert.strictEqual(await saveToEngine(form(), { mode: 'create', type: 'Snippet' }, () => undefined, io(undefined, '')), false);
         assert.strictEqual(count('artifact.create'), 0);
+        assert.deepStrictEqual(notes, [], 'a cancelled picker or prompt must not toast');
         eng.fake.on('artifact.create', () => ({ error: { code: 'file.exists', params: { path: 'Snippets/demo.md', actual: 'x' } } }));
         answer = false;
         assert.strictEqual(await saveToEngine(form(), { mode: 'create', type: 'Snippet' }, () => undefined, io()), false);

@@ -140,6 +140,9 @@ function labelNew(): string {
 }
 const LABEL_BACK = '$(arrow-left)  ..';
 
+/** The two window calls the navigator makes; a seam so tests drive a host-faithful fake. */
+export type DestPickerIO = Pick<typeof vscode.window, 'createQuickPick' | 'showInputBox'>;
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -153,14 +156,15 @@ const LABEL_BACK = '$(arrow-left)  ..';
  * `isWithinRoot` is checked before any navigation or creation.
  *
  * @param rootUri - Root directory to browse (artifact-type base dir).
+ * @param io      - Window calls (tests inject a fake).
  * @returns Chosen subfolder Uri (may equal `rootUri`), or `undefined` on Escape.
  *
  * @example
  * const chosen = await pickDestFolder(vscode.Uri.joinPath(vaultRoot, 'Snippets'));
  * if (chosen) { // user picked a folder }
  */
-export async function pickDestFolder(rootUri: vscode.Uri): Promise<vscode.Uri | undefined> {
-    return new DestFolderNavigator(rootUri).run();
+export async function pickDestFolder(rootUri: vscode.Uri, io: DestPickerIO = vscode.window): Promise<vscode.Uri | undefined> {
+    return new DestFolderNavigator(rootUri, io).run();
 }
 
 // ── DestFolderNavigator ───────────────────────────────────────────────────────
@@ -180,8 +184,10 @@ class DestFolderNavigator {
     private readonly rootUri: vscode.Uri;
     private currentDir: vscode.Uri;
     private readonly dirStack: vscode.Uri[] = [];
+    private readonly io: DestPickerIO;
 
-    constructor(rootUri: vscode.Uri) {
+    constructor(rootUri: vscode.Uri, io: DestPickerIO) {
+        this.io         = io;
         this.rootUri    = rootUri;
         this.currentDir = rootUri;
     }
@@ -192,13 +198,15 @@ class DestFolderNavigator {
      * @returns Chosen Uri or `undefined` on Escape.
      *
      * @example
-     * await new DestFolderNavigator(rootUri).run()
+     * await new DestFolderNavigator(rootUri, vscode.window).run()
      */
     async run(): Promise<vscode.Uri | undefined> {
         return new Promise<vscode.Uri | undefined>(resolve => {
-            const qp = vscode.window.createQuickPick<FolderItem>();
+            const qp = this.io.createQuickPick<FolderItem>();
             qp.placeholder    = vscode.l10n.t('Choose or create a destination folder');
             qp.ignoreFocusOut = true;
+
+            let suspended = false;
 
             const render = async () => {
                 qp.busy = true;
@@ -225,36 +233,49 @@ class DestFolderNavigator {
                 qp.busy = false;
             };
 
+            // Asks for a name and descends into the new folder; every early return leaves the picker where it was.
+            const createFolder = async () => {
+                const name = await this.io.showInputBox({
+                    prompt: vscode.l10n.t('New folder name'),
+                    ignoreFocusOut: true,
+                    validateInput: (v) => {
+                        const r = validateFolderName(v);
+                        return r.ok ? undefined : r.reason;
+                    },
+                });
+                if (!name) { return; }  // Escaped input box — stay in picker
+                const newUri = vscode.Uri.joinPath(this.currentDir, name);
+                if (!isWithinRoot(this.rootUri, newUri)) { return; }
+                try {
+                    // ponytail: recorded E-1 exception — creates an empty folder (name checked by validateFolderName,
+                    // contained by isWithinRoot; lexical, U-3); no engine op creates folders.
+                    await vscode.workspace.fs.createDirectory(newUri);
+                    this.dirStack.push(this.currentDir);
+                    this.currentDir = newUri;
+                    await render();
+                } catch { /* createDirectory failed — stay put */ }
+            };
+
             qp.onDidAccept(async () => {
                 const item = qp.selectedItems[0];
                 if (!item) { return; }
 
                 if (item.isUse) {
-                    qp.dispose();
+                    // Resolve first: dispose() fires onDidHide synchronously, which settles `undefined`.
                     resolve(this.currentDir);
+                    qp.dispose();
                     return;
                 }
 
                 if (item.isNew) {
-                    const name = await vscode.window.showInputBox({
-                        prompt: vscode.l10n.t('New folder name'),
-                        ignoreFocusOut: true,
-                        validateInput: (v) => {
-                            const r = validateFolderName(v);
-                            return r.ok ? undefined : r.reason;
-                        },
-                    });
-                    if (!name) { return; }  // Escaped input box — stay in picker
-                    const newUri = vscode.Uri.joinPath(this.currentDir, name);
-                    if (!isWithinRoot(this.rootUri, newUri)) { return; }
+                    // Opening the input box hides the picker (onDidHide); that is a pause, not a cancel.
+                    suspended = true;
                     try {
-                        // ponytail: recorded E-1 exception — creates an empty folder (name checked by validateFolderName,
-                        // contained by isWithinRoot); no engine op creates folders.
-                        await vscode.workspace.fs.createDirectory(newUri);
-                        this.dirStack.push(this.currentDir);
-                        this.currentDir = newUri;
-                        await render();
-                    } catch { /* createDirectory failed — stay put */ }
+                        await createFolder();
+                    } finally {
+                        suspended = false;
+                        qp.show();
+                    }
                     return;
                 }
 
@@ -275,6 +296,7 @@ class DestFolderNavigator {
             });
 
             qp.onDidHide(() => {
+                if (suspended) { return; }
                 qp.dispose();
                 resolve(undefined);
             });
