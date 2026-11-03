@@ -200,6 +200,18 @@
   z-index: 1;
 }
 
+/* Clear button: top-right corner of the code area; beside Expand when both are there. */
+.block-code > .clear-block-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+}
+
+.block-code > .expand-editor-btn + .clear-block-btn {
+  right: 44px;
+}
+
 /* Block header buttons */
 
 .reorder-btn,

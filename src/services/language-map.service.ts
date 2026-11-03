@@ -45,7 +45,8 @@ const FILENAME_SAFE_EXT_RE = /^[a-z0-9]+$/;
  * mapLanguageId('')                // ''
  */
 export function mapLanguageId(id: string): string {
-    return LANG_FENCE[id] ?? id;
+    // Object.hasOwn: a plain-object lookup would answer 'constructor' with a function.
+    return Object.hasOwn(LANG_FENCE, id) ? LANG_FENCE[id] : id;
 }
 
 /**
@@ -64,7 +65,7 @@ export function mapLanguageId(id: string): string {
  */
 export function normalizeLangId(raw: string): string {
     const lc = raw.toLowerCase();
-    return LANG_ALIAS[lc] ?? lc;
+    return Object.hasOwn(LANG_ALIAS, lc) ? LANG_ALIAS[lc] : lc;
 }
 
 /**
@@ -117,9 +118,8 @@ export function resolveLangId(
  * extForLang('weird-id!')  // → 'txt'
  */
 export function extForLang(langId: string): string {
-    const mapped = LANG_EXT[langId];
-    if (mapped !== undefined) {
-        return mapped;
+    if (Object.hasOwn(LANG_EXT, langId)) {
+        return LANG_EXT[langId];
     }
     return FILENAME_SAFE_EXT_RE.test(langId) ? langId : 'txt';
 }

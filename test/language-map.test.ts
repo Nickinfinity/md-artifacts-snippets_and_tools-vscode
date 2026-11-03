@@ -194,3 +194,23 @@ suite('extForLang', () => {
         assert.strictEqual(extForLang('weird-id!'), 'txt');
     });
 });
+
+// ── prototype keys (W8b) ────────────────────────────────────────────────────────
+
+suite('language tables ignore inherited keys', () => {
+    test('mapLanguageId passes a prototype key through', () => {
+        assert.strictEqual(mapLanguageId('constructor'), 'constructor');
+    });
+
+    test('normalizeLangId returns __proto__ as itself', () => {
+        assert.strictEqual(normalizeLangId('__proto__'), '__proto__');
+    });
+
+    test('normalizeLangId never returns a non-string for constructor', () => {
+        assert.strictEqual(typeof normalizeLangId('constructor'), 'string');
+    });
+
+    test('extForLang treats a prototype key as unmapped', () => {
+        assert.strictEqual(extForLang('constructor'), 'constructor');
+    });
+});

@@ -28,7 +28,7 @@ pnpm install           # Install deps (no node_modules by default — run after 
 npm run compile        # One-off TypeScript build (outputs to dist/)
 npm run watch          # Watch mode for development
 npm run lint           # ESLint check (src/)
-npm run test           # Compile + lint + run all tests (1745 passing at W8)
+npm run test           # Compile + lint + run all tests (1777 passing at W8b)
 rm -rf dist && npm test # REQUIRED after any file delete or rename — see below
 npx tsc --noEmit       # Type-check only — IDE diagnostics can be stale
 ```

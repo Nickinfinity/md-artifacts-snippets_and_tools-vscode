@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { CODE_BLOCK_CLIENT_JS } from '../artifactPicker/codeBlock.js';
 import { TAGS_FIELD_CLIENT_JS } from '../shared/tagsField.js';
 import { REORDER_CLIENT_JS } from '../shared/reorderControls.js';
+import { FORM_BLOCK_TOOLS_JS } from './formBlockTools.clientJs.js';
 import { jsStr } from '../artifactPicker/webviewSnippets.js';
 import { escHtml } from '../../../utils/html.js';
 
@@ -15,6 +16,7 @@ import { escHtml } from '../../../utils/html.js';
 // `shared/tagsField.ts` alongside the behaviour that uses them.
 const BLOCK_HEADING_JS = jsStr(escHtml(vscode.l10n.t('Block heading')));
 const EXPAND_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Expand block in editor')));
+const CLEAR_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Clear code in this block')));
 const TOGGLE_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Toggle block')));
 const DESCRIPTION_JS = jsStr(escHtml(vscode.l10n.t('Description')));
 const OPTIONAL_BLOCK_DESC_JS = jsStr(escHtml(vscode.l10n.t('Optional block description')));
@@ -50,8 +52,8 @@ const VARIABLES_LABEL_JS = jsStr(escHtml(vscode.l10n.t('Variables')));
  * 9. Save → §3.7 client-side validation; post `save { model }` on pass.
  * 10. Cancel → `cancel { dirty }`; dispose on `cancelConfirmed`.
  * 11. Delete entire → `deleteEntire`; dispose on `deleteEntireConfirmed`.
- * 12. `expand-editor-btn` on card → `expandBlock { index }`; `blockUpdated`
- *     reply replaces that block's code area (`setCodeForBlock`) and marks dirty.
+ * 12. `expand-editor-btn` → `expandBlock { index, code, language, heading }`; the
+ *     `blockUpdated` reply and the confirmed Clear live in `FORM_BLOCK_TOOLS_JS`.
  * 13. Ext→webview messages: nameValidation, varsDetected, saveResult,
  *     removeBlockConfirmed, deleteEntireConfirmed, cancelConfirmed, blockUpdated.
  *
@@ -97,23 +99,6 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
 
   function codeWrapperInCard(card) {
     return card ? card.querySelector('.code-block-wrapper') : null;
-  }
-
-  // Replaces one block's code area after the expand-to-editor round-trip
-  // (blockUpdated message). window.__codeBlock.setCode always targets the
-  // *first* '#codeWrapper' in the document (server-rendered cards all carry
-  // that same id — see codeBlock.ts), so it is only safe to reuse directly in
-  // single-block mode; a multi-block card's wrapper is found by class/index
-  // instead. Both branches end in the exact same body __codeBlock.setCode
-  // uses (renderRows(code || '')) — no second esc/render implementation.
-  function setCodeForBlock(blockIndex, code) {
-    const cards = allCards();
-    if (cards.length === 0) {
-      window.__codeBlock.setCode(code);
-      return;
-    }
-    const wrapper = codeWrapperInCard(cardAt(blockIndex));
-    if (wrapper) { wrapper.innerHTML = renderRows(code || ''); }
   }
 
   // ── Code area event setup ────────────────────────────────────────────────
@@ -181,6 +166,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
           '<textarea id="block-' + blockIndex + '-desc" class="form-input form-textarea" data-block="' + blockIndex + '" rows="2" placeholder="' + ${OPTIONAL_BLOCK_DESC_JS} + '"></textarea>' +
         '</div>' +
         '<div class="block-code">' +
+          '<button class="clear-block-btn" data-block="' + blockIndex + '" aria-label="' + ${CLEAR_BLOCK_JS} + '">⌫</button>' +
           '<div class="code-block-wrapper editable" contenteditable="true" spellcheck="false" data-lang="' + defLang + '"></div>' +
         '</div>' +
       '</div>' +
@@ -234,6 +220,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
   // Shared with the var-set form — THE one tag implementation (shared/tagsField.ts).
   ${TAGS_FIELD_CLIENT_JS}
   ${REORDER_CLIENT_JS}
+  ${FORM_BLOCK_TOOLS_JS}
 
   // ── Name validation ──────────────────────────────────────────────────────
   const titleInput = document.getElementById('title');
@@ -400,8 +387,11 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         break;
       }
       case 'blockUpdated': {
-        setCodeForBlock(msg.index, msg.code);
-        markDirty();
+        onBlockUpdated(msg);
+        break;
+      }
+      case 'clearBlockConfirmed': {
+        onClearConfirmed(msg);
         break;
       }
     }
@@ -438,7 +428,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
       if (codeDiv && codeDiv.parentNode) { codeDiv.parentNode.insertBefore(varsSec, codeDiv.nextSibling); }
       else { container.appendChild(varsSec); }
     }
-    if (vars.length === 0) { varsSec.style.display = 'none'; return; }
+    if (vars.length === 0) { varsSec.innerHTML = ''; varsSec.style.display = 'none'; return; }
     varsSec.style.display = '';
     const rows = vars.map(function(v) {
       // esc() is mandatory here: v.name/v.defaultValue come from vault-file
@@ -535,7 +525,11 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         }
         if (target.classList.contains('expand-editor-btn')) {
           const blockIndex = parseInt(target.dataset.block || '0', 10);
-          vscode.postMessage({ command: 'expandBlock', index: blockIndex });
+          const b = extractModel().blocks[blockIndex];
+          if (b) { vscode.postMessage({ command: 'expandBlock', index: blockIndex, code: b.code, language: b.language, heading: b.heading }); }
+        }
+        if (target.classList.contains('clear-block-btn')) {
+          requestClear(parseInt(target.dataset.block || '0', 10));
         }
       });
     }

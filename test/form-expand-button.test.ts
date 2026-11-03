@@ -1,6 +1,10 @@
 import * as assert from 'node:assert';
-import { buildBlockCard, buildSingleBlockContent } from '../src/ui/panels/artifactForm/form.blocks.js';
+import { buildBlockCard, buildSingleBlockContent, formCodeBlockHtml } from '../src/ui/panels/artifactForm/form.blocks.js';
 import { FORM_CLIENT_JS } from '../src/ui/panels/artifactForm/form.clientJs.js';
+import { buildFormHtml } from '../src/ui/panels/artifactForm/form.html.js';
+import { defaultModel } from '../src/ui/panels/artifactForm/form.helpers.js';
+import { buildCodeBlockHtml } from '../src/ui/panels/artifactPicker/codeBlock.js';
+import { renderCodeRowsHtml } from '../src/services/render.service.js';
 import type { ArtifactFormBlock } from '../src/types/artifact-form.types.js';
 
 /**
@@ -68,18 +72,51 @@ suite('form-expand-button — client-added card (form.clientJs.ts)', () => {
         assert.match(fn, /class="expand-editor-btn"/);
     });
 
-    test('clicking expand-editor-btn posts expandBlock with the block index', () => {
+    test('clicking expand-editor-btn posts expandBlock with the live block from extractModel', () => {
         assert.match(
             FORM_CLIENT_JS,
-            /target\.classList\.contains\('expand-editor-btn'\)[\s\S]{0,200}vscode\.postMessage\(\{ command: 'expandBlock', index: blockIndex \}\);/,
+            /target\.classList\.contains\('expand-editor-btn'\)[\s\S]{0,300}extractModel\(\)\.blocks\[blockIndex\][\s\S]{0,200}command: 'expandBlock', index: blockIndex, code: b\.code, language: b\.language, heading: b\.heading/,
         );
     });
 
     test('a blockUpdated message replaces that block\'s code area (no new esc copy)', () => {
-        assert.match(FORM_CLIENT_JS, /case 'blockUpdated':/);
-        assert.match(FORM_CLIENT_JS, /setCodeForBlock\(msg\.index, msg\.code\)/);
+        assert.match(FORM_CLIENT_JS, /case 'blockUpdated':[\s\S]{0,40}onBlockUpdated\(msg\)/);
         // The replacement path reuses renderRows (shared with __codeBlock.setCode),
         // not a second render/escape implementation.
         assert.match(FORM_CLIENT_JS, /function setCodeForBlock\(blockIndex, code\) \{[\s\S]{0,400}renderRows\(code \|\| ''\)/);
+    });
+});
+
+suite('form-expand-button — one expand button per form block (formCodeBlockHtml)', () => {
+
+    const FORM_ARGS = { cspSource: 'x', cssUri: [] as string[], nonce: 'n' };
+    const countOf = (html: string, re: RegExp): number => (html.match(re) ?? []).length;
+
+    test('single-block Snippet: exactly one expand-editor-btn and no toolbar expandCodeBtn', () => {
+        const html = buildFormHtml({ ...FORM_ARGS, model: defaultModel('Snippet'), codeBlockHtml: formCodeBlockHtml });
+        assert.strictEqual(countOf(html, /class="expand-editor-btn"/g), 1);
+        assert.ok(!html.includes('id="expandCodeBtn"'));
+    });
+
+    test('single-block AIAgentsConfig (hidden language): exactly one expand-editor-btn', () => {
+        const html = buildFormHtml({ ...FORM_ARGS, model: defaultModel('AIAgentsConfig'), codeBlockHtml: formCodeBlockHtml });
+        assert.strictEqual(countOf(html, /class="expand-editor-btn"/g), 1);
+        assert.ok(!html.includes('id="expandCodeBtn"'));
+    });
+
+    test('3-card model: one expand button per card, each carrying its own data-block, no toolbar button', () => {
+        const model = defaultModel('Snippet');
+        model.blocks = [0, 1, 2].map(i => ({ heading: `H${i}`, description: '', language: 'javascript', code: `c${i}`, vars: [] }));
+        const html = buildFormHtml({ ...FORM_ARGS, model, codeBlockHtml: formCodeBlockHtml });
+        assert.strictEqual(countOf(html, /class="expand-editor-btn"/g), 3);
+        for (const i of [0, 1, 2]) {
+            assert.match(html, new RegExp(`class="expand-editor-btn" data-block="${i}"`));
+        }
+        assert.ok(!html.includes('id="expandCodeBtn"'));
+    });
+
+    test('buildCodeBlockHtml (preview path) still carries the toolbar expandCodeBtn', () => {
+        const html = buildCodeBlockHtml(renderCodeRowsHtml('a', 'javascript'), 'javascript');
+        assert.match(html, /id="expandCodeBtn"/);
     });
 });

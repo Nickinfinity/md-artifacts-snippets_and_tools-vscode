@@ -152,14 +152,31 @@ export interface CopyMsg {
 /**
  * Webview (create/edit form) requests that a block's code be opened for
  * expanded editing in a real VS Code editor tab, via
- * `FormBlockExpandController` (T5). The extension answers with `blockUpdated`
- * once the user saves the expanded editor.
+ * `FormBlockExpandController`. It carries the block's live code, language and
+ * heading from the webview (untrusted; parsed by `parseExpandBlockMsg`), so a
+ * card added in the webview and a language picked after open both reach the
+ * scratch file. The extension answers with `blockUpdated` once the user saves.
  *
  * @example
- * vscode.postMessage({ command: 'expandBlock', index: 0 });
+ * vscode.postMessage({ command: 'expandBlock', index: 0, code: 'a{}', language: 'css', heading: '' });
  */
 export interface ExpandBlockMsg {
     command: 'expandBlock';
+    index: number;
+    code: string;
+    language: string;
+    heading: string;
+}
+
+/**
+ * Webview (create/edit form) asks to clear one block's code; the extension
+ * confirms with a modal and answers `clearBlockConfirmed`.
+ *
+ * @example
+ * vscode.postMessage({ command: 'clearBlock', index: 1 });
+ */
+export interface ClearBlockMsg {
+    command: 'clearBlock';
     index: number;
 }
 
@@ -189,6 +206,7 @@ export type WebviewToExtensionMsg =
     | InsertMsg
     | CopyMsg
     | ExpandBlockMsg
+    | ClearBlockMsg
     | CancelMsg;
 
 // ── Extension → Webview ───────────────────────────────────────────────────────
@@ -232,16 +250,30 @@ export interface FileUpdatedMsg {
 /**
  * Extension (create/edit form) reports a block's code updated after the user
  * saved the expanded temp editor — `FormBlockExpandController.onSaved`'s
- * `(index, code)` pair, forwarded to the webview so it can update that
- * block's in-page code area.
+ * `(index, code, languageId?)`, forwarded to the webview so it can update that
+ * block's code area. `language` is present only when the user changed the
+ * scratch tab's language.
  *
  * @example
- * panel.webview.postMessage({ command: 'blockUpdated', index: 0, code: 'const x = 1;' });
+ * panel.webview.postMessage({ command: 'blockUpdated', index: 0, code: 'a{}', language: 'scss' });
  */
 export interface BlockUpdatedMsg {
     command: 'blockUpdated';
     index: number;
     code: string;
+    language?: string;
+}
+
+/**
+ * Extension answers a `clearBlock` request after its confirmation modal.
+ *
+ * @example
+ * panel.webview.postMessage({ command: 'clearBlockConfirmed', index: 1, confirmed: true });
+ */
+export interface ClearBlockConfirmedMsg {
+    command: 'clearBlockConfirmed';
+    index: number;
+    confirmed: boolean;
 }
 
 /**
@@ -254,4 +286,5 @@ export type ExtensionToWebviewMsg =
     | SectionSavedMsg
     | UpdateVarsMsg
     | FileUpdatedMsg
-    | BlockUpdatedMsg;
+    | BlockUpdatedMsg
+    | ClearBlockConfirmedMsg;

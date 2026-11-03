@@ -5,12 +5,11 @@ import { defaultModel } from './form.helpers.js';
 import { pruneVarsForSave, confirmDiscardDraft, deleteWithConfirm, saveToEngine, validateArtifactFilename } from './panel.helpers.js';
 // Import cycle with editArtifact.command.ts is safe: the constant is read only at call time, never at module load.
 import { EDIT_ARTIFACT_COMMAND_ID } from '../../../commands/editArtifact.command.js';
-import { FormBlockExpandController } from './blockExpand.js';
+import { FormBlockExpandController, handleClearBlock, handleExpandMessage } from './blockExpand.js';
+import { formCodeBlockHtml } from './form.blocks.js';
 import { extractVars } from '../../../services/render.service.js';
 import { getNonce } from '../../../utils/helpers.js';
 import { getEntry, getTypeSingular } from '../../../services/artifact-type-config.service.js';
-import { renderCodeRowsHtml } from '../../../services/render.service.js';
-import { buildCodeBlockHtml } from '../artifactPicker/codeBlock.js';
 import type { EngineRead } from '../../../engine/model.js';
 import type { ArtifactType } from '../../../types/parsed-artifact.types.js';
 import type { ArtifactFormModel } from '../../../types/artifact-form.types.js';
@@ -228,36 +227,24 @@ class ArtifactFormController {
     }
 
     /**
-     * Opens one block in a real editor tab, and folds the saved text back into
-     * the model when the user saves it.
+     * The block-expand controller, built on first use. A **callback bag**, never
+     * a reference to this panel: it knows nothing about the form.
      *
-     * Composed as a **callback bag**, never by handing the controller a
-     * reference to this panel — the rule the picker's controllers already
-     * follow. The controller therefore knows nothing about the form, and the
-     * form knows nothing about temp files.
-     *
-     * @param index - Index of the block to expand.
-     * @returns Resolves once the editor tab has opened.
+     * @returns The controller.
      *
      * @example
-     * void controller.handleExpandBlock(0);
+     * void handleExpandMessage(this.expander(), msg);
      */
-    private async handleExpandBlock(index: number): Promise<void> {
+    private expander(): FormBlockExpandController {
         this.blockExpand ??= new FormBlockExpandController({
             storageUri: this.context.storageUri ?? this.context.globalStorageUri,
-            getBlock: (i) => this.model.blocks[i],
-            onSaved: (i, code) => {
-                const block = this.model.blocks[i];
-                if (!block) { return; }
-                block.code = code;
+            onSaved: (i, code, lang) => {
                 this.dirty = true;
-                // The webview owns the rendered code area, so push the new text
-                // rather than re-rendering the whole form and losing focus.
-                void this.panel?.webview.postMessage({ command: 'blockUpdated', index: i, code });
+                this.post({ command: 'blockUpdated', index: i, code, ...(lang === undefined ? {} : { language: lang }) });
             },
             getViewColumn: () => this.panel?.viewColumn,
         });
-        await this.blockExpand.start(index);
+        return this.blockExpand;
     }
 
     /**
@@ -289,6 +276,7 @@ class ArtifactFormController {
         this.opts  = opts;
         this.model = buildModel(opts);
         this.dirty = false;
+        void this.blockExpand?.teardown();
         if (this.panel) { this.panel.title = panelTitle(opts.type, opts.mode); }
         this.render();
         this.reveal();
@@ -338,7 +326,7 @@ class ArtifactFormController {
             cspSource:    this.panel.webview.cspSource,
             cssUri,
             nonce,
-            codeBlockHtml: (code, lang) => buildCodeBlockHtml(renderCodeRowsHtml(code, lang), lang),
+            codeBlockHtml: formCodeBlockHtml,
             clientJs:     FORM_CLIENT_JS,
         });
     }
@@ -359,7 +347,8 @@ class ArtifactFormController {
             case 'deleteEntire': void this.handleDeleteEntire(); break;
             case 'cancel':       void this.handleCancel(Boolean(msg['dirty'])); break;
             case 'save':         void this.handleSave(msg['model'] as ArtifactFormModel); break;
-            case 'expandBlock':  void this.handleExpandBlock(Number(msg['index'])); break;
+            case 'expandBlock':  void handleExpandMessage(this.expander(), msg); break;
+            case 'clearBlock':   void handleClearBlock(Number(msg['index']), this.blockExpand, m => this.post(m)); break;
         }
     }
 

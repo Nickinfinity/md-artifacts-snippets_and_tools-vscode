@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { escHtml } from '../../../utils/html.js';
 import { buildReorderButtons } from '../shared/reorderControls.js';
 import { labelForVar } from '../artifactPicker/preview.helpers.js';
+import { buildCodeBlockHtml } from '../artifactPicker/codeBlock.js';
+import { renderCodeRowsHtml } from '../../../services/render.service.js';
 import { FREE_LANGUAGE_OPTIONS } from './form.helpers.js';
 import type { ArtifactFormBlock, ArtifactFormModel } from '../../../types/artifact-form.types.js';
 import type { ParsedVar } from '../../../types/parsed-artifact.types.js';
@@ -49,7 +51,9 @@ export function buildLanguageSelector(
     }
 
     // free mode — full dropdown
-    const options = FREE_LANGUAGE_OPTIONS.map(val => {
+    // A language outside the list (a captured `scss`) is one extra selected option, never silently Plain text.
+    const known   = FREE_LANGUAGE_OPTIONS.includes(currentLang);
+    const options = [...FREE_LANGUAGE_OPTIONS, ...(known ? [] : [currentLang])].map(val => {
         const label  = val === '' ? vscode.l10n.t('Plain text') : val;
         const safeV  = escHtml(val);
         const safeL  = escHtml(label);
@@ -101,6 +105,25 @@ ${rows}
 </div>`;
 }
 
+// ── Code area for form blocks ─────────────────────────────────────────────────
+
+/**
+ * Builds the editable code area for one form block, without the preview toolbar.
+ *
+ * The form already puts an `expand-editor-btn` on every block (single-block
+ * corner, card header), so the toolbar's own expand button would be a second
+ * one per block. The preview keeps the toolbar; the form does not.
+ *
+ * @param code - Block code to render.
+ * @param lang - Highlight language for the block.
+ * @returns Code-area HTML with no toolbar.
+ *
+ * @example
+ * formCodeBlockHtml('const a = 1;', 'javascript')
+ */
+export const formCodeBlockHtml = (code: string, lang: string): string =>
+    buildCodeBlockHtml(renderCodeRowsHtml(code, lang), lang, { toolbar: false });
+
 // ── Single block (inline, no card chrome) ─────────────────────────────────────
 
 /**
@@ -141,6 +164,7 @@ export function buildSingleBlockContent(
 ${langSelector}
 <div class="block-code">
 <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
+<button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">⌫</button>
 ${codeHtml}
 </div>
 ${varsHtml}
@@ -232,6 +256,7 @@ export function buildBlockCard(
       <textarea id="block-${blockIndex}-desc" class="form-input form-textarea" data-block="${blockIndex}" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional block description'))}">${descVal}</textarea>
     </div>
     <div class="block-code">
+    <button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">⌫</button>
 ${codeHtml}
     </div>
 ${varsHtml}

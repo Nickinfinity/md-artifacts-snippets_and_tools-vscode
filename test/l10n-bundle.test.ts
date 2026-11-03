@@ -73,4 +73,15 @@ suite('l10n bundles', () => {
         assert.deepStrictEqual(Object.keys(es).sort(), Object.keys(en).sort(),
             'the es bundle has drifted from the English bundle');
     });
+
+    test('no Spanish value addresses the user as usted (tú everywhere)', () => {
+        // Why: user ruling 2026-11-03 — Spanish speaks tú. A denylist of the usted imperatives and
+        // "su bóveda" is deliberately weak (it cannot see every usted), but it fails on the known ones.
+        const usted = /\b(Seleccione|Elija|[Aa]bra|Escriba|[Uu]se|Utilice|Consulte|[Aa]ctualice|[Vv]uelva|[Cc]omplete|[Pp]resione|[Vv]erifíquelo|Pulse|Introduzca|Revise|Compruebe)\b|\bsu bóveda\b/;
+        const nlsEs = path.resolve(__dirname, '..', '..', 'package.nls.es.json');
+        const hits = [esPath, nlsEs].flatMap(file => Object.entries(readBundle(file))
+            .filter(([, v]) => typeof v === 'string' && usted.test(v))
+            .map(([k, v]) => `${path.basename(file)}: ${k} => ${String(v)}`));
+        assert.deepStrictEqual(hits, [], `${hits.length} usted value(s) — use tú`);
+    });
 });

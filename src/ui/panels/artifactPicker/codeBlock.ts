@@ -23,18 +23,21 @@ export const INPUT_DEBOUNCE_MS = 150;
  *
  * @param rowsHtml - Pre-rendered row HTML produced by `renderCodeRowsHtml`.
  * @param lang     - Highlight.js language id (echoed into `data-lang` for inspection).
+ * @param opts     - `toolbar: false` drops the preview's expand toolbar (the form has its own button).
  * @returns The slabel + wrapper HTML.
  *
  * @example
  * buildCodeBlockHtml(renderCodeRowsHtml(code, 'javascript'), 'javascript')
+ * buildCodeBlockHtml(renderCodeRowsHtml(code, 'javascript'), 'javascript', { toolbar: false })
  */
-export function buildCodeBlockHtml(rowsHtml: string, lang: string): string {
+export function buildCodeBlockHtml(rowsHtml: string, lang: string, opts: { toolbar?: boolean } = {}): string {
     const expandLabel = escHtml(vscode.l10n.t('Open this block in the editor'));
-    return /* html */`
+    const toolbar = opts.toolbar === false ? '' : `
   <div class="code-toolbar">
     <button class="expand-editor-btn" id="expandCodeBtn" title="${expandLabel}"
             aria-label="${expandLabel}">⤢</button>
-  </div>
+  </div>`;
+    return /* html */`${toolbar}
   <div id="codeWrapper" class="code-block-wrapper editable" contenteditable="true" spellcheck="false"
        style="--mda-code-min-lines: ${CODE_BLOCK_MIN_LINES}" data-lang="${escHtml(lang)}">${rowsHtml || ''}</div>`;
 }

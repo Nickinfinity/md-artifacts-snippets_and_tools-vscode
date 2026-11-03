@@ -16,6 +16,7 @@ import type { ArtifactFormModel } from '../src/types/artifact-form.types.js';
 import { engineKnownTypes, isExecutableFile, spawnEngineProcess, startEngine } from '../src/engine/engine.vscode.js';
 import { createFakeEngine } from './fake-engine.js';
 import { setConfirmSink } from '../src/services/confirm.service.js';
+import type { EngineModel } from '../src/types/engine.types.js';
 import { performInsert, type DeliveryIO } from '../src/ui/panels/artifactPicker/preview.insert.js';
 
 suite('engine smoke (real binary)', () => {
@@ -181,6 +182,32 @@ suite('engine smoke (real binary)', () => {
                 label,
             );
             assert.strictEqual(fs.readFileSync(file, 'utf8'), bytes, `${label}: the file was written`);
+        }
+    });
+
+    // W8b T8b.4: the engine maps a captured editor languageId to the form's language id (the engine owns the table).
+    test('artifact.prefill maps a captured editor language through the real mda', async function () {
+        this.timeout(15_000);
+        const found = locateEngine({
+            settingPath: process.env['MDA_BIN'] ?? '', envPath: process.env['PATH'],
+            platform: process.platform, isExecutableFile,
+        });
+        if (found.kind === 'not-found') {
+            console.warn('ENGINE SMOKE SKIPPED: set MDA_BIN to the pinned v0.14.0 mda binary');
+            this.skip();
+            return;
+        }
+        assert.strictEqual(found.kind, 'found', `MDA_BIN is not an executable absolute path: ${found.path}`);
+        tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-smoke-'));
+        fs.cpSync(path.join(__dirname, '../../test/fixtures/engine/smoke-vault'), tmp, { recursive: true });
+        fs.mkdirSync(path.join(tmp, '.obsidian'));
+        sup = new EngineSupervisor({
+            spawn: spawnEngineProcess, binPath: found.path,
+            args: ['serve', '--vault', tmp], knownTypes: engineKnownTypes(),
+        });
+        for (const [languageId, expected] of [['css', 'css'], ['scss', 'scss'], ['typescriptreact', 'tsx'], ['plaintext', 'plaintext']] as const) {
+            const m: EngineModel = await sup.request('artifact.prefill', { source: 'selection', type: 'Snippet', text: 'a{}', languageId });
+            assert.strictEqual(m.blocks?.[0]?.language, expected, languageId);
         }
     });
 });

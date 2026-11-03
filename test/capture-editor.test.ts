@@ -2,6 +2,9 @@ import * as assert from 'node:assert';
 import { captureEditor, type PrefillFn } from '../src/commands/capture/editor.capture.js';
 import { loadOpCases } from './fake-engine.js';
 import type { EngineModel } from '../src/types/engine.types.js';
+import { buildFormHtml } from '../src/ui/panels/artifactForm/form.html.js';
+import { defaultModel } from '../src/ui/panels/artifactForm/form.helpers.js';
+import { formCodeBlockHtml } from '../src/ui/panels/artifactForm/form.blocks.js';
 
 /**
  * `captureEditor` gathers the selection and asks the engine (`artifact.prefill`); language mapping and
@@ -27,6 +30,18 @@ suite('captureEditor', () => {
         assert.strictEqual(result?.source, 'selection');
         assert.strictEqual(result?.prefill.blocks?.[0]?.language, 'tsx');
         assert.strictEqual(result?.prefill.blocks?.[0]?.code, 'const x = 1;');
+    });
+
+    // W8b T8b.4: a captured language outside the hand list still reaches the form's language select.
+    test('captured scss block: the form select selects scss, and exactly one option is selected', async () => {
+        const base = reply('selection_tsx');
+        const scss: PrefillFn = async () => ({ ...base, blocks: base.blocks?.map(b => ({ ...b, language: 'scss' })) });
+        const result = await captureEditor({ text: 'a{}', languageId: 'scss' }, 'Snippet', scss);
+        const model = { ...defaultModel('Snippet'), ...result?.prefill };
+        const html = buildFormHtml({ nonce: 'n', cspSource: 'x', cssUri: [], model, codeBlockHtml: formCodeBlockHtml });
+        const select = /<select id="[^"]*" class="lang-select"[^>]*>([\s\S]*?)<\/select>/.exec(html)?.[1] ?? '';
+        assert.ok(select.includes('<option value="scss" selected>'), select);
+        assert.strictEqual((select.match(/<option [^>]*\bselected\b/g) ?? []).length, 1);
     });
 
     test('engine refusal yields undefined', async () => {
