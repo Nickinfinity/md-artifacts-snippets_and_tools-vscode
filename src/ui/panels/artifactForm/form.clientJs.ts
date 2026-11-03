@@ -165,8 +165,8 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
           '<label class="slabel" for="block-' + blockIndex + '-desc">' + ${DESCRIPTION_JS} + '</label>' +
           '<textarea id="block-' + blockIndex + '-desc" class="form-input form-textarea" data-block="' + blockIndex + '" rows="2" placeholder="' + ${OPTIONAL_BLOCK_DESC_JS} + '"></textarea>' +
         '</div>' +
+        '<div class="block-code-tools"><button class="clear-block-btn" data-block="' + blockIndex + '" aria-label="' + ${CLEAR_BLOCK_JS} + '">✕</button></div>' +
         '<div class="block-code">' +
-          '<button class="clear-block-btn" data-block="' + blockIndex + '" aria-label="' + ${CLEAR_BLOCK_JS} + '">⌫</button>' +
           '<div class="code-block-wrapper editable" contenteditable="true" spellcheck="false" data-lang="' + defLang + '"></div>' +
         '</div>' +
       '</div>' +

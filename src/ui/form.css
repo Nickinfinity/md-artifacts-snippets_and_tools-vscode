@@ -183,33 +183,16 @@
   border-radius: 4px;
   overflow: hidden;
   background-color: var(--vscode-editor-background);
-  /* Positioning context for the Expand button, which floats over the code area.
-     `.block-code` is the only home present on every path — a `hidden`
-     language-mode type (AIAgentsConfig) renders no language selector to sit
-     beside. The existing `overflow: hidden` keeps the button clipped to the box. */
-  position: relative;
 }
 
-/* Expand-to-editor button, floated top-right over the code area. Direct child
-   only: multi-block cards nest their own `.block-code`, and a descendant
-   selector would also catch those. */
-.block-code > .expand-editor-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 1;
-}
-
-/* Clear button: top-right corner of the code area; beside Expand when both are there. */
-.block-code > .clear-block-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 1;
-}
-
-.block-code > .expand-editor-btn + .clear-block-btn {
-  right: 44px;
+/* Code-block tools (Expand, Clear): a row above the code area, never over it, so
+   no code is hidden behind a button. Single-block forms carry both; a card keeps
+   Expand in its header and puts only Clear here. */
+.block-code-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 /* Block header buttons */

@@ -45,7 +45,9 @@ button[hidden] {
    a second copy in `code-block.css` is exactly the drift that leaves the two
    surfaces looking subtly different. `form.css` keeps only its own
    card-relative positioning. */
-.expand-editor-btn {
+/* Clear (✕) shares Expand's look exactly: same border, size and colour. */
+.expand-editor-btn,
+.clear-block-btn {
   background: transparent;
   border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
   color: var(--vscode-foreground);
@@ -56,6 +58,7 @@ button[hidden] {
   line-height: 1.2;
 }
 
-.expand-editor-btn:hover {
+.expand-editor-btn:hover,
+.clear-block-btn:hover {
   background-color: var(--vscode-toolbar-hoverBackground, transparent);
 }

@@ -133,11 +133,9 @@ export const formCodeBlockHtml = (code: string, lang: string): string =>
  *
  * There is no `.card-header` here to hang the expand-to-editor button on (a
  * single-block form also has no language selector for `mode === 'hidden'`
- * types, e.g. `AIAgentsConfig`), so the button is rendered as the first child
- * of `.block-code` instead — the one wrapper every single-block form always
- * has, regardless of language mode. It needs a CSS home
- * (`src/ui/form.css`, not owned by this file — see the PR report for the
- * exact rule) to sit in the corner rather than push the code area down.
+ * types, e.g. `AIAgentsConfig`), so Expand and Clear sit in a
+ * `.block-code-tools` row just above `.block-code` (`form.css`): over the code
+ * area they hid the text behind them.
  *
  * @param block        - The sole block from the model.
  * @param blockIndex   - Always `0` for single-block.
@@ -162,9 +160,11 @@ export function buildSingleBlockContent(
     const varsHtml     = buildVarsTable(block.vars, blockIndex);
     return `<div class="block" data-block-index="${blockIndex}">
 ${langSelector}
-<div class="block-code">
+<div class="block-code-tools">
 <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
-<button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">⌫</button>
+<button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">✕</button>
+</div>
+<div class="block-code">
 ${codeHtml}
 </div>
 ${varsHtml}
@@ -255,8 +255,10 @@ export function buildBlockCard(
       <label class="slabel" for="block-${blockIndex}-desc">${escHtml(vscode.l10n.t('Description'))}</label>
       <textarea id="block-${blockIndex}-desc" class="form-input form-textarea" data-block="${blockIndex}" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional block description'))}">${descVal}</textarea>
     </div>
+    <div class="block-code-tools">
+    <button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">✕</button>
+    </div>
     <div class="block-code">
-    <button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">⌫</button>
 ${codeHtml}
     </div>
 ${varsHtml}
