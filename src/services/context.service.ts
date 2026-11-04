@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import { ARTIFACTS } from '../types/constants.js';
-import { isInContext, getCreateTypesForSurface, getAllTypes } from './artifact-type-config.service.js';
+import { getAllTypes } from './artifact-type-config.service.js';
 import { getEngine } from '../engine/engine.vscode.js';
 import type { EngineResult } from '../types/engine.types.js';
-import type { ArtifactContext } from '../types/artifact.types.js';
 import type { ArtifactType } from '../types/parsed-artifact.types.js';
 
 /** Prefix shared by all extension context keys — matches the VS Code settings namespace */
@@ -26,16 +25,14 @@ export function artifactContextKey(dir: string): string {
 	return `${CTX}.${dir.toLowerCase()}Active`;
 }
 
-type Surface = Exclude<ArtifactContext, 'all'>;
-const SURFACES: readonly Surface[] = ['editor', 'terminal', 'explorer'];
-
 /**
  * Pure derivation of every context key from the engine's `types.list` rows.
  *
  * Keys: `vaultConfigured` (rows present: `types.list` fails with `vault.not_selected`
  * exactly when no vault is set), `<dir>Active` per artifact (`enabled && dirExists` —
- * the engine's `enabled` already folds the override, and a disabled type's folder stays),
- * and the `<surface>HasMultiple` / `<surface>CreateHasMultiple` counts (>= 2 -> submenu).
+ * the engine's `enabled` already folds the override, and a disabled type's folder stays).
+ * No per-surface count keys: every context menu is one "MD Artifacts" root (VSX-269),
+ * guarded by `package-create-menus.test.ts`.
  *
  * @param rows - `types.list` result, or `null` when the engine could not answer.
  * @returns Full `md-artifacts.*` key/value pairs, `vaultConfigured` first.
@@ -48,14 +45,6 @@ export function contextKeysFor(rows: EngineResult<'types.list'> | null): Readonl
 		(rows ?? []).filter(r => known.has(r.type) && r.enabled && r.dirExists).map(r => r.type));
 	const keys: Array<readonly [string, boolean]> = [[`${CTX}.vaultConfigured`, rows !== null]];
 	for (const a of ARTIFACTS) { keys.push([artifactContextKey(a.dir), active.has(a.type)]); }
-	const count = (types: readonly ArtifactType[]) => types.filter(t => active.has(t)).length;
-	// `isInContext` / `getCreateTypesForSurface` are THE surface rules; no re-check here.
-	for (const s of SURFACES) {
-		keys.push([`${CTX}.${s}HasMultiple`, count(getAllTypes().filter(t => isInContext(t, s))) >= 2]);
-	}
-	for (const s of SURFACES) {
-		keys.push([`${CTX}.${s}CreateHasMultiple`, count(getCreateTypesForSurface(s)) >= 2]);
-	}
 	return keys;
 }
 

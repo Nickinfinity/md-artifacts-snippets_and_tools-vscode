@@ -205,6 +205,10 @@
     ],
     "submenus": [
       {
+        "id": "md-artifacts.submenu.editor.root",
+        "label": "%submenu.editor.root.label%"
+      },
+      {
         "id": "md-artifacts.submenu.editor",
         "label": "%submenu.editor.label%"
       },
@@ -215,6 +219,10 @@
       {
         "id": "md-artifacts.submenu.terminal",
         "label": "%submenu.terminal.label%"
+      },
+      {
+        "id": "md-artifacts.submenu.explorer.root",
+        "label": "%submenu.explorer.root.label%"
       },
       {
         "id": "md-artifacts.submenu.explorer",
@@ -326,39 +334,9 @@
       ],
       "editor/context": [
         {
-          "command": "md-artifacts.insert.snippets",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.snippetsActive && !md-artifacts.editorHasMultiple",
+          "submenu": "md-artifacts.submenu.editor.root",
+          "when": "md-artifacts.vaultConfigured",
           "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.insert.aiprompts",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.aipromptsActive && !md-artifacts.editorHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.insert.variables",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.variablesActive && !md-artifacts.editorHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "submenu": "md-artifacts.submenu.editor",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.editorHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.create.snippets",
-          "when": "editorHasSelection && md-artifacts.vaultConfigured && md-artifacts.snippetsActive && !md-artifacts.editorCreateHasMultiple",
-          "group": "3_create@1"
-        },
-        {
-          "command": "md-artifacts.create.aiprompts",
-          "when": "editorHasSelection && md-artifacts.vaultConfigured && md-artifacts.aipromptsActive && !md-artifacts.editorCreateHasMultiple",
-          "group": "3_create@2"
-        },
-        {
-          "submenu": "md-artifacts.submenu.create.editor",
-          "when": "editorHasSelection && md-artifacts.vaultConfigured && md-artifacts.editorCreateHasMultiple",
-          "group": "3_create@1"
         }
       ],
       "terminal/context": [
@@ -378,51 +356,32 @@
           "group": "3_create@1"
         }
       ],
-      "explorer/context": [
+      "md-artifacts.submenu.editor.root": [
         {
-          "command": "md-artifacts.insert.templates",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.templatesActive && !md-artifacts.explorerHasMultiple",
-          "group": "mda@1"
+          "submenu": "md-artifacts.submenu.editor",
+          "group": "1_insert@1"
         },
         {
-          "command": "md-artifacts.insert.aiagentsconf",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.aiagentsconfActive && !md-artifacts.explorerHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.insert.variables",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.variablesActive && !md-artifacts.explorerHasMultiple",
-          "group": "mda@1"
-        },
+          "submenu": "md-artifacts.submenu.create.editor",
+          "when": "editorHasSelection",
+          "group": "3_create@1"
+        }
+      ],
+      "md-artifacts.submenu.explorer.root": [
         {
           "submenu": "md-artifacts.submenu.explorer",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.explorerHasMultiple",
-          "group": "mda@1"
-        },
-        {
-          "command": "md-artifacts.create.aiagentsconf",
-          "when": "!listMultiSelection && md-artifacts.vaultConfigured && md-artifacts.aiagentsconfActive && !md-artifacts.explorerCreateHasMultiple",
-          "group": "3_create@1"
-        },
-        {
-          "command": "md-artifacts.create.aiagentsconf.index",
-          "when": "listMultiSelection && md-artifacts.vaultConfigured && md-artifacts.aiagentsconfActive && !md-artifacts.explorerCreateHasMultiple",
-          "group": "3_create@1"
-        },
-        {
-          "command": "md-artifacts.create.templates",
-          "when": "!listMultiSelection && md-artifacts.vaultConfigured && md-artifacts.templatesActive && !md-artifacts.explorerCreateHasMultiple",
-          "group": "3_create@2"
-        },
-        {
-          "command": "md-artifacts.create.templates.index",
-          "when": "listMultiSelection && md-artifacts.vaultConfigured && md-artifacts.templatesActive && !md-artifacts.explorerCreateHasMultiple",
-          "group": "3_create@2"
+          "group": "1_insert@1"
         },
         {
           "submenu": "md-artifacts.submenu.create.explorer",
-          "when": "md-artifacts.vaultConfigured && md-artifacts.explorerCreateHasMultiple",
           "group": "3_create@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "md-artifacts.submenu.explorer.root",
+          "when": "md-artifacts.vaultConfigured",
+          "group": "mda@1"
         }
       ],
       "md-artifacts.submenu.editor": [

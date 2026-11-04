@@ -33,12 +33,12 @@ and the type-config accessors. Then, for menu presentation only:
 **Menu presentation.** `Variables` has `contexts: ['all']`, appears everywhere,
 and is labelled **"See/Edit Variables"** (browse/edit, not insert); it sits in
 `package.json` group `"2_variables@1"` while others use `"1_insert@N"`, so VS
-Code's group separator keeps it last. Each surface shows direct entries when one
-artifact is active there, or an "MD Artifacts" submenu when two or more
-are (`*HasMultiple` context keys, maintained by `context.service.ts`).
-The terminal is the exception: one **MD Artifacts** entry
-(`md-artifacts.submenu.terminal.root`) nesting **Insert** and **Create**
-submenus, always (W-UI b).
+Code's group separator keeps it last. Every surface shows one **MD Artifacts**
+entry (`md-artifacts.submenu.<surface>.root`, gated on `vaultConfigured`)
+nesting **Insert** and **Create** submenus — W-UI b for the terminal, VSX-269
+for editor and explorer. Editor Create needs `editorHasSelection`; explorer
+Create swaps to the `.index` commands on `listMultiSelection`. There are no
+`*HasMultiple` keys any more.
 
 **Insert target — the invocation surface, not focus.** `AIPrompt` is the first
 type declaring both `'editor'` and `'terminal'` in `contexts`, so it is the

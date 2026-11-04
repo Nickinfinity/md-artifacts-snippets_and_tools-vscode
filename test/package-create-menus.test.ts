@@ -124,48 +124,18 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 		assert.strictEqual(new Set(titles).size, titles.length, 'duplicate create command titles');
 	});
 
-	test('every create menu entry sits in the 3_create group', () => {
+	test('every create entry sits in the 3_create group (root and create submenu)', () => {
 		for (const surface of SURFACES) {
-			for (const e of PKG.contributes.menus[MENU_KEY[surface]] ?? []) {
-				const isCreate = e.command?.startsWith('md-artifacts.create.')
-					|| e.submenu?.startsWith('md-artifacts.submenu.create.');
-				if (!isCreate) { continue; }
-				assert.ok(
-					e.group?.startsWith('3_create@'),
-					`${surface}: ${e.command ?? e.submenu} is in group "${e.group}", expected 3_create@N`,
-				);
-			}
-		}
-	});
-
-	test('each surface splits direct entries from its submenu on <surface>CreateHasMultiple', () => {
-		// terminal create submenu always nests under md-artifacts.submenu.terminal.root (W-UI b), ungated.
-		for (const surface of SURFACES.filter(s => s !== 'terminal')) {
-			const entries = (PKG.contributes.menus[MENU_KEY[surface]] ?? [])
-				.filter(e => e.command?.startsWith('md-artifacts.create.')
-					|| e.submenu?.startsWith('md-artifacts.submenu.create.'));
-			const key = `md-artifacts.${surface}CreateHasMultiple`;
-
-			const submenuEntry = entries.find(e => e.submenu);
-			assert.ok(submenuEntry, `${surface}: no create submenu entry`);
-			const submenuWhen = submenuEntry.when ?? '';
-			assert.ok(
-				submenuWhen.includes(key),
-				`${surface}: submenu must be gated on ${key}, got "${submenuWhen}"`,
-			);
-			// The negated form is a different clause with the opposite meaning, and
-			// `includes` alone cannot tell them apart — a submenu gated on `!key`
-			// would satisfy the check above while showing in exactly the wrong case.
-			assert.ok(
-				!submenuWhen.includes(`!${key}`),
-				`${surface}: submenu is gated on !${key} (inverted), got "${submenuWhen}"`,
-			);
-
-			for (const e of entries.filter(x => x.command)) {
-				assert.ok(
-					e.when?.includes(`!${key}`),
-					`${surface}: direct entry ${e.command} must be gated on !${key}, got "${e.when}"`,
-				);
+			for (const menu of [`md-artifacts.submenu.${surface}.root`, `md-artifacts.submenu.create.${surface}`]) {
+				for (const e of PKG.contributes.menus[menu] ?? []) {
+					const isCreate = e.command?.startsWith('md-artifacts.create.')
+						|| e.submenu?.startsWith('md-artifacts.submenu.create.');
+					if (!isCreate) { continue; }
+					assert.ok(
+						e.group?.startsWith('3_create@'),
+						`${menu}: ${e.command ?? e.submenu} is in group "${e.group}", expected 3_create@N`,
+					);
+				}
 			}
 		}
 	});
@@ -184,9 +154,10 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 		}
 	});
 
-	test('explorer splits single-file from index on listMultiSelection', () => {
-		const entries = (PKG.contributes.menus['explorer/context'] ?? [])
+	test('explorer create submenu splits single-file from index on listMultiSelection', () => {
+		const entries = (PKG.contributes.menus['md-artifacts.submenu.create.explorer'] ?? [])
 			.filter(e => e.command?.startsWith('md-artifacts.create.'));
+		assert.ok(entries.length > 0, 'explorer create submenu has no create commands');
 		for (const e of entries) {
 			const isIndex = e.command!.endsWith('.index');
 			// An index needs 2+ files; a single-file capture needs exactly one.
@@ -200,15 +171,11 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 		}
 	});
 
-	test('editor create entries require a real selection', () => {
-		for (const e of PKG.contributes.menus['editor/context'] ?? []) {
-			if (!e.command?.startsWith('md-artifacts.create.')
-				&& !e.submenu?.startsWith('md-artifacts.submenu.create.')) { continue; }
-			assert.ok(
-				e.when?.includes('editorHasSelection'),
-				`${e.command ?? e.submenu}: editor create entries must require editorHasSelection`,
-			);
-		}
+	test('editor Create submenu requires a real selection', () => {
+		const entry = (PKG.contributes.menus['md-artifacts.submenu.editor.root'] ?? [])
+			.find(e => e.submenu === 'md-artifacts.submenu.create.editor');
+		assert.ok(entry, 'editor root does not nest the Create submenu');
+		assert.strictEqual(entry.when, 'editorHasSelection', 'editor Create must require editorHasSelection');
 	});
 
 	test('ids that cannot work from the palette are suppressed there', () => {
@@ -232,25 +199,42 @@ suite('package.json create menus ↔ ARTIFACTS drift guard', () => {
 		}
 	});
 
-    // ── W-UI (b): the terminal shows ONE "MD Artifacts" entry ──────────────
+    // ── One "MD Artifacts" entry per surface (W-UI b terminal, VSX-269 editor + explorer) ──
 
-    test('terminal/context holds exactly one entry, the root submenu', () => {
-        assert.deepStrictEqual(PKG.contributes.menus['terminal/context'], [
-            { submenu: 'md-artifacts.submenu.terminal.root', when: 'md-artifacts.vaultConfigured', group: 'mda@1' },
-        ]);
+    /** Surface → the `when` its root's Create entry carries (editor needs a selection to capture). */
+    const CREATE_WHEN: Record<Surface, string | undefined> = {
+        editor: 'editorHasSelection', terminal: undefined, explorer: undefined,
+    };
+
+    test('each <surface>/context holds exactly one entry, the root submenu', () => {
+        for (const surface of SURFACES) {
+            assert.deepStrictEqual(PKG.contributes.menus[MENU_KEY[surface]], [
+                { submenu: `md-artifacts.submenu.${surface}.root`, when: 'md-artifacts.vaultConfigured', group: 'mda@1' },
+            ], `${MENU_KEY[surface]} must hold only the MD Artifacts root`);
+        }
     });
 
-    test('the terminal root nests Insert and Create, declared and labelled', () => {
-        assert.deepStrictEqual(PKG.contributes.menus['md-artifacts.submenu.terminal.root'], [
-            { submenu: 'md-artifacts.submenu.terminal', group: '1_insert@1' },
-            { submenu: 'md-artifacts.submenu.create.terminal', group: '3_create@1' },
-        ]);
+    test('each surface root nests Insert and Create, declared and labelled', () => {
         const label = (id: string): string | undefined => {
             const s = PKG.contributes.submenus.find(x => x.id === id);
             return s ? resolveNls(s.label) : undefined;
         };
-        assert.strictEqual(label('md-artifacts.submenu.terminal.root'), 'MD Artifacts');
-        assert.strictEqual(label('md-artifacts.submenu.terminal'), 'Insert');
-        assert.strictEqual(label('md-artifacts.submenu.create.terminal'), 'Create');
+        for (const surface of SURFACES) {
+            const root = `md-artifacts.submenu.${surface}.root`;
+            const create = `md-artifacts.submenu.create.${surface}`;
+            const createWhen = CREATE_WHEN[surface];
+            assert.deepStrictEqual(PKG.contributes.menus[root], [
+                { submenu: `md-artifacts.submenu.${surface}`, group: '1_insert@1' },
+                createWhen ? { submenu: create, when: createWhen, group: '3_create@1' } : { submenu: create, group: '3_create@1' },
+            ], `${root} shape`);
+            assert.strictEqual(label(root), 'MD Artifacts');
+            assert.strictEqual(label(`md-artifacts.submenu.${surface}`), 'Insert');
+            assert.strictEqual(label(create), 'Create');
+        }
+    });
+
+    test('no *HasMultiple context key survives in package.json', () => {
+        assert.ok(!JSON.stringify(PKG.contributes.menus).includes('HasMultiple'),
+            'a menu still reads a *HasMultiple key — every surface is a single root now');
     });
 });

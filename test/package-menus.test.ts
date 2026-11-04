@@ -5,6 +5,7 @@ import { ARTIFACTS } from '../src/types/constants.js';
 import type { Artifact, ArtifactContext } from '../src/types/artifact.types.js';
 import { artifactCommandId, artifactTerminalCommandId } from '../src/commands/insert.command.js';
 import { resolveNls } from './nls.helpers.js';
+import { artifactContextKey } from '../src/services/context.service.js';
 
 /**
  * Drift guard: `package.json` menu contributions ↔ `ARTIFACTS`.
@@ -110,24 +111,20 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 		}
 	});
 
-	test('every artifact appears in each declared context surface (direct entry)', () => {
+	test('every artifact is reachable only through its surface root → Insert submenu', () => {
+		// One root entry per surface nests the Insert submenu; no direct insert entries
+		// (W-UI b for the terminal, VSX-269 for editor and explorer).
 		for (const a of ARTIFACTS) {
 			for (const surface of surfacesFor(a.contexts)) {
 				const id = commandIdFor(a, surface);
-				if (surface === 'terminal') {
-					// One root entry nests the Insert submenu; no direct insert entries (W-UI b).
-					assert.ok(menuHasCommand('md-artifacts.submenu.terminal', id), `${id} missing from md-artifacts.submenu.terminal`);
-					assert.ok(
-						(pkg.contributes.menus['md-artifacts.submenu.terminal.root'] ?? [])
-							.some(e => e.submenu === 'md-artifacts.submenu.terminal'),
-						'md-artifacts.submenu.terminal.root must nest md-artifacts.submenu.terminal',
-					);
-					continue;
-				}
+				const insertMenu = `md-artifacts.submenu.${surface}`;
+				const rootMenu = `${insertMenu}.root`;
+				assert.ok(menuHasCommand(insertMenu, id), `${id} missing from ${insertMenu}`);
 				assert.ok(
-					menuHasCommand(`${surface}/context`, id),
-					`${id} missing from ${surface}/context (contexts: ${a.contexts.join(',')})`,
+					(pkg.contributes.menus[rootMenu] ?? []).some(e => e.submenu === insertMenu),
+					`${rootMenu} must nest ${insertMenu}`,
 				);
+				assert.ok(!menuHasCommand(`${surface}/context`, id), `${surface}/context must not list ${id} directly`);
 			}
 		}
 	});
@@ -142,6 +139,26 @@ suite('package.json menus ↔ ARTIFACTS drift guard', () => {
 				);
 			}
 		}
+	});
+
+	test('every Insert / Create submenu item is gated on its type\'s <dir>Active key', () => {
+		// Behind a single root, a lost Active clause hides inside the submenu: a type
+		// with no folder would show an item that only fails when clicked (VSX-269 review).
+		const dirOf = (id: string): string | undefined =>
+			ARTIFACTS.map(a => a.dir).find(d => new RegExp(`^md-artifacts\\.(insert|create)\\.${d.toLowerCase()}(\\.|$)`).test(id));
+		let checked = 0;
+		for (const surface of ALL_SURFACES) {
+			for (const menu of [`md-artifacts.submenu.${surface}`, `md-artifacts.submenu.create.${surface}`]) {
+				for (const e of (pkg.contributes.menus[menu] ?? []).filter(x => x.command)) {
+					const dir = dirOf(e.command!);
+					assert.ok(dir, `${menu}: ${e.command} maps to no ARTIFACTS dir`);
+					const key = artifactContextKey(dir);
+					assert.ok(e.when?.includes(key), `${menu}: ${e.command} must be gated on ${key}, got "${e.when}"`);
+					checked++;
+				}
+			}
+		}
+		assert.ok(checked >= 10, `only ${checked} submenu items checked — guard ran vacuously`);
 	});
 
 	// ── T3: both-context artifacts get a dedicated terminal-surface command ────

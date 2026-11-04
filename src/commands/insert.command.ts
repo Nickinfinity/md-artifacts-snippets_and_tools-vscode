@@ -73,22 +73,15 @@ export function artifactTerminalCommandId(dir: string): string {
  * (`insert.variables`) appears in every context surface (editor, terminal, explorer).
  * In `package.json` it is placed in group `"2_variables@1"` while all other artifacts
  * use `"1_insert@N"` — VS Code renders different groups with a visual separator, so
- * Variables always appears at the bottom of the MD Artifacts submenu or as a
- * standalone entry below the other artifacts when only it is active.
+ * Variables always appears last in each surface's MD Artifacts ▸ Insert submenu.
  *
- * ### Visibility — single entry vs. submenu
+ * ### Visibility — one root per surface
  *
- * The editor and explorer surfaces (`editor/context`, `explorer/context`) show:
- * - A **direct menu entry** for each active artifact when only one is active in that surface
- *   (`!md-artifacts.<surface>HasMultiple`).
- * - The **"MD Artifacts" submenu** when two or more artifacts are active in that
- *   surface (`md-artifacts.<surface>HasMultiple`).
- *
- * The terminal is different (W-UI b): `terminal/context` holds ONE "MD Artifacts" root
- * entry nesting an **Insert** and a **Create** submenu, so it no longer reads
- * `terminalHasMultiple` / `terminalCreateHasMultiple` (still derived by `context.service.ts`).
- *
- * These `when` clauses and the `*HasMultiple` context keys are managed by `context.service.ts`.
+ * Every surface (`editor/context`, `terminal/context`, `explorer/context`) holds ONE
+ * "MD Artifacts" root entry (`md-artifacts.submenu.<surface>.root`) nesting an
+ * **Insert** and a **Create** submenu — W-UI b for the terminal, VSX-269 for editor
+ * and explorer. Each item is gated by its `md-artifacts.<dir>Active` key, set by
+ * `context.service.ts`; guards: `package-menus.test.ts`, `package-create-menus.test.ts`.
  *
  * @param context - Extension context used to register disposable subscriptions.
  * @returns void

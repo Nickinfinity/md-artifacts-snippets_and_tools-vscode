@@ -19,6 +19,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 
+- The editor and Explorer right-click menus now show a single **MD Artifacts**
+  entry, like the terminal: **Insert ▸** lists the artifact types and Variables,
+  **Create ▸** captures the selection (editor) or the selected file(s) (Explorer).
+
 - **Breaking:** Templates no longer appear in the **editor** right-click menu.
   A template writes a file into your project rather than inserting text at the
   cursor, so it now lives only in the **Explorer** right-click menu as

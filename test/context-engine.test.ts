@@ -36,7 +36,8 @@ suite('context keys from types.list', () => {
 			await refreshVaultContext((k, v) => { set.set(k, v); return Promise.resolve(); });
 			assert.ok(set.size > 0);
 			assert.ok(set.has('md-artifacts.vaultConfigured'));
-			assert.ok(set.has('md-artifacts.explorerCreateHasMultiple'));
+			// VSX-269: every surface is a single root, so no *HasMultiple key is set any more.
+			assert.deepStrictEqual([...set.keys()].filter(k => k.includes('HasMultiple')), []);
 			assert.deepStrictEqual([...set.values()].filter(v => v !== false), []);
 			assert.deepStrictEqual(errors, []);
 		} finally {
