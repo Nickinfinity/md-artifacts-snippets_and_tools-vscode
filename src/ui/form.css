@@ -202,7 +202,13 @@
 .block-code-tools {
   display: flex;
   justify-content: flex-end;
-  margin-top: 4px;
+  margin-top: 0;
+}
+
+/* Flush against the code area it clears: square top corners read as attached. */
+.block-code-tools > .clear-block-btn {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 /* Block header buttons */

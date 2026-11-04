@@ -484,9 +484,8 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
     const addBtn = document.getElementById('add-block-btn');
     if (addBtn) {
       addBtn.addEventListener('click', function() {
-        const cards = allCards();
-        const newIndex = cards.length;
-        if (newIndex === 1) { activateMultiBlock(); }
+        if (allCards().length === 0) { convertInlineToCard(); }
+        const newIndex = allCards().length;
         const newHtml  = buildNewCardHtml(newIndex);
         const tmp      = document.createElement('div');
         tmp.innerHTML  = newHtml;

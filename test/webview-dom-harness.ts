@@ -114,6 +114,20 @@ export class ElementStub {
     }
 
     get id(): string { return this.attrs.id ?? ''; }
+    set id(v: string) { this.attrs.id = v; }
+
+    get firstElementChild(): ElementStub | null { return this.children[0] ?? null; }
+    get options(): ElementStub[] { return this.children.filter((c) => c.tagName === 'option'); }
+    get outerHTML(): string { return serialize([this]); }
+
+    /** Deep clone (attrs, text, value, children); listeners and registry ids are not carried over. */
+    cloneNode(_deep?: boolean): ElementStub {
+        const copy = new ElementStub(this.tagName, { ...this.attrs }, this.registry);
+        copy.value = this.value;
+        copy.ownText = this.ownText;
+        copy.children = this.children.map((c) => { const k = c.cloneNode(true); k.parentElement = copy; return k; });
+        return copy;
+    }
 
     get className(): string { return this.attrs.class ?? ''; }
     set className(v: string) { this.attrs.class = v; }

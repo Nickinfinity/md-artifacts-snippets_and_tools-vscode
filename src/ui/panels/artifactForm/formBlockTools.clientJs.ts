@@ -65,4 +65,30 @@ export const FORM_BLOCK_TOOLS_JS = `
     renderVarsSection(msg.index, []);
     markDirty();
   }
+
+  /**
+   * First "add block" on a single inline block: the inline block becomes card 0,
+   * so extractModel() (which reads cards once any exist) keeps its code, language
+   * and variables. The live '.block-code' node and the vars section are moved,
+   * not rebuilt, so the code area keeps its listeners and typed text.
+   */
+  function convertInlineToCard() {
+    const inline = blocksArea ? blocksArea.querySelector('.block') : null;
+    if (!inline) { return; }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = buildNewCardHtml(0);
+    const card = tmp.firstElementChild;
+    const inlineSel = inline.querySelector('.lang-select');
+    const cardSel = card.querySelector('.lang-select');
+    if (inlineSel && cardSel) { cardSel.value = inlineSel.value; }
+    const freshCode = card.querySelector('.block-code');
+    freshCode.parentElement.insertBefore(inline.querySelector('.block-code'), freshCode);
+    freshCode.remove();
+    const vars = inline.querySelector('.vars-section');
+    if (vars) { card.querySelector('.card-body').appendChild(vars); }
+    blocksArea.insertBefore(card, inline);
+    inline.remove();
+    activateMultiBlock();
+    reindexCards();
+  }
 `;
