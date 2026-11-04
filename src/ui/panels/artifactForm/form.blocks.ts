@@ -133,9 +133,9 @@ export const formCodeBlockHtml = (code: string, lang: string): string =>
  *
  * There is no `.card-header` here to hang the expand-to-editor button on (a
  * single-block form also has no language selector for `mode === 'hidden'`
- * types, e.g. `AIAgentsConfig`), so Expand and Clear sit in a
- * `.block-code-tools` row just above `.block-code` (`form.css`): over the code
- * area they hid the text behind them.
+ * types, e.g. `AIAgentsConfig`), so Expand sits at the right end of a
+ * `.block-head-row` shared with the language selector, and Clear under the code
+ * area's bottom-right corner (`form.css`): floated over the code, both hid text.
  *
  * @param block        - The sole block from the model.
  * @param blockIndex   - Always `0` for single-block.
@@ -159,16 +159,47 @@ export function buildSingleBlockContent(
     const codeHtml     = codeBlockHtml(block.code, resolvedLang);
     const varsHtml     = buildVarsTable(block.vars, blockIndex);
     return `<div class="block" data-block-index="${blockIndex}">
+<div class="block-head-row">
 ${langSelector}
-<div class="block-code-tools">
-<button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
-<button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">✕</button>
+${expandButtonHtml(blockIndex)}
 </div>
 <div class="block-code">
 ${codeHtml}
 </div>
+<div class="block-code-tools">
+${clearButtonHtml(blockIndex)}
+</div>
 ${varsHtml}
 </div>`;
+}
+
+/**
+ * The expand-to-editor button, with a tooltip saying what it does.
+ *
+ * @param blockIndex - The block it opens.
+ * @returns The button HTML.
+ *
+ * @example
+ * expandButtonHtml(0); // '<button class="expand-editor-btn" data-block="0" …>⤢</button>'
+ */
+function expandButtonHtml(blockIndex: number): string {
+    const tip = escHtml(vscode.l10n.t('Open this code in a full editor tab. Save there to bring your changes back to the form.'));
+    return `<button class="expand-editor-btn" data-block="${blockIndex}" title="${tip}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>`;
+}
+
+/**
+ * The Clear button, with a tooltip saying what it does. It sits under the code
+ * area's bottom-right corner (`.block-code-tools`, `form.css`).
+ *
+ * @param blockIndex - The block it clears.
+ * @returns The button HTML.
+ *
+ * @example
+ * clearButtonHtml(1); // '<button class="clear-block-btn" data-block="1" …>✕</button>'
+ */
+function clearButtonHtml(blockIndex: number): string {
+    const tip = escHtml(vscode.l10n.t('Clear all the code in this block. You are asked to confirm first.'));
+    return `<button class="clear-block-btn" data-block="${blockIndex}" title="${tip}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">✕</button>`;
 }
 
 // ── Multi-block area (accordion cards) ────────────────────────────────────────
@@ -247,7 +278,7 @@ export function buildBlockCard(
     ${langSelector}
     ${buildReorderButtons('block-card', blockIndex, total, ' data-block="' + blockIndex + '"')}
     <button class="remove-block-btn" data-block="${blockIndex}">×</button>
-    <button class="expand-editor-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Expand block in editor'))}">⤢</button>
+    ${expandButtonHtml(blockIndex)}
     <button class="expand-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Toggle block'))}">⌄</button>
   </div>
   <div class="${bodyClass}" data-block="${blockIndex}">
@@ -255,11 +286,11 @@ export function buildBlockCard(
       <label class="slabel" for="block-${blockIndex}-desc">${escHtml(vscode.l10n.t('Description'))}</label>
       <textarea id="block-${blockIndex}-desc" class="form-input form-textarea" data-block="${blockIndex}" rows="2" placeholder="${escHtml(vscode.l10n.t('Optional block description'))}">${descVal}</textarea>
     </div>
-    <div class="block-code-tools">
-    <button class="clear-block-btn" data-block="${blockIndex}" aria-label="${escHtml(vscode.l10n.t('Clear code in this block'))}">✕</button>
-    </div>
     <div class="block-code">
 ${codeHtml}
+    </div>
+    <div class="block-code-tools">
+    ${clearButtonHtml(blockIndex)}
     </div>
 ${varsHtml}
   </div>

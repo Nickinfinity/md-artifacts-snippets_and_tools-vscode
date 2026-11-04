@@ -273,6 +273,8 @@
   "Clear": "Borrar",
   "Clear the code in this block?": "¿Borrar el código de este bloque?",
   "Clear code in this block": "Borrar el código de este bloque",
+  "Open this code in a full editor tab. Save there to bring your changes back to the form.": "Abre este código en una pestaña completa del editor. Guarda allí para traer tus cambios al formulario.",
+  "Clear all the code in this block. You are asked to confirm first.": "Borra todo el código de este bloque. Antes te pide confirmación.",
   "Name is reserved by the operating system.": "El nombre está reservado por el sistema operativo.",
   "Name is too long (max {0}).": "El nombre es demasiado largo (máximo {0}).",
   "Variables syntax error at line {0}: {1}": "Error de sintaxis de variables en la línea {0}: {1}",

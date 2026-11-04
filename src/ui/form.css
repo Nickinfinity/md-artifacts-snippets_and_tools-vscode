@@ -185,14 +185,24 @@
   background-color: var(--vscode-editor-background);
 }
 
-/* Code-block tools (Expand, Clear): a row above the code area, never over it, so
-   no code is hidden behind a button. Single-block forms carry both; a card keeps
-   Expand in its header and puts only Clear here. */
+/* Single-block forms: the language selector and Expand share one row, Expand at
+   its right end. A hidden-language type (AIAgentsConfig) has no selector, so
+   Expand sits alone at the right of the same row. */
+.block-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-head-row > .expand-editor-btn {
+  margin-left: auto;
+}
+
+/* Clear sits under the code area's bottom-right corner, never over the code. */
 .block-code-tools {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
-  margin-bottom: 4px;
+  margin-top: 4px;
 }
 
 /* Block header buttons */

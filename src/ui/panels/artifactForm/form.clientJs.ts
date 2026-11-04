@@ -17,6 +17,8 @@ import { escHtml } from '../../../utils/html.js';
 const BLOCK_HEADING_JS = jsStr(escHtml(vscode.l10n.t('Block heading')));
 const EXPAND_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Expand block in editor')));
 const CLEAR_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Clear code in this block')));
+const EXPAND_TIP_JS = jsStr(escHtml(vscode.l10n.t('Open this code in a full editor tab. Save there to bring your changes back to the form.')));
+const CLEAR_TIP_JS = jsStr(escHtml(vscode.l10n.t('Clear all the code in this block. You are asked to confirm first.')));
 const TOGGLE_BLOCK_JS = jsStr(escHtml(vscode.l10n.t('Toggle block')));
 const DESCRIPTION_JS = jsStr(escHtml(vscode.l10n.t('Description')));
 const OPTIONAL_BLOCK_DESC_JS = jsStr(escHtml(vscode.l10n.t('Optional block description')));
@@ -157,7 +159,7 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
         langSelHtml +
         reorderButtonsHtml('block-card', ' data-block="' + blockIndex + '"') +
         '<button class="remove-block-btn" data-block="' + blockIndex + '">\xd7</button>' +
-        '<button class="expand-editor-btn" data-block="' + blockIndex + '" aria-label="' + ${EXPAND_BLOCK_JS} + '">⤢</button>' +
+        '<button class="expand-editor-btn" data-block="' + blockIndex + '" title="' + ${EXPAND_TIP_JS} + '" aria-label="' + ${EXPAND_BLOCK_JS} + '">⤢</button>' +
         '<button class="expand-btn" data-block="' + blockIndex + '" aria-label="' + ${TOGGLE_BLOCK_JS} + '">⎾</button>' +
       '</div>' +
       '<div class="card-body expanded" data-block="' + blockIndex + '">' +
@@ -165,10 +167,10 @@ export const FORM_CLIENT_JS: string = `${CODE_BLOCK_CLIENT_JS}
           '<label class="slabel" for="block-' + blockIndex + '-desc">' + ${DESCRIPTION_JS} + '</label>' +
           '<textarea id="block-' + blockIndex + '-desc" class="form-input form-textarea" data-block="' + blockIndex + '" rows="2" placeholder="' + ${OPTIONAL_BLOCK_DESC_JS} + '"></textarea>' +
         '</div>' +
-        '<div class="block-code-tools"><button class="clear-block-btn" data-block="' + blockIndex + '" aria-label="' + ${CLEAR_BLOCK_JS} + '">✕</button></div>' +
         '<div class="block-code">' +
           '<div class="code-block-wrapper editable" contenteditable="true" spellcheck="false" data-lang="' + defLang + '"></div>' +
         '</div>' +
+        '<div class="block-code-tools"><button class="clear-block-btn" data-block="' + blockIndex + '" title="' + ${CLEAR_TIP_JS} + '" aria-label="' + ${CLEAR_BLOCK_JS} + '">✕</button></div>' +
       '</div>' +
     '</div>';
   }

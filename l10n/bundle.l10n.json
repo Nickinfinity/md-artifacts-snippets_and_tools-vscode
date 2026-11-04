@@ -233,6 +233,8 @@
   "Clear": "Clear",
   "Clear the code in this block?": "Clear the code in this block?",
   "Clear code in this block": "Clear code in this block",
+  "Open this code in a full editor tab. Save there to bring your changes back to the form.": "Open this code in a full editor tab. Save there to bring your changes back to the form.",
+  "Clear all the code in this block. You are asked to confirm first.": "Clear all the code in this block. You are asked to confirm first.",
   "Name is reserved by the operating system.": "Name is reserved by the operating system.",
   "Name is too long (max {0}).": "Name is too long (max {0}).",
   "Variables syntax error at line {0}: {1}": "Variables syntax error at line {0}: {1}",
